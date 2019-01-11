@@ -16,19 +16,9 @@
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
 #include "rttrDefines.h" // IWYU pragma: keep
-#include "AIFactory.h"
-#include "ai/DummyAI.h"
-#include "ai/aijh/AIPlayerJH.h"
-#include "ai/beowulf/Beowulf.h"
-#include "gameTypes/AIInfo.h"
 
-AIPlayer* AIFactory::Create(const AI::Info& aiInfo, unsigned playerId, const GameWorldBase& world)
-{
-    switch(aiInfo.type)
-    {
-        case AI::DUMMY: return new DummyAI(playerId, world, aiInfo.level); break;
-        case AI::BEOWULF: return new beowulf::Beowulf(playerId, world, aiInfo.level); break;
-        case AI::DEFAULT:
-        default: return new AIJH::AIPlayerJH(playerId, world, aiInfo.level); break;
-    }
-}
+#include "ai/beowulf/Helper.h"
+
+namespace beowulf {
+
+} // namespace beowulf

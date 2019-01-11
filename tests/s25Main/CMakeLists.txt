@@ -35,6 +35,7 @@ add_subdirectory(mapGenerator)
 add_subdirectory(network)
 add_subdirectory(simple)
 add_subdirectory(UI)
+add_subdirectory(beowulf)
 
 if(WIN32)
     include(GatherDll)

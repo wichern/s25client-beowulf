@@ -58,7 +58,7 @@ void JoinPlayerInfo::InitRating()
         rating = 1000;
     else if(ps == PS_AI)
     {
-        if(aiInfo.type == AI::DEFAULT)
+        if(aiInfo.type == AI::DEFAULT || aiInfo.type == AI::BEOWULF)
         {
             switch(aiInfo.level)
             {
@@ -76,10 +76,18 @@ void JoinPlayerInfo::SetAIName(unsigned playerId)
 {
     RTTR_Assert(ps == PS_AI);
     char str[128];
-    if(aiInfo.type == AI::DUMMY)
+    switch(aiInfo.type)
+    {
+    case AI::DUMMY:
         sprintf(str, _("Dummy %u"), playerId);
-    else
-        sprintf(str, _("Computer %u"), playerId);
+        break;
+    case AI::BEOWULF:
+        sprintf(str, _("Beowulf %u"), playerId);
+        break;
+    default:
+    sprintf(str, _("Computer %u"), playerId);
+        break;
+    }
 
     name = str;
     name += _(" (AI)");

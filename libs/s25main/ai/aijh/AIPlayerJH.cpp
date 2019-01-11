@@ -92,6 +92,8 @@ void HandleRoadNote(AIEventManager& eventMgr, const RoadNote& note)
         case RoadNote::ConstructionFailed:
             eventMgr.AddAIEvent(new AIEvent::Direction(AIEvent::RoadConstructionFailed, note.pos, note.route.front()));
             break;
+        case RoadNote::Destroyed:
+            break;
     }
 }
 void HandleShipNote(AIEventManager& eventMgr, const ShipNote& note)

@@ -26,6 +26,7 @@
 #include "buildings/noBuilding.h"
 #include "figures/nofCarrier.h"
 #include "network/GameClient.h"
+#include "notifications/FlagNote.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "ogl/glSmartBitmap.h"
 #include "world/GameWorldGame.h"
@@ -56,6 +57,8 @@ noFlag::noFlag(const MapPoint pos, const unsigned char player, const unsigned ch
         flagtype = FT_WATER;
     else
         flagtype = FT_NORMAL;
+
+    gwg->GetNotifications().publish(FlagNote(FlagNote::Constructed, pos, player));
 }
 
 noFlag::noFlag(SerializedGameData& sgd, const unsigned obj_id)
@@ -98,6 +101,8 @@ void noFlag::Destroy_noFlag()
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
     gwg->GetPlayer(player).FlagDestroyed(this);
+
+    gwg->GetNotifications().publish(FlagNote(FlagNote::Destroyed, pos, player));
 
     Destroy_noRoadNode();
 }
@@ -335,6 +340,8 @@ void noFlag::Capture(const unsigned char new_owner)
             deletePtr(wares[i]);
         }
     }
+
+    gwg->GetNotifications().publish(FlagNote(FlagNote::Captured, GetPos(), GetPlayer()));
 
     this->player = new_owner;
 }

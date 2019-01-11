@@ -30,7 +30,8 @@ struct RoadNote
     enum Type
     {
         Constructed,
-        ConstructionFailed
+        ConstructionFailed,
+        Destroyed
     };
 
     RoadNote(Type type, unsigned player, const MapPoint& pos, const std::vector<Direction>& route)

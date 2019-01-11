@@ -30,7 +30,10 @@ struct BQCalculator
     template<typename T_IsOnRoad>
     inline BuildingQuality operator()(const MapPoint pt, T_IsOnRoad isOnRoad, bool flagOnly = false) const;
 
-private:
+protected:
+    virtual BlockingManner GetBM(const MapPoint& pt) const {
+        return world.GetNO(pt)->GetBM();
+    }
     const World& world;
 };
 
@@ -38,7 +41,7 @@ template<typename T_IsOnRoad>
 BuildingQuality BQCalculator::operator()(const MapPoint pt, T_IsOnRoad isOnRoad, bool flagOnly /*= false*/) const
 {
     // Cannot build on blocking objects
-    if(world.GetNO(pt)->GetBM() != BlockingManner::None)
+    if(GetBM(pt) != BlockingManner::None)
         return BQ_NOTHING;
 
     //////////////////////////////////////////////////////////////////////////
@@ -130,7 +133,7 @@ BuildingQuality BQCalculator::operator()(const MapPoint pt, T_IsOnRoad isOnRoad,
     // Blocking manners of neighbours (cache for reuse)
     std::array<BlockingManner, 6> neighbourBlocks;
     for(unsigned dir = 0; dir < Direction::COUNT; ++dir)
-        neighbourBlocks[dir] = world.GetNO(world.GetNeighbour(pt, Direction::fromInt(dir)))->GetBM();
+        neighbourBlocks[dir] = GetBM(world.GetNeighbour(pt, Direction::fromInt(dir)));
 
     // Don't build anything around charburner piles
     for(unsigned dir = 0; dir < Direction::COUNT; ++dir)
@@ -200,7 +203,7 @@ BuildingQuality BQCalculator::operator()(const MapPoint pt, T_IsOnRoad isOnRoad,
     {
         for(unsigned i = 0; i < 12; ++i)
         {
-            BlockingManner bm = world.GetNO(world.GetNeighbour2(pt, i))->GetBM();
+            BlockingManner bm = GetBM(world.GetNeighbour2(pt, i));
 
             if(bm == BlockingManner::Building)
             {

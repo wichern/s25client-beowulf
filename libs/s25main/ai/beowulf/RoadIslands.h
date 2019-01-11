@@ -14,21 +14,32 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+#ifndef BEOWULF_ROADISLANDS_H_INCLUDED
+#define BEOWULF_ROADISLANDS_H_INCLUDED
 
-#include "rttrDefines.h" // IWYU pragma: keep
-#include "AIFactory.h"
-#include "ai/DummyAI.h"
-#include "ai/aijh/AIPlayerJH.h"
-#include "ai/beowulf/Beowulf.h"
-#include "gameTypes/AIInfo.h"
+#include "ai/beowulf/Types.h"
 
-AIPlayer* AIFactory::Create(const AI::Info& aiInfo, unsigned playerId, const GameWorldBase& world)
+#include "world/NodeMapBase.h"
+
+namespace beowulf {
+
+class BuildingsBase;
+
+class RoadIslands
 {
-    switch(aiInfo.type)
-    {
-        case AI::DUMMY: return new DummyAI(playerId, world, aiInfo.level); break;
-        case AI::BEOWULF: return new beowulf::Beowulf(playerId, world, aiInfo.level); break;
-        case AI::DEFAULT:
-        default: return new AIJH::AIPlayerJH(playerId, world, aiInfo.level); break;
-    }
-}
+private:
+    NodeMapBase<Island> islands_;
+    const MapBase& world_;
+    Island next_ = 0;
+
+public:
+    RoadIslands(const MapBase& world);
+    Island Get(const MapPoint& pos) const;
+
+    void OnFlagStateChanged(BuildingsBase* buildings, const MapPoint& pos, FlagState state);
+    void Detect(BuildingsBase* buildings);
+};
+
+} // namespace beowulf
+
+#endif //! BEOWULF_ROADISLANDS_H_INCLUDED

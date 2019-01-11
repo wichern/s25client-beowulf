@@ -15,20 +15,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-#include "AIFactory.h"
-#include "ai/DummyAI.h"
-#include "ai/aijh/AIPlayerJH.h"
-#include "ai/beowulf/Beowulf.h"
-#include "gameTypes/AIInfo.h"
+#ifndef FlagNote_h__
+#define FlagNote_h__
 
-AIPlayer* AIFactory::Create(const AI::Info& aiInfo, unsigned playerId, const GameWorldBase& world)
+#include "notifications/notifications.h"
+#include "gameTypes/MapCoordinates.h"
+
+struct FlagNote
 {
-    switch(aiInfo.type)
+    ENABLE_NOTIFICATION(FlagNote);
+
+    enum Type
     {
-        case AI::DUMMY: return new DummyAI(playerId, world, aiInfo.level); break;
-        case AI::BEOWULF: return new beowulf::Beowulf(playerId, world, aiInfo.level); break;
-        case AI::DEFAULT:
-        default: return new AIJH::AIPlayerJH(playerId, world, aiInfo.level); break;
-    }
-}
+        Constructed, // Construction succeeded
+        ConstructionFailed, // Could not be constructed
+        Destroyed, // Flag was destroyed
+        DestructionFailed, // A destruction request failed
+        Captured // Flag was captured (attached military building)
+    };
+
+    FlagNote(Type type, const MapPoint& pt, unsigned player) : type(type), pt(pt), player(player) {}
+
+    const Type type;
+    const MapPoint pt;
+    const unsigned player;
+};
+
+#endif // FlagNote_h__

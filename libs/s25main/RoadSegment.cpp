@@ -27,6 +27,7 @@
 #include "nodeObjs/noFlag.h"
 #include "nodeObjs/noRoadNode.h"
 #include "gameData/BuildingProperties.h"
+#include "notifications/RoadNote.h"
 #include "libutil/Log.h"
 #include <stdexcept>
 
@@ -98,6 +99,8 @@ void RoadSegment::Destroy_RoadSegment()
                 pt = gwg->GetNeighbour(pt, route[i]);
             }
         }
+
+        gwg->GetNotifications().publish(RoadNote(RoadNote::Destroyed, f1->GetPlayer(), f1->GetPos(), route));
 
         route.clear();
     }

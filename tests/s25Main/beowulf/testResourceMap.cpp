@@ -1,4 +1,4 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (c) 2016 - 2017 Settlers Freaks (sf-team at siedler25.org)
 //
 // This file is part of Return To The Roots.
 //
@@ -16,19 +16,25 @@
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
 #include "rttrDefines.h" // IWYU pragma: keep
-#include "AIFactory.h"
-#include "ai/DummyAI.h"
-#include "ai/aijh/AIPlayerJH.h"
-#include "ai/beowulf/Beowulf.h"
-#include "gameTypes/AIInfo.h"
+#include "worldFixtures/WorldWithGCExecution.h"
 
-AIPlayer* AIFactory::Create(const AI::Info& aiInfo, unsigned playerId, const GameWorldBase& world)
+#include "factories/AIFactory.h"
+#include "ai/beowulf/Beowulf.h"
+#include "ai/beowulf/ResourceMap.h"
+
+#include <boost/test/unit_test.hpp>
+
+typedef WorldWithGCExecution<1, 24, 22> BiggerWorldWithGCExecution;
+
+BOOST_AUTO_TEST_SUITE(BeowulfResourceMap)
+
+BOOST_FIXTURE_TEST_CASE(Insert, BiggerWorldWithGCExecution)
 {
-    switch(aiInfo.type)
-    {
-        case AI::DUMMY: return new DummyAI(playerId, world, aiInfo.level); break;
-        case AI::BEOWULF: return new beowulf::Beowulf(playerId, world, aiInfo.level); break;
-        case AI::DEFAULT:
-        default: return new AIJH::AIPlayerJH(playerId, world, aiInfo.level); break;
-    }
+    std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
+    beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
+
+    beowulf::ResourceMap rm(beowulf.GetAIInterface());
+    rm.Refresh();
 }
+
+BOOST_AUTO_TEST_SUITE_END()

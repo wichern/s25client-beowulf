@@ -1,4 +1,4 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (c) 2016 - 2017 Settlers Freaks (sf-team at siedler25.org)
 //
 // This file is part of Return To The Roots.
 //
@@ -15,20 +15,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-#include "AIFactory.h"
-#include "ai/DummyAI.h"
-#include "ai/aijh/AIPlayerJH.h"
-#include "ai/beowulf/Beowulf.h"
-#include "gameTypes/AIInfo.h"
+#define BOOST_TEST_MODULE RTTR_Beowulf
 
-AIPlayer* AIFactory::Create(const AI::Info& aiInfo, unsigned playerId, const GameWorldBase& world)
-{
-    switch(aiInfo.type)
-    {
-        case AI::DUMMY: return new DummyAI(playerId, world, aiInfo.level); break;
-        case AI::BEOWULF: return new beowulf::Beowulf(playerId, world, aiInfo.level); break;
-        case AI::DEFAULT:
-        default: return new AIJH::AIPlayerJH(playerId, world, aiInfo.level); break;
-    }
-}
+#include "rttrDefines.h" // IWYU pragma: keep
+#include <boost/test/unit_test.hpp>
+#include <rttr/test/Fixture.hpp>
+
+//#include <vld.h>
+
+struct Fixture : rttr::test::Fixture
+{};
+
+#if BOOST_VERSION >= 105900
+BOOST_GLOBAL_FIXTURE(Fixture);
+#else
+// Boost < 1.59 got the semicolon inside the macro causing an "extra ;" warning
+BOOST_GLOBAL_FIXTURE(Fixture)
+#endif

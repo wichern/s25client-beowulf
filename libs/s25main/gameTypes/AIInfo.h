@@ -31,7 +31,8 @@ enum Level
 enum Type
 {
     DUMMY = 0,
-    DEFAULT
+    DEFAULT,
+    BEOWULF,
 };
 
 struct Info

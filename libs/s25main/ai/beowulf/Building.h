@@ -1,0 +1,81 @@
+// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+//
+// This file is part of Return To The Roots.
+//
+// Return To The Roots is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// Return To The Roots is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+#ifndef BEOWULF_BUILDING_H_INCLUDED
+#define BEOWULF_BUILDING_H_INCLUDED
+
+#include "ai/beowulf/Types.h"
+
+#include "gameTypes/MapCoordinates.h"
+#include "gameTypes/BuildingQuality.h"
+
+#include <vector>
+
+namespace beowulf {
+
+class Buildings;
+// class IBuildings;
+
+class Building
+{
+public:
+    enum State {
+        // The planning of this building is requested.
+        PlanningRequest,
+
+        // A game command for placing this building has been sent with AIInterface.
+        ConstructionRequested,
+
+        // A construction site has been placed.
+        UnderConstruction,
+
+        // The builing is fully built.
+        Finished,
+
+        // A game command for destruction of this building has been sent with AIInterface.
+        DestructionRequested
+    };
+
+private:
+    Buildings& buildings_;
+    MapPoint pos_;
+    BuildingType type_;
+    State state_;
+    ProductionGroup group_;
+
+    // Only 'Buildings' can create and destroy building objects or change their state or group.
+    friend class Buildings;
+    friend class BuildingsPlan;
+
+    Building(Buildings& buildings, BuildingType type, State state);
+    ~Building() = default;
+
+public:
+    const MapPoint& GetPos() const;
+    MapPoint GetFlag() const;
+    BuildingType GetType() const;
+    State GetState() const;
+    ProductionGroup GetGroup() const;
+    BuildingQuality GetQuality() const;
+    unsigned GetDistance(const MapPoint& pos) const;
+    bool IsProduction() const;
+};
+
+// Building* GetGoodsDest(IBuildings* buildings, const Building* building, Island island);
+
+} // namespace beowulf
+
+#endif //! BEOWULF_BUILDING_H_INCLUDED
