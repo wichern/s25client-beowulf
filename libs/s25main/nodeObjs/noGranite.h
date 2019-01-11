@@ -54,6 +54,8 @@ public:
     /// Erzeugt von ihnen selbst ein FOW Objekt als visuelle "Erinnerung" für den Fog of War
     FOWObject* CreateFOWObject() const override;
 
+    unsigned char GetAmount() const { return state; }
+
     /// "Bearbeitet" den Granitglotz --> haut ein Stein ab
     void Hew();
     /// Gibt true zurück, falls der Granitblock nur noch 1 Stein groß ist und damit dann vernichtet werden kann

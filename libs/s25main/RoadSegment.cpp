@@ -27,7 +27,10 @@
 #include "nodeObjs/noRoadNode.h"
 #include "gameData/BuildingProperties.h"
 #include "s25util/Log.h"
+#include "notifications/RoadNote.h"
 #include <utility>
+//#include "libutil/Log.h"
+//#include <stdexcept>
 
 RoadSegment::RoadSegment(const RoadType rt, noRoadNode* const f1, noRoadNode* const f2, std::vector<Direction> route)
     : rt(rt), f1(f1), f2(f2), route(std::move(route))
@@ -97,6 +100,8 @@ void RoadSegment::Destroy_RoadSegment()
                 pt = gwg->GetNeighbour(pt, route[i]);
             }
         }
+
+        gwg->GetNotifications().publish(RoadNote(RoadNote::Destroyed, f1->GetPlayer(), f1->GetPos(), route));
 
         route.clear();
     }

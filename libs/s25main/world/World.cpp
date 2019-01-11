@@ -316,6 +316,16 @@ bool World::IsWaterPoint(const MapPoint pt) const
     return World::IsOfTerrain(pt, [](const auto& desc) { return desc.kind == TerrainKind::WATER; });
 }
 
+bool World::IsMineable(const MapPoint pt) const
+{
+    return World::IsOfTerrain(pt, [](TerrainDesc desc) { return desc.Is(ETerrain::Mineable); });
+}
+
+bool World::IsWalkable(const MapPoint pt) const
+{
+    return GetDescription().get(GetNode(pt).t1).Is(ETerrain::Walkable);
+}
+
 unsigned World::GetSeaSize(const unsigned seaId) const
 {
     RTTR_Assert(seaId > 0 && seaId <= seas.size());

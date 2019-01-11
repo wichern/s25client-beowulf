@@ -36,6 +36,8 @@
 #include "gameData/GameConsts.h"
 #include "gameData/TerrainDesc.h"
 #include <utility>
+#include <boost/lambda/lambda.hpp>
+#include <boost/lambda/bind.hpp>
 
 GameWorldBase::GameWorldBase(std::vector<GamePlayer> players, const GlobalGameSettings& gameSettings, EventManager& em)
     : roadPathFinder(new RoadPathFinder(*this)), freePathFinder(new FreePathFinder(*this)), players(std::move(players)),
@@ -169,6 +171,24 @@ bool GameWorldBase::IsOnRoad(const MapPoint& pt) const
             return true;
     }
     return false;
+}
+
+bool GameWorldBase::IsPlantSpace(const MapPoint& pt) const
+{
+    NodalObjectType no = GetNO(pt)->GetType();
+    if (!(no == NOP_NOTHING || no == NOP_ENVIRONMENT))
+        return false;
+
+    if (IsOnRoad(pt))
+        return false;
+
+    if (!World::IsOfTerrain(pt, boost::lambda::bind(&TerrainDesc::IsVital, boost::lambda::_1)))
+        return false;
+
+    if (!GetDescription().get(GetNode(pt).t1).Is(ETerrain::Walkable))
+        return false;
+
+    return true;
 }
 
 bool GameWorldBase::IsFlagAround(const MapPoint& pt) const

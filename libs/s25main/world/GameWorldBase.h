@@ -95,6 +95,8 @@ public:
     bool IsOnRoad(const MapPoint& pt) const;
     /// Check if a flag is at a neighbour node
     bool IsFlagAround(const MapPoint& pt) const;
+    /// Return true, if the point can be used for planting (trees, fields, etc).
+    bool IsPlantSpace(const MapPoint& pt) const;
 
     /// Berechnet BQ bei einer gebauten Stra�e
     void RecalcBQForRoad(MapPoint pt);

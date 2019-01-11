@@ -80,6 +80,10 @@ void HandleBuildingNote(AIEventManager& eventMgr, const BuildingNote& note)
         case BuildingNote::LuaOrder:
             ev = std::make_unique<AIEvent::Building>(AIEvent::LuaConstructionOrder, note.pos, note.bld);
             break;
+        case BuildingNote::BuildingSiteAdded:
+        case BuildingNote::SetBuildingSiteFailed:
+        case BuildingNote::DestructionFailed:
+            return;
         default: RTTR_Assert(false); return;
     }
     eventMgr.AddAIEvent(std::move(ev));
@@ -111,6 +115,8 @@ void HandleRoadNote(AIEventManager& eventMgr, const RoadNote& note)
         case RoadNote::ConstructionFailed:
             eventMgr.AddAIEvent(
               std::make_unique<AIEvent::Direction>(AIEvent::RoadConstructionFailed, note.pos, note.route.front()));
+            break;
+        case RoadNote::Destroyed:
             break;
     }
 }

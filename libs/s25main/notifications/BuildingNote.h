@@ -33,7 +33,10 @@ struct BuildingNote
         Lost,         /// Military building was captured or lost
         NoRessources, /// Building can't find any more resources
         LuaOrder,     /// Ordered to build by lua
-        LostLand      /// Lost land to another player's military building
+        LostLand,     /// Lost land to another player's military building
+        BuildingSiteAdded,     /// New building site added
+        SetBuildingSiteFailed, /// Cannot set building site
+        DestructionFailed      /// Cannot destruct building
     };
 
     BuildingNote(Type type, unsigned player, const MapPoint& pos, BuildingType bld)

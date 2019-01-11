@@ -70,6 +70,10 @@ public:
     template<class T_IsValidPt>
     bool CheckPointsInRadius(MapPoint pt, unsigned radius, T_IsValidPt&& isValid, bool includePt) const;
 
+    /// Call visitor for every point in radius.
+    template<class T_VisitPt>
+    void VisitPointsInRadius(const MapPoint pt, const unsigned radius, T_VisitPt visitor, bool includePt) const;
+
     /// Return the distance between 2 points on the map (includes wrapping around map borders)
     unsigned CalcDistance(const Position& p1, const Position& p2) const;
     unsigned CalcDistance(const MapPoint p1, const MapPoint p2) const
@@ -162,4 +166,28 @@ inline bool MapBase::CheckPointsInRadius(const MapPoint pt, unsigned radius, T_I
         }
     }
     return false;
+}
+
+template<class T_VisitPt>
+inline void MapBase::VisitPointsInRadius(const MapPoint pt, const unsigned radius, T_VisitPt visitor, bool includePt) const
+{
+    if(includePt)
+        visitor(pt);
+
+    MapPoint curStartPt = pt;
+    for(unsigned r = 1; r <= radius; ++r)
+    {
+        // Go one level/hull to the left
+        curStartPt = GetNeighbour(curStartPt, Direction::WEST);
+        // Now iterate over the "circle" of radius r by going r steps in one direction, turn right and repeat
+        MapPoint curPt = curStartPt;
+        for(unsigned i = Direction::NORTHEAST; i < Direction::NORTHEAST + Direction::COUNT; ++i)
+        {
+            for(unsigned step = 0; step < r; ++step)
+            {
+                visitor(curPt);
+                curPt = GetNeighbour(curPt, Direction(i));
+            }
+        }
+    }
 }

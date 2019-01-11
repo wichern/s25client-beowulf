@@ -67,6 +67,9 @@ protected:
     /// wird von abgeleiteten Klassen aufgerufen, wenn sie die Ware an der Fahne vorm Gebäude ablegen wollen (oder auch
     /// nicht) also fertig mit Arbeiten sind
     void WorkingReady();
+    /// The produced ware was delivered at the flag in front of the building.
+    /// Overwrite for special action in that case.
+    virtual void WareDelivered() {}
     /// wenn man beim Arbeitsplatz "kündigen" soll, man das Laufen zum Ziel unterbrechen muss (warum auch immer)
     void AbrogateWorkplace() override;
     /// Tries to start working.

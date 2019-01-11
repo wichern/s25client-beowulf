@@ -45,6 +45,7 @@ protected:
 
     bool AreWaresAvailable() const override;
     bool StartWorking() override;
+    void WareDelivered() override;
     void CheckForOrders();
 
 public:

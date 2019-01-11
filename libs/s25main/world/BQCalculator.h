@@ -29,7 +29,10 @@ struct BQCalculator
     template<typename T_IsOnRoad>
     inline BuildingQuality operator()(MapPoint pt, T_IsOnRoad isOnRoad, bool flagOnly = false) const;
 
-private:
+protected:
+    virtual BlockingManner GetBM(const MapPoint& pt) const {
+        return world.GetNO(pt)->GetBM();
+    }
     const World& world;
 };
 
@@ -37,7 +40,7 @@ template<typename T_IsOnRoad>
 BuildingQuality BQCalculator::operator()(const MapPoint pt, T_IsOnRoad isOnRoad, bool flagOnly /*= false*/) const
 {
     // Cannot build on blocking objects
-    if(world.GetNO(pt)->GetBM() != BlockingManner::None)
+    if(GetBM(pt) != BlockingManner::None)
         return BQ_NOTHING;
 
     //////////////////////////////////////////////////////////////////////////
@@ -198,7 +201,7 @@ BuildingQuality BQCalculator::operator()(const MapPoint pt, T_IsOnRoad isOnRoad,
     {
         for(unsigned i = 0; i < 12; ++i)
         {
-            BlockingManner bm = world.GetNO(world.GetNeighbour2(pt, i))->GetBM();
+            BlockingManner bm = GetBM(world.GetNeighbour2(pt, i));
 
             if(bm == BlockingManner::Building)
             {

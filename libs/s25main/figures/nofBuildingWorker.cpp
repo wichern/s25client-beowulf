@@ -177,6 +177,7 @@ void nofBuildingWorker::WorkingReady()
             gwg->GetPlayer(this->player).IncreaseMerchandiseStatistic(ware_type);
             // Tragen nun keine Ware mehr
             ware = boost::none;
+            WareDelivered();
         }
     }
 

@@ -156,6 +156,11 @@ bool nofMetalworker::StartWorking()
     return nextProducedTool && nofWorkman::StartWorking();
 }
 
+void nofMetalworker::WareDelivered()
+{
+    gwg->GetNotifications().publish(ToolNote(ToolNote::ToolProduced, player));
+}
+
 void nofMetalworker::CheckForOrders()
 {
     // If we are waiting and an order or setting was changed -> See if we can work

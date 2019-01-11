@@ -35,6 +35,7 @@
 #include "notifications/ExpeditionNote.h"
 #include "notifications/NodeNote.h"
 #include "notifications/RoadNote.h"
+#include "notifications/FlagNote.h"
 #include "pathfinding/PathConditionHuman.h"
 #include "pathfinding/PathConditionRoad.h"
 #include "postSystem/PostMsgWithBuilding.h"
@@ -83,11 +84,15 @@ MilitarySquares& GameWorldGame::GetMilitarySquares()
 
 void GameWorldGame::SetFlag(const MapPoint pt, const unsigned char player)
 {
-    if(GetBQ(pt, player) == BQ_NOTHING)
+    if(GetBQ(pt, player) == BQ_NOTHING) {
+        GetNotifications().publish(FlagNote(FlagNote::ConstructionFailed, pt, player));
         return;
+    }
     // There must be no other flag around that point
-    if(IsFlagAround(pt))
+    if(IsFlagAround(pt)) {
+        GetNotifications().publish(FlagNote(FlagNote::ConstructionFailed, pt, player));
         return;
+    }
 
     // Gucken, nicht, dass schon eine Flagge dasteht
     if(GetNO(pt)->GetType() != NOP_FLAG)
@@ -96,6 +101,8 @@ void GameWorldGame::SetFlag(const MapPoint pt, const unsigned char player)
         SetNO(pt, new noFlag(pt, player));
 
         RecalcBQAroundPointBig(pt);
+    } else {
+        GetNotifications().publish(FlagNote(FlagNote::ConstructionFailed, pt, player));
     }
 }
 
@@ -105,8 +112,10 @@ void GameWorldGame::DestroyFlag(const MapPoint pt, unsigned char playerId)
     if(GetNO(pt)->GetType() == NOP_FLAG)
     {
         auto* flag = GetSpecObj<noFlag>(pt);
-        if(flag->GetPlayer() != playerId)
+        if(flag->GetPlayer() != playerId) {
+            GetNotifications().publish(FlagNote(FlagNote::DestructionFailed, pt, playerId));
             return;
+        }
 
         // Get the attached building if existing
         noBase* building = GetNO(GetNeighbour(pt, Direction::NORTHWEST));
@@ -115,8 +124,10 @@ void GameWorldGame::DestroyFlag(const MapPoint pt, unsigned char playerId)
         if(building->GetGOT() == GOT_NOB_MILITARY)
         {
             // Maybe demolition of the building is not allowed?
-            if(!static_cast<nobMilitary*>(building)->IsDemolitionAllowed())
+            if(!static_cast<nobMilitary*>(building)->IsDemolitionAllowed()) {
+                GetNotifications().publish(FlagNote(FlagNote::DestructionFailed, pt, playerId));
                 return; // Abort the whole thing
+            }
         }
 
         // Demolish, also the building
@@ -124,6 +135,8 @@ void GameWorldGame::DestroyFlag(const MapPoint pt, unsigned char playerId)
 
         DestroyNO(pt, false);
         RecalcBQAroundPointBig(pt);
+    } else {
+        GetNotifications().publish(FlagNote(FlagNote::DestructionFailed, pt, playerId));
     }
 
     if(gi)
@@ -141,29 +154,38 @@ void GameWorldGame::SetPointRoad(MapPoint pt, const Direction dir, const PointRo
 
 void GameWorldGame::SetBuildingSite(const BuildingType type, const MapPoint pt, const unsigned char player)
 {
-    if(!GetPlayer(player).IsBuildingEnabled(type))
+    if(!GetPlayer(player).IsBuildingEnabled(type)) {
+        GetNotifications().publish(BuildingNote(BuildingNote::SetBuildingSiteFailed, player, pt, type));
         return;
+    }
 
     // Gucken, ob das Gebäude hier überhaupt noch gebaut wrden kann
-    if(!canUseBq(GetBQ(pt, player), BUILDING_SIZE[type]))
+    if(!canUseBq(GetBQ(pt, player), BUILDING_SIZE[type])) {
+        GetNotifications().publish(BuildingNote(BuildingNote::SetBuildingSiteFailed, player, pt, type));
         return;
+    }
 
     // Wenn das ein Militärgebäude ist und andere Militärgebäude bereits in der Nähe sind, darf dieses nicht gebaut
     // werden
     if(BuildingProperties::IsMilitary(type))
     {
-        if(IsMilitaryBuildingNearNode(pt, player))
+        if(IsMilitaryBuildingNearNode(pt, player)) {
+            GetNotifications().publish(BuildingNote(BuildingNote::SetBuildingSiteFailed, player, pt, type));
             return;
+        }
     }
 
     // Prüfen ob Katapult und ob Katapult erlaubt ist
-    if(type == BLD_CATAPULT && !GetPlayer(player).CanBuildCatapult())
+    if(type == BLD_CATAPULT && !GetPlayer(player).CanBuildCatapult()) {
+        GetNotifications().publish(BuildingNote(BuildingNote::SetBuildingSiteFailed, player, pt, type));
         return;
+    }
 
     DestroyNO(pt, false);
 
     // Baustelle setzen
     SetNO(pt, new noBuildingSite(type, pt, player));
+    GetNotifications().publish(BuildingNote(BuildingNote::BuildingSiteAdded, player, pt, type));
     if(gi)
         gi->GI_UpdateMinimap(pt);
 
@@ -180,20 +202,26 @@ void GameWorldGame::DestroyBuilding(const MapPoint pt, const unsigned char playe
         auto* nbb = GetSpecObj<noBaseBuilding>(pt);
 
         // Ist das Gebäude auch von dem Spieler, der es abreißen will?
-        if(nbb->GetPlayer() != player)
+        if(nbb->GetPlayer() != player) {
+            GetNotifications().publish(BuildingNote(BuildingNote::DestructionFailed, player, pt, nbb->GetBuildingType()));
             return;
+        }
 
         // Militärgebäude?
         if(nbb->GetGOT() == GOT_NOB_MILITARY)
         {
             // Darf das Gebäude abgerissen werden?
-            if(!static_cast<nobMilitary*>(nbb)->IsDemolitionAllowed())
+            if(!static_cast<nobMilitary*>(nbb)->IsDemolitionAllowed()) {
+                GetNotifications().publish(BuildingNote(BuildingNote::DestructionFailed, player, pt, nbb->GetBuildingType()));
                 return;
+            }
         }
 
         DestroyNO(pt);
         // Bauplätze drumrum neu berechnen
         RecalcBQAroundPointBig(pt);
+    } else {
+        GetNotifications().publish(BuildingNote(BuildingNote::DestructionFailed, player, pt, BLD_NOTHING));
     }
 }
 

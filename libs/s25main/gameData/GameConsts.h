@@ -36,3 +36,5 @@ const unsigned NUM_OBJECTIVES = 3;
 /// tournament modes
 const unsigned NUM_TOURNAMENT_MODESS = 5;
 const std::array<unsigned, NUM_TOURNAMENT_MODESS> SUPPRESS_UNUSED TOURNAMENT_MODES_DURATION = {30, 60, 90, 120, 240};
+
+const unsigned CATAPULT_ATTACK_RANGE = 14;

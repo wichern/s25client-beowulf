@@ -152,7 +152,11 @@ public:
     /// Return whether a node is inside a (shippable) sea (surrounded by shippable water)
     bool IsSeaPoint(MapPoint pt) const;
     /// Return true, if the point is surrounded by water
-    bool IsWaterPoint(MapPoint pt) const;
+    bool IsWaterPoint(const MapPoint pt) const;
+    /// Return true, if the point can hold ore for mining.
+    bool IsMineable(const MapPoint pt) const;
+    /// Return true, if the point can be walked.
+    bool IsWalkable(const MapPoint pt) const;
     /// Return true if all surrounding terrains match the given predicate
     template<class T_Predicate>
     bool IsOfTerrain(MapPoint pt, T_Predicate predicate) const;

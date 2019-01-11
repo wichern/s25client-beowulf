@@ -54,10 +54,21 @@ void JoinPlayerInfo::FixSwappedSaveSlot(JoinPlayerInfo& other)
 void JoinPlayerInfo::SetAIName(unsigned playerId)
 {
     RTTR_Assert(ps == PS_AI);
-    name = (boost::format((aiInfo.type == AI::DUMMY) ? _("Dummy %u") : _("Computer %u")) % playerId).str();
+
+    switch (aiInfo.type)
+    {
+        case AI::DUMMY:
+            name = (boost::format(_("Dummy %u")) % playerId).str();
+            break;
+        case AI::BEOWULF:
+            name = (boost::format(_("Beowulf %u")) % playerId).str(); break;
+        default: 
+            name = (boost::format(_("Computer %u")) % playerId).str(); break;
+    }
+
     name += _(" (AI)");
 
-    if(aiInfo.type == AI::DEFAULT)
+    if(aiInfo.type == AI::DEFAULT || aiInfo.type == AI::BEOWULF)
     {
         switch(aiInfo.level)
         {

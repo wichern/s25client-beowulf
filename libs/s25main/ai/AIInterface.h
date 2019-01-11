@@ -156,6 +156,8 @@ public:
     bool IsExplorationDirectionPossible(MapPoint pt, unsigned originHarborID, ShipDirection direction) const;
     unsigned GetNation() { return player_.nation; }
 
+    bool HasIssuedGameCommands() const { return !gcs.empty(); }
+
     bool SetCoinsAllowed(const nobMilitary* building, bool enabled);
     using GameCommandFactory::SetCoinsAllowed;
 
