@@ -18,57 +18,10 @@
 #include "rttrDefines.h" // IWYU pragma: keep
 
 #include "ai/beowulf/Debug.h"
-#include "ai/beowulf/BuildLocations.h"
-#include "ai/beowulf/Buildings.h"
 
-#include "ai/AIInterface.h"
-#include "gameTypes/BuildingQuality.h"
-#include "gameData/MapConsts.h"
-#include "gameData/BuildingConsts.h"
-#include "world/MapGeometry.h"
-
-#include <boost/nowide/fstream.hpp>
 #include <boost/lexical_cast.hpp>
 
 namespace beowulf {
-
-static const std::string g_SvgDefs =
-        "<defs>\n"
-        "\t<g id=\"existing-building\">\n"
-        "\t\t<circle r=\"12\" stroke=\"black\" fill=\"red\" />\n"
-        "\t</g>\n"
-        "\t<g id=\"flag\">\n"
-        "\t\t<circle r=\"5\" stroke=\"black\" fill=\"yellow\" />\n"
-        "\t</g>\n"
-        "\t<g id=\"flag-planned\">\n"
-        "\t\t<circle r=\"5\" stroke=\"black\" fill=\"grey\" />\n"
-        "[...]"
-        "\t<g id=\"road-e\">\n"
-        "\t\t<line x1=\"0\" y1=\"0\" x2=\"56\" y2=\"0\" />\n"
-        "\t</g>\n"
-        "\t<g id=\"road-se\">\n"
-        "\t\t<line x1=\"0\" y1=\"0\" x2=\"28\" y2=\"28\" />\n"
-        "\t</g>\n"
-        "\t<g id=\"road-sw\">\n"
-        "\t\t<line x1=\"0\" y1=\"0\" x2=\"-28\" y2=\"28\" />\n"
-        "\t</g>\n"
-        "</defs>\n";
-
-static const std::string BUILDING_ICONS[7] = {
-    "",
-    "flag",
-    "hut",
-    "house",
-    "castle",
-    "mine",
-    "harbour"
-};
-
-static const std::string ROAD_DIRECTIONS[3] = {
-    "e",
-    "se",
-    "sw"
-};
 
 std::string to_string(unsigned val) {
     return boost::lexical_cast<std::string>(val);
@@ -139,116 +92,193 @@ std::string to_string(Direction dir)
     }
 }
 
-std::string make_coords(unsigned x, unsigned y) {
-    return "x=\"" + to_string(x) + "\" y=\"" + to_string(y) + "\"";
-}
-
-std::string make_text(unsigned x, unsigned y, const std::string& content) {
-    return "<text " + make_coords(x, y) + " font-size=\"5px\">" + content + "</text>\n";
-}
-
-std::string make_building_quality(const Position& pt, BuildingQuality bq) {
-    return "<use xlink:href=\"#" + BUILDING_ICONS[bq] + "\" " + make_coords(pt.x, pt.y) + "/>\n";
-}
-
-std::string make_existing_building(const Position& pt) {
-    return "<use xlink:href=\"#existing-building\" " + make_coords(pt.x, pt.y) + "/>\n";
-}
-
-std::string make_road(const Position& pt, unsigned direction, const std::string& attributes = "")
+AsciiMap::AsciiMap(const MapExtent& size, int scale)
 {
-    return "<use xlink:href=\"#road-" + ROAD_DIRECTIONS[direction] + "\" " + make_coords(pt.x, pt.y) + " " + attributes + " />\n";
+    init(size, scale);
 }
 
-//std::string make_road_label(const Position& pt, unsigned direction, const std::string& content)
-//{
-//    Position pos;
-//    switch (direction) {
-//    case Direction::WEST:
-//        pos.x = pt.x - (56/2) - 5; // a little to the left
-//        pos.y = pt.y + 5; // on top of that line
-//        break;
-//    case Direction::NORTHWEST:
-//        pos.x = pt.x - (28/2) + 4; // alittle to the right
-//        pos.y = pt.y - (28/2);
-//        break;
-//    case Direction::NORTHEAST:
-//        pos.x = pt.x + (28/2) + 4; // alittle to the right
-//        pos.y = pt.y - (28/2); // a little to the top
-//        break;
-//    default:
-//        RTTR_Assert(false);
-//    }
-//    return "<text " + make_coords(pos.x, pos.y) + " font-size=\"4px\" color=\"blue\">" + content + "</text>\n";
-//}
-
-std::string make_planned_flag(const Position& pt)
+AsciiMap::AsciiMap(const AIInterface& aii, int scale)
 {
-    return "<use xlink:href=\"#flag-planned\" " + make_coords(pt.x, pt.y) + " />\n";
-}
+    init(aii.gwb.GetSize(), scale);
 
-void CreateSvg(
-        const AIInterface& aii,
-        const BuildLocations& bl,
-        const std::string& path)
-{
-    boost::nowide::ofstream stream;
-    stream.open(path);
-
-    stream << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
-    stream << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\""
-           << to_string(aii.gwb.GetWidth() * TR_W) << "\" height=\""
-           << to_string(aii.gwb.GetHeight() * TR_H) << "px\">\n";
-    stream << g_SvgDefs;
-
-    for (MapPoint loc : bl.Get(BQ_HUT)) {
-        Position pos = GetNodePos(loc);
-        stream << make_building_quality(pos, bl.Get(loc));
-        stream << make_text(pos.x, pos.y, to_string(loc.x) + ":" + to_string(loc.y));
+    RTTR_FOREACH_PT(MapPoint, map_size_) {
+        if (aii.IsOwnTerritory(pt))
+            setNode(pt, '_');
+        else
+            setNode(pt, '.');
     }
-
-    stream << "</svg>\n";
 }
 
-void CreateSvg(
-        const AIInterface& aii,
-        const Buildings& buildings,
-        const std::string& path)
+AsciiMap::~AsciiMap()
 {
-    boost::nowide::ofstream stream;
-    stream.open(path);
+    if (map_)
+        delete [] map_;
+}
 
-    stream << "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n";
-    stream << "<svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" width=\""
-           << to_string(aii.gwb.GetWidth() * TR_W) << "\" height=\""
-           << to_string(aii.gwb.GetHeight() * TR_H) << "px\">\n";
-    stream << g_SvgDefs;
+void AsciiMap::setNode(const MapPoint& pt, char c)
+{
+    set(getPos(pt), c);
+}
 
-    for (const Building* b : buildings.Get()) {
-        Position pos = GetNodePos(b->GetPos());
-        stream << make_building_quality(pos, BUILDING_SIZE[b->GetType()]);
-    }
+void AsciiMap::setNode(const MapPoint& pt, std::string str)
+{
+    set(getPos(pt), str);
+}
 
-    RTTR_FOREACH_PT(MapPoint, aii.gwb.GetSize())
+void AsciiMap::drawEdge(const MapPoint& pt, unsigned dir, bool fat)
+{
+    AsciiPosition pos = getPos(pt);
+
+    AsciiPosition::ElementType length = scale_w_ - 1;
+    if (dir != Direction::WEST && dir != Direction::EAST)
+        length = (scale_w_/2) - 1;
+
+    switch (dir)
     {
-        Position pos = GetNodePos(pt);
+    case Direction::EAST:
+    {
+        pos.x += 1;
+    } break;
+    case Direction::SOUTHEAST:
+    {
+        pos.x += 1;
+        pos.y += 1;
+    } break;
+    case Direction::SOUTHWEST:
+    {
+        pos.x -= 1;
+        pos.y += 1;
+    } break;
+    }
 
-        if (buildings.GetFlagState(pt) == FlagFinished)
-            stream << make_building_quality(pos, BQ_FLAG);
-        else if (buildings.GetFlagState(pt) == FlagRequested)
-            stream << make_building_quality(pos, BQ_FLAG);
+    for (AsciiPosition::ElementType i = 0; i < length && onMap(pos); ++i) {
+        switch (dir)
+        {
+        case Direction::EAST:
+        {
+            set(pos, fat ? '=' : '-');
+            pos.x += 1;
+        } break;
+        case Direction::SOUTHEAST:
+        {
+            set(pos, '\\');
+            if (fat) set({pos.x + 1, pos.y}, '\\');
+            pos.x += 1;
+            pos.y += 1;
+        } break;
+        case Direction::SOUTHWEST:
+        {
+            set(pos, '/');
+            if (fat) set({pos.x + 1, pos.y}, '/');
+            pos.x -= 1;
+            pos.y += 1;
+        } break;
+        }
+    }
+}
+
+void AsciiMap::addLayer(const Buildings& buildings)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        if (buildings.GetFlagState(pt) == beowulf::FlagFinished)
+            setNode(pt, 'f');
+        else if (buildings.GetFlagState(pt) == beowulf::FlagRequested)
+            setNode(pt, "f+");
+        else if (buildings.GetFlagState(pt) == beowulf::FlagDestructionRequested)
+            setNode(pt, "f-");
+    }
+}
+
+void AsciiMap::addLayer(const BuildingsPlan& plan)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        if (plan.HasFlag(pt))
+            setNode(pt, 'f');
 
         for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
-            if (buildings.GetRoadState(pt, Direction(dir)) == RoadFinished)
-                stream << make_road(pos, dir - Direction::EAST, "stroke=\"black\"");
-            if (buildings.GetRoadState(pt, Direction(dir)) == RoadRequested)
-                stream << make_road(pos, dir - Direction::EAST, "stroke=\"yellow\"");
+            if (plan.HasRoad(pt, Direction(dir)))
+                drawEdge(pt, dir);
         }
+    }
+}
 
-        stream << make_text(pos.x, pos.y, to_string(pt.x) + ":" + to_string(pt.y));
+void AsciiMap::clear()
+{
+    // Fill with spaces.
+    memset(map_, 0x20, map_buffer_len_ - 1);
+
+    for (AsciiPosition::ElementType y = 0; y < h_; ++y) {
+        // Add line number.
+        if (y % scale_h_ == 0)
+            set({1, y}, std::to_string(y / scale_h_));
+
+        // Add newline for every row.
+        set({w_ - 1, y}, '\n');
     }
 
-    stream << "</svg>\n";
+    // Add null terminator.
+    map_[map_buffer_len_ - 1] = 0;
+}
+
+void AsciiMap::write(std::ostream& out) const
+{
+    assert(map_[map_buffer_len_ - 1] == 0); // Check for null terminator.
+    out << map_;
+}
+
+void AsciiMap::init(const MapExtent& size, int scale)
+{
+    map_size_ = size;
+
+    assert(scale > 0);
+    scale_w_ = static_cast<AsciiPosition::ElementType>(2 + 2*scale);
+    scale_h_ = scale_w_ / 2;
+
+    w_ = (size.x * scale_w_) + c_margin_left_ - scale + 1; // +1 for '\n'
+    h_ = size.y * scale_h_;
+
+    map_buffer_len_ = (w_ * h_) + 1; // +1 for null terminator
+    map_ = new char[map_buffer_len_];
+
+    clear();
+}
+
+AsciiMap::AsciiPosition AsciiMap::getPos(const MapPoint& pt) const
+{
+    AsciiPosition ret;
+    ret.x = c_margin_left_;
+    ret.x += static_cast<AsciiPosition::ElementType>(pt.x) * scale_w_;
+    ret.x += (pt.y & 1) ? scale_h_ : 0; // offset on every second row
+    ret.y = pt.y * scale_h_;
+    return ret;
+}
+
+size_t AsciiMap::getIdx(const AsciiPosition& pos) const
+{
+    return static_cast<size_t>(pos.y * w_ + pos.x);
+}
+
+void AsciiMap::set(const AsciiPosition& pos, char c)
+{
+    size_t idx = getIdx(pos);
+    assert(idx < (map_buffer_len_ - 1)); // bounds check
+    map_[idx] = c;
+}
+
+void AsciiMap::set(AsciiMap::AsciiPosition pos, const std::string& str)
+{
+    for (std::string::size_type i = 0; i < str.length() && onMap(pos); ++i) {
+        set(pos, str[i]);
+        pos.x++;
+    }
+}
+
+bool AsciiMap::onMap(const AsciiPosition& pos) const
+{
+    return pos.x >= 0 && (pos.x + 1) < w_ &&
+            pos.y >= 0 && pos.y < h_;
 }
 
 } // namespace beowulf

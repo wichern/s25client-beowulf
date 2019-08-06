@@ -22,15 +22,13 @@
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/Direction.h"
 
+#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/BuildingsPlan.h"
+
 #include <string>
 #include <vector>
 
-#include <boost/nowide/fstream.hpp>
-
 namespace beowulf {
-
-class BuildLocations;
-class Buildings;
 
 std::string to_string(unsigned val);
 std::string to_string(const MapPoint& pt);
@@ -39,13 +37,68 @@ std::string to_string(const unsigned* intvec, unsigned len);
 std::string to_string(Direction dir);
 std::string to_string(const std::vector<Direction>& route);
 
-void CreateSvg(const AIInterface& aii,
-               const BuildLocations& bl,
-               const std::string& path);
+/**
+ * Create an ASCII representation of the map (for debugging).
 
-void CreateSvg(const AIInterface& aii,
-               const Buildings& buildings,
-               const std::string& path);
+ */
+class AsciiMap
+{
+public:
+    /**
+     * Create a new ASCII map with given size and scale.
+     *
+     * AsciiMap supports different scalings for the representation. The default is 1:
+     *   .
+     *  / \
+     * .---.
+     *  \ /
+     *   .
+     *
+     * Every additional step increases the size of the output. scale = 2 becomes:
+     *    .
+     *   / \
+     *  /   \
+     * .-----.
+     *  \   /
+     *   \ /
+     *    .
+     *
+     * @param size          Size of a map.
+     * @param scale         Scaling of the representation.
+     */
+    AsciiMap(const MapExtent& size, int scale = 1);
+    AsciiMap(const AIInterface& aii, int scale = 1);
+    ~AsciiMap();
+
+    void setNode(const MapPoint& pt, char c);
+    void setNode(const MapPoint& pt, std::string str);
+    void drawEdge(const MapPoint& pt, unsigned dir, bool fat = false);
+
+    void addLayer(const Buildings& buildings);
+    void addLayer(const BuildingsPlan& plan);
+
+    void clear();
+    void write(std::ostream& out = std::cout) const;
+
+private:
+    typedef Position AsciiPosition;
+    static const size_t c_margin_left_ = 4;
+
+    void init(const MapExtent& size, int scale);
+    AsciiPosition getPos(const MapPoint& pt) const;
+    size_t getIdx(const AsciiPosition& pos) const;
+    void set(const AsciiPosition& pos, char c);
+    void set(AsciiPosition pos, const std::string& str);
+    bool onMap(const AsciiPosition& pos) const;
+
+    MapExtent map_size_;
+    AsciiPosition::ElementType w_;
+    AsciiPosition::ElementType h_;
+    AsciiPosition::ElementType scale_w_;
+    AsciiPosition::ElementType scale_h_;
+    size_t map_buffer_len_;
+    char* map_;
+};
 
 } // namespace beowulf
 

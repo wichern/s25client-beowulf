@@ -102,8 +102,6 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     while (requests.front()->GetState() != beowulf::Building::UnderConstruction) {
         Proceed(ai, world, curPlayer, em);
     }
-
-    beowulf::CreateSvg(beowulf.GetAIInterface(), buildings, "test.svg");
 }
 
 //BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)

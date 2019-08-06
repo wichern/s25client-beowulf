@@ -52,8 +52,6 @@ BOOST_FIXTURE_TEST_CASE(PlanBuilding, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
     bl.Calculate(world, bqc, &beowulf.buildings, MapPoint(13, 12)); // HQ flag
 
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test1.svg");
-
     beowulf::Building* bld = beowulf.buildings.Create(BLD_CATAPULT, beowulf::Building::PlanningRequest);
     plan.PlanBuilding(MapPoint(16,13), bld);
     bl.Update(bqc, MapPoint(16,13), 2);
@@ -64,8 +62,6 @@ BOOST_FIXTURE_TEST_CASE(PlanBuilding, BiggerWorldWithGCExecution)
     BOOST_REQUIRE(bl.Get(MapPoint(14,13)) == BQ_HOUSE);
     BOOST_REQUIRE(bl.Get(MapPoint(13,13)) == BQ_HOUSE);
     BOOST_REQUIRE(bl.Get(MapPoint(14,15)) == BQ_CASTLE);
-
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test2.svg");
 }
 
 BOOST_FIXTURE_TEST_CASE(PlanRoadSouthEast, BiggerWorldWithGCExecution)
@@ -106,16 +102,12 @@ BOOST_FIXTURE_TEST_CASE(PlanRoadWest, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
     bl.Calculate(world, bqc, &beowulf.buildings, MapPoint(13, 12)); // HQ flag
 
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test1.svg");
-
     plan.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
     bl.Update(bqc, MapPoint(13,12), 5);
 
     // BQ northwest of flag should be buildable.
     BOOST_REQUIRE(bl.Get(MapPoint(7,11)) == BQ_CASTLE);
     BOOST_REQUIRE(bl.Get(MapPoint(8,12)) == BQ_NOTHING);
-
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test2.svg");
 }
 
 BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
@@ -130,7 +122,9 @@ BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
     bqc.AddBlockingReason(&plan);
     bqc.AddRoadProvider(&plan);
 
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test1.svg");
+    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+    map.addLayer(beowulf.buildings);
+    map.write();
 
     BOOST_REQUIRE(plan.IsRoadPossible(world, MapPoint(13, 12), Direction::SOUTHEAST));
     BOOST_REQUIRE(plan.IsRoadPossible(world, world.GetNeighbour(MapPoint(13, 12), Direction::SOUTHEAST), Direction::NORTHWEST));
@@ -143,6 +137,10 @@ BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
 
     plan.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
 
+    map.addLayer(plan);
+    map.setNode(MapPoint(9, 12), "9");
+    map.write();
+
     // there is currently no flag at 10,12 but we could add one.
     BOOST_REQUIRE(plan.IsRoadPossible(world, MapPoint(10, 13), Direction::NORTHWEST));
 
@@ -151,8 +149,6 @@ BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
 
     BOOST_REQUIRE(plan.IsRoadPossible(world, MapPoint(11, 12), Direction::EAST));
     BOOST_REQUIRE(plan.IsRoadPossible(world, MapPoint(9, 11), Direction::EAST));
-
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test2.svg");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
