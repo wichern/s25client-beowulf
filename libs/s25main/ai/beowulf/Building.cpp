@@ -31,7 +31,7 @@ Building::Building(
         BuildingType type,
         State state)
     : buildings_(buildings),
-      pos_(MapPoint::Invalid()),
+      pt_(MapPoint::Invalid()),
       type_(type),
       state_(state),
       group_(InvalidProductionGroup)
@@ -39,15 +39,15 @@ Building::Building(
 
 }
 
-const MapPoint& Building::GetPos() const
+const MapPoint& Building::GetPt() const
 {
-    return pos_;
+    return pt_;
 }
 
 MapPoint Building::GetFlag() const
 {
-    if (pos_.isValid())
-        return buildings_.GetWorld().GetNeighbour(pos_, Direction::SOUTHEAST);
+    if (pt_.isValid())
+        return buildings_.GetWorld().GetNeighbour(pt_, Direction::SOUTHEAST);
     return MapPoint::Invalid();
 }
 
@@ -61,7 +61,7 @@ Building::State Building::GetState() const
     return state_;
 }
 
-ProductionGroup Building::GetGroup() const
+pgroup_id_t Building::GetGroup() const
 {
     return group_;
 }
@@ -71,9 +71,9 @@ BuildingQuality Building::GetQuality() const
     return BUILDING_SIZE[type_];
 }
 
-unsigned Building::GetDistance(const MapPoint& pos) const
+unsigned Building::GetDistance(const MapPoint& pt) const
 {
-    return buildings_.GetWorld().CalcDistance(GetPos(), pos);
+    return buildings_.GetWorld().CalcDistance(GetPt(), pt);
 }
 
 bool Building::IsProduction() const

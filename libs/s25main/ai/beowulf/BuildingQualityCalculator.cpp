@@ -79,79 +79,6 @@ BuildingQuality BuildingQualityCalculator::GetBQ(const MapPoint& pt) const
     return world.AdjustBQ(pt, aii_.GetPlayerId(), bq);
 }
 
-//bool BuildingQualityCalculator::CanMoveTo(const MapPoint& pt, Direction dir) const
-//{
-//    /*
-//     * This function needs to be refactored, as roadChecker does not check our planned roads. This cannot be communicated with BlockingManner only.
-//     */
-
-
-//    // @todo: remove code duplicates
-//    MapPoint dest = world.GetNeighbour(pt, dir);
-
-//    BlockingManner bm = GetBM(dest);
-//    if (bm == BlockingManner::Flag)
-//        return true;
-
-//    if (!(bm == BlockingManner::None || bm == BlockingManner::FlagsAround))
-//        return false;
-
-//    unsigned char roadType;
-//    if (dir.toUInt() < 3)
-//        roadType = world.GetRoad(dest, dir.toUInt());
-//    else
-//        roadType = world.GetRoad(pt, (unsigned char)dir.toUInt() - 3);
-
-//    switch (roadType) {
-//    case RoadSegment::RT_NORMAL + 1:
-//    case RoadSegment::RT_DONKEY + 1:
-//    {
-//        if (GetBM(pt) != BlockingManner::Building)
-//            return false;
-//        return true;
-//    }
-//    case RoadSegment::RT_BOAT + 1:
-//        return false;
-//    case 0:
-//    default:
-//        PathConditionRoad<GameWorldBase> roadChecker(aii_.gwb, false);
-//        return roadChecker.IsEdgeOk(pt, dir) && roadChecker.IsNodeOk(dest);
-//    }
-//}
-
-//bool BuildingQualityCalculator::CanMoveToBuffered(const MapPoint& pt, Direction dir)
-//{
-//    MapPoint dest = world.GetNeighbour(pt, dir);
-
-//    BlockingManner bm = GetBM(dest);
-//    if (bm == BlockingManner::Flag)
-//        return true;
-
-//    if (!(bm == BlockingManner::None || bm == BlockingManner::FlagsAround))
-//        return false;
-
-//    unsigned char roadType;
-//    if (dir.toUInt() < 3)
-//        roadType = world.GetRoad(dest, dir.toUInt());
-//    else
-//        roadType = world.GetRoad(pt, (unsigned char)dir.toUInt() - 3);
-
-//    switch (roadType) {
-//    case RoadSegment::RT_NORMAL + 1:
-//    case RoadSegment::RT_DONKEY + 1:
-//    {
-//        if (GetBM(pt) != BlockingManner::Building)
-//            return false;
-//        return true;
-//    }
-//    case RoadSegment::RT_BOAT + 1:
-//        return false;
-//    case 0:
-//    default:
-//        return edgeChecker_.GetPathConditionRoad(aii_.gwb, pt, dir, dest);
-//    }
-//}
-
 BlockingManner BuildingQualityCalculator::GetBM(const MapPoint& pt) const
 {
     for (const IBlockingReason* reason : bmProvider_) {
@@ -173,40 +100,5 @@ bool BuildingQualityCalculator::IsOnRoad(const MapPoint& pt) const
 
     return false;
 }
-
-//BuildingQualityCalculator::CheckedEdges::CheckedEdges(const MapExtent& extend)
-//{
-//    Resize(extend);
-//}
-
-//bool BuildingQualityCalculator::CheckedEdges::GetPathConditionRoad(
-//        const GameWorldBase& gwb,
-//        const MapPoint& pt,
-//        Direction dir,
-//        const MapPoint& dest)
-//{
-//    char& node = (*this)[dest];
-
-//    switch (node) {
-//    case 0:
-//    {
-//        PathConditionRoad<GameWorldBase> roadChecker(gwb, false);
-//        if (roadChecker.IsEdgeOk(pt, dir) && roadChecker.IsNodeOk(dest)) {
-//            node = 1;
-//            return true;
-//        } else {
-//            node = 2;
-//            return false;
-//        }
-//    }
-//    case 1:
-//        return true;
-//    case 2:
-//        return false;
-//    default:
-//        RTTR_Assert(false);
-//        return false;
-//    }
-//}
 
 } // namespace beowulf

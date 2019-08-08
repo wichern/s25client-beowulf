@@ -38,16 +38,13 @@ BuildingPlanner::BuildingPlanner(
       buildings_(buildings),
       resources_(resources),
       world_(aii.gwb),
-      bqc_(aii),
       locations_(aii.gwb)
 {
-
 }
 
 BuildingPlanner::~BuildingPlanner()
 {
-    if (plan_)
-        delete plan_;
+    buildings_.ClearPlan();
 }
 
 size_t factorial(size_t val)
@@ -55,24 +52,15 @@ size_t factorial(size_t val)
     return (val == 1 || val == 0) ? 1 : factorial(val - 1) * val;
 }
 
-void BuildingPlanner::Init(const std::vector<Building*>& requests, Island island)
+void BuildingPlanner::Init(const std::vector<Building*>& requests, rnet_id_t rnet)
 {
-    if (plan_) {
-        bqc_.RemoveBlockingReason(plan_);
-        bqc_.RemoveRoadProvider(plan_);
-        delete plan_;
-    }
-
-    plan_ = new BuildingsPlan(buildings_, island);
-    bqc_.AddBlockingReason(plan_);
-    bqc_.AddRoadProvider(plan_);
-    island_ = island;
+    rnet_ = rnet;
 
     // Pre-Plan all fixed buildings.
     for (Building* bld : requests) {
-        if (bld->GetPos().isValid()) {
-            if (canUseBq(bqc_.GetBQ(bld->GetPos()), bld->GetQuality())) {
-                plan_->PlanBuilding(bld->GetPos(), bld);
+        if (bld->GetPt().isValid()) {
+            if (canUseBq(buildings_.GetBQC().GetBQ(bld->GetPt()), bld->GetQuality())) {
+                buildings_.Plan(bld, bld->GetPt());
                 fixedRequests_.push_back(bld);
             }
         } else {
@@ -88,7 +76,7 @@ void BuildingPlanner::Init(const std::vector<Building*>& requests, Island island
     });
 
     // Calculate possible build locations.
-    locations_.Calculate(aii_.gwb, bqc_, &buildings_, buildings_.GetFlag(island));
+    locations_.Calculate(buildings_, buildings_.GetFlag(rnet));
     totalBQ_ = locations_.GetSum();
 
     maxSearches_ = std::min(static_cast<unsigned>(factorial(last_.size())), (unsigned)100);
@@ -103,8 +91,6 @@ void BuildingPlanner::Init(const std::vector<Building*>& requests, Island island
 
 void BuildingPlanner::Search()
 {
-    plan_->Clear();
-
     // Select two random buildings that should change their order.
     int num = static_cast<int>(last_.size());
     int idx_1 = RANDOM.Rand(__FILE__, __LINE__, 0, num);
@@ -123,20 +109,17 @@ void BuildingPlanner::Search()
 void BuildingPlanner::Execute()
 {
     // @todo: save best routes
-    plan_->Clear();
-    BuildingPositionCosts costs(aii_, bqc_, resources_, plan_);
+    BuildingPositionCosts costs(aii_, resources_, buildings_);
 
     for (Building* bld : best_) {
-        if (!bld->GetPos().isValid())
+        if (!bld->GetPt().isValid())
             continue;
 
-        buildings_.Construct(bld, bld->GetPos());
-        plan_->PlanBuilding(bld->GetPos(), bld);
+        buildings_.Construct(bld, bld->GetPt());
 
         std::vector<Direction> route = FindBestRoute(costs, bld->GetFlag());
         if (!route.empty()) {
             buildings_.ConstructRoad(bld->GetFlag(), route);
-            plan_->PlanRoad(bld->GetFlag(), route);
         }
     }
 }
@@ -150,7 +133,7 @@ double HyperVolume(const std::vector<double>& vec) {
 
 void BuildingPlanner::Evaluate(std::vector<Building*>& state)
 {
-    BuildingPositionCosts costs(aii_, bqc_, resources_, plan_);
+    BuildingPositionCosts costs(aii_, resources_, buildings_);
 
     std::vector<MapPoint> places;
     places.resize(state.size());
@@ -161,14 +144,14 @@ void BuildingPlanner::Evaluate(std::vector<Building*>& state)
         if (!places[i].isValid())
             continue;
 
-        plan_->PlanBuilding(places[i], state[i]);
+        buildings_.Plan(state[i], places[i]);
 
         MapPoint flagPos = resources_.GetNeighbour(places[i], Direction::SOUTHEAST);
         std::vector<Direction> route = FindBestRoute(costs, flagPos);
         if (!route.empty())
-            plan_->PlanRoad(flagPos, route);
+            buildings_.PlanRoad(flagPos, route);
 
-        locations_.Update(bqc_, flagPos, std::max((size_t)2, route.size()));
+        locations_.Update(buildings_.GetBQC(), flagPos, std::max((size_t)2, route.size()));
     }
 
     std::vector<double> score_vec;
@@ -177,7 +160,7 @@ void BuildingPlanner::Evaluate(std::vector<Building*>& state)
         if (!places[i].isValid())
             continue;
 
-        if (costs.Score(score_vec, state[i], places[i], island_))
+        if (costs.Score(score_vec, state[i], places[i], rnet_))
             found_positions++;
     }
 
@@ -197,6 +180,8 @@ void BuildingPlanner::Evaluate(std::vector<Building*>& state)
             last_ = state;
         }
     }
+
+    buildings_.ClearPlan();
 }
 
 MapPoint BuildingPlanner::FindBestPosition(
@@ -211,7 +196,7 @@ MapPoint BuildingPlanner::FindBestPosition(
     for (const MapPoint& location : locations_.Get(bld->GetQuality())) {
         score_vec.clear();
 
-        if (!costs.Score(score_vec, bld, location, island_))
+        if (!costs.Score(score_vec, bld, location, rnet_))
             continue;
 
         double score = HyperVolume(score_vec);
@@ -232,7 +217,7 @@ std::vector<Direction> BuildingPlanner::FindBestRoute(
 
     // We might already be connected and we can assume that it is impossible to
     // be connected to another island than the one we want to.
-    if (plan_->IsFlagConnected(start))
+    if (buildings_.IsFlagConnected(start))
         return ret;
 
     /*
@@ -248,7 +233,7 @@ std::vector<Direction> BuildingPlanner::FindBestRoute(
         if (pos == start && dir == Direction::NORTHWEST)
             return false;
 
-        return plan_->IsRoadPossible(aii_.gwb, pos, dir);
+        return buildings_.IsRoadPossible(pos, dir);
     },
     // Cost
     [](const MapPoint& pos, Direction dir)
@@ -271,7 +256,7 @@ std::vector<Direction> BuildingPlanner::FindBestRoute(
     {
         // The search can end if we found a way to any flag of the destination
         // island.
-        return plan_->GetIsland(pos) == island_;
+        return buildings_.GetRoadNetwork(pos) == rnet_;
     }, &ret);
 
     if (!found) {

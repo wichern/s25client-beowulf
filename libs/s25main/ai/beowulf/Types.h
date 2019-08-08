@@ -28,11 +28,14 @@
 
 namespace beowulf {
 
-typedef unsigned    ProductionGroup;
-typedef unsigned    Island;
+// The ID of a group of buildings producing a final good.
+typedef unsigned    pgroup_id_t;
 
-static constexpr Island InvalidProductionGroup = std::numeric_limits<ProductionGroup>::max();
-static constexpr Island InvalidIsland = std::numeric_limits<Island>::max();
+// The ID of a road network (set of flags connected by roads).
+typedef unsigned    rnet_id_t;
+
+static constexpr rnet_id_t InvalidProductionGroup = std::numeric_limits<pgroup_id_t>::max();
+static constexpr rnet_id_t InvalidRoadNetwork = std::numeric_limits<rnet_id_t>::max();
 
 enum FlagState {
     // There is no flag at this position.

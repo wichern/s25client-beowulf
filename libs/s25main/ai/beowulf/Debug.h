@@ -23,7 +23,6 @@
 #include "gameTypes/Direction.h"
 
 #include "ai/beowulf/Buildings.h"
-#include "ai/beowulf/BuildingsPlan.h"
 
 #include <string>
 #include <vector>
@@ -70,12 +69,10 @@ public:
     AsciiMap(const AIInterface& aii, int scale = 1);
     ~AsciiMap();
 
-    void setNode(const MapPoint& pt, char c);
-    void setNode(const MapPoint& pt, std::string str);
-    void drawEdge(const MapPoint& pt, unsigned dir, bool fat = false);
-
-    void addLayer(const Buildings& buildings);
-    void addLayer(const BuildingsPlan& plan);
+    void draw(const MapPoint& pt, char c);
+    void draw(const MapPoint& pt, const std::string& str);
+    void draw(const MapPoint& pt, unsigned dir, bool fat = false);
+    void draw(const Buildings& buildings);
 
     void clear();
     void write(std::ostream& out = std::cout) const;

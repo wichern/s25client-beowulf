@@ -59,17 +59,6 @@ private:
     const AIInterface& aii_;
     std::vector<IBlockingReason*> bmProvider_;
     std::vector<IRoadProvider*> roadProvider_;
-
-//    /// For performance reasons, we buffer results of edge checks
-//    class CheckedEdges : public NodeMapBase<char>
-//    {
-//    public:
-//        CheckedEdges(const MapExtent& extend);
-//        bool GetPathConditionRoad(const GameWorldBase& gwb,
-//                                  const MapPoint& pt,
-//                                  Direction dir,
-//                                  const MapPoint& dest);
-//    } edgeChecker_;
 };
 
 } // namespace beowulf

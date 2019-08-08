@@ -48,7 +48,7 @@ class Beowulf : public AIPlayer
 {
     BuildingPlanner* buildingPlanner_ = nullptr;
     std::vector<Subscribtion> eventSubscriptions_;
-    std::vector<std::pair<Building*, Island>> constructionRequests_;
+    std::vector<std::pair<Building*, rnet_id_t>> constructionRequests_;
     bool defeated_ = false;
 
 public:
@@ -66,7 +66,7 @@ public:
     AIInterface& GetAIInterface();
     const AIInterface& GetAIInterface() const;
 
-    void RequestConstruction(Building* building, Island island);
+    void RequestConstruction(Building* building, rnet_id_t island);
 
 private:
     bool CheckDefeat();

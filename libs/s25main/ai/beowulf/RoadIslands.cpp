@@ -23,35 +23,35 @@
 
 namespace beowulf {
 
-RoadIslands::RoadIslands(const MapBase& world)
+RoadNetworks::RoadNetworks(const MapBase& world)
     : world_(world)
 {
     islands_.Resize(world.GetSize());
     RTTR_FOREACH_PT(MapPoint, world.GetSize())
-        islands_[pt] = InvalidIsland;
+        islands_[pt] = InvalidRoadNetwork;
 }
 
-void RoadIslands::OnFlagStateChanged(BuildingsBase* buildings, const MapPoint& pos, FlagState state)
+void RoadNetworks::OnFlagStateChanged(const Buildings& buildings, const MapPoint& pos, FlagState state)
 {
     switch (state) {
     case FlagRequested:
     case FlagFinished:
     {
-        RTTR_Assert(state == FlagFinished || islands_[pos] == InvalidIsland);
+        RTTR_Assert(state == FlagFinished || islands_[pos] == InvalidRoadNetwork);
 
         // If the flag is already connected to a road it copies the island of
         // the flag on the other end of the road.
-        if (buildings->IsFlagConnected(pos)) {
+        if (buildings.IsFlagConnected(pos)) {
             MapPoint cur = pos;
             unsigned prevDir = Direction::COUNT;
             for (unsigned limit = 0; limit < 100; ++limit) {
                 for (unsigned dir = 0; dir < Direction::COUNT; ++dir) {
                     if (dir != prevDir &&
-                            buildings->HasRoad(cur, Direction(dir)) &&
-                            !buildings->HasBuilding(islands_.GetNeighbour(cur, Direction(dir))))
+                            buildings.HasRoad(cur, Direction(dir)) &&
+                            !buildings.HasBuilding(islands_.GetNeighbour(cur, Direction(dir))))
                     {
                         cur = world_.GetNeighbour(cur, Direction(dir));
-                        if (buildings->HasFlag(cur)) {
+                        if (buildings.HasFlag(cur)) {
                             islands_[pos] = Get(cur);
                             return;
                         }
@@ -69,36 +69,36 @@ void RoadIslands::OnFlagStateChanged(BuildingsBase* buildings, const MapPoint& p
     case FlagDestructionRequested:
     case FlagDoesNotExist:
     {
-        RTTR_Assert(islands_[pos] != InvalidIsland);
-        islands_[pos] = InvalidIsland;
+        RTTR_Assert(islands_[pos] != InvalidRoadNetwork);
+        islands_[pos] = InvalidRoadNetwork;
     } break;
     }
 }
 
-Island RoadIslands::Get(const MapPoint& pos) const
+rnet_id_t RoadNetworks::Get(const MapPoint& pos) const
 {
     if (pos.isValid())
         return islands_[pos];
-    return InvalidIsland;
+    return InvalidRoadNetwork;
 }
 
-void RoadIslands::Detect(BuildingsBase* buildings)
+void RoadNetworks::Detect(const Buildings& buildings)
 {
     next_ = 0;
 
-    for (const MapPoint& flag : buildings->GetFlags())
-        islands_[flag] = InvalidIsland;
+    for (const MapPoint& flag : buildings.GetFlags())
+        islands_[flag] = InvalidRoadNetwork;
 
-    for (const MapPoint& flag : buildings->GetFlags()) {
-        if (Get(flag) == InvalidIsland) {
+    for (const MapPoint& flag : buildings.GetFlags()) {
+        if (Get(flag) == InvalidRoadNetwork) {
             FloodFill(world_, flag,
             // condition
             [&](const MapPoint& pos, Direction dir)
-            { return buildings->HasRoad(pos, dir); },
+            { return buildings.HasRoad(pos, dir); },
             // action
             [&](const MapPoint& pos)
             {
-                if (buildings->HasFlag(pos))
+                if (buildings.HasFlag(pos))
                     islands_[pos] = next_;
             });
             ++next_;

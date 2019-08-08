@@ -18,7 +18,6 @@
 #define BEOWULF_BUILDINGS_H_INCLUDED
 
 #include "ai/beowulf/Types.h"
-#include "ai/beowulf/BuildingsBase.h"
 #include "ai/beowulf/Building.h"
 #include "ai/beowulf/RoadIslands.h"
 #include "ai/beowulf/BuildingQualityCalculator.h"
@@ -32,61 +31,94 @@
 
 namespace beowulf {
 
-/*
- * @todo: Why is BuildingsPlan not just a subclass of Buildings?
- *        Could those classes even merge to one?
+/**
+ * @brief The Buildings class contains all buildings and roads the beowulf owns or plans.
+ *
+ * What makes Buildings especially complex is that while the planner is running, the world can change.
+ * Therefore, every change of the world (building/flag/roadsegment added or removed) will clear the plan.
  */
-class Buildings : public BuildingsBase, public IBlockingReason
+class Buildings : public IBlockingReason, public IRoadProvider
 {
 public:
-
     Buildings(AIInterface& aii);
     ~Buildings();
 
+public:
     // Construct
-    void Construct(Building* building, const MapPoint& pos);
-    void ConstructFlag(const MapPoint& pos);
-    void ConstructRoad(const MapPoint& pos, const std::vector<Direction>& route);
+    // Construction requests the engine to place a building/flag/road.
+    // The engine can reject these requests.
+    void Construct(Building* building, const MapPoint& pt);
+    void ConstructFlag(const MapPoint& pt);
+    void ConstructRoad(const MapPoint& pt, const std::vector<Direction>& route);
 
     // Deconstruct
+    // Deconstruction requests the engine to remove a building/flag/road.
     void Deconstruct(Building* building);
-    void DeconstructFlag(const MapPoint& pos);
-    void DeconstructRoad(const MapPoint& pos, const std::vector<Direction>& route);
+    void DeconstructFlag(const MapPoint& pt);
+    void DeconstructRoad(const MapPoint& pt, const std::vector<Direction>& route);
 
-    // Islands
-    RoadIslands& GetIslands() const;
-    Island GetIsland(const MapPoint& pos) const override;
-    MapPoint GetFlag(Island island) const;
+    // Plan
+    // Planning buildings/flags/roads does not result in any engine requests
+    // but will alter the return of GetFlag(), HasBuilding(), GetBM() and more.
+    void Plan(Building* building, const MapPoint& pt);
+    void PlanFlag(const MapPoint& pt); // Ignored if already has plan at 'pt'.
+    void PlanRoad(const MapPoint& pt, const std::vector<Direction>& route);
+    void ClearPlan();
+
+    // Road Networks
+    /// Get the road network id the given point is connected to.
+    rnet_id_t GetRoadNetwork(const MapPoint& pt) const;
+    /// Get any flag connected to given road network. (Note: not updated while planning.)
+    MapPoint GetFlag(rnet_id_t rnet) const;
 
     // Remove (remove the object from our data structure)
     void Remove(Building* building);
-    void RemoveFlag(const MapPoint& pos);
-    void RemoveRoad(const MapPoint& pos, const std::vector<Direction>& route);
+    void RemoveFlag(const MapPoint& pt);
+    void RemoveRoad(const MapPoint& pt, const std::vector<Direction>& route);
 
     // Buildings
-    Building* Create(BuildingType type, Building::State state, ProductionGroup group = InvalidProductionGroup, const MapPoint& pos = MapPoint::Invalid());
-    const std::vector<Building*>& Get() const override;
-    Building* Get(const MapPoint& pos) const override;
-    bool HasBuilding(const MapPoint& pos) const override;
+    Building* Create(BuildingType type, Building::State state, pgroup_id_t group = InvalidProductionGroup, const MapPoint& pt = MapPoint::Invalid());
+    const std::vector<Building*>& Get() const;
+    Building* Get(const MapPoint& pt) const;
+    bool HasBuilding(const MapPoint& pt) const;
     void SetState(Building* building, Building::State state);
     void SetPos(Building* building, const MapPoint& pt);
 
     // Flags
-    const std::vector<MapPoint>& GetFlags() const override;
-    bool HasFlag(const MapPoint& pos) const override;
-    FlagState GetFlagState(const MapPoint& pos) const;
-    void SetFlagState(const MapPoint& pos, FlagState state);
-    bool IsFlagConnected(const MapPoint& pos) const override;
+    const std::vector<MapPoint>& GetFlags() const;
+    bool HasFlag(const MapPoint& pt) const;
+    FlagState GetFlagState(const MapPoint& pt) const;
+    void SetFlagState(const MapPoint& pt, FlagState state);
+    bool IsFlagConnected(const MapPoint& pt) const;
 
     // Roads
-    bool HasRoad(const MapPoint& pos, Direction dir) const override;
-    RoadState GetRoadState(const MapPoint& pos, Direction dir) const;
-    void SetRoadState(const MapPoint& pos, const std::vector<Direction>& route, RoadState state);
+    bool HasRoad(const MapPoint& pt, Direction dir) const;
+    RoadState GetRoadState(const MapPoint& pt, Direction dir) const;
+    void SetRoadState(const MapPoint& pt, const std::vector<Direction>& route, RoadState state);
     //void AddRoadUser(Building* building, const std::vector<Direction>& route);
 
+    const BuildingQualityCalculator& GetBQC() const;
     BlockingManner GetBM(const MapPoint& pt) const override;
-    std::pair<MapPoint, unsigned> GroupMemberDistance(const MapPoint& pt, ProductionGroup group, const std::vector<BuildingType>& types) const override;
+    bool IsOnRoad(const MapPoint& pt) const override;
+
+    /// Get building of type 'types' in group 'group' with the shortest flag distance.
+    std::pair<MapPoint, unsigned> GroupMemberDistance(const MapPoint& pt, pgroup_id_t group, const std::vector<BuildingType>& types) const;
     const GameWorldBase& GetWorld() const;
+
+    /// Check if we can build a segment from 'pt' in 'dir'. Assumes that we can start at 'pt'.
+    bool IsRoadPossible(
+            const MapPoint& pt,
+            Direction dir) const;
+
+    std::pair<MapPoint, unsigned> GetNearestBuilding(
+            const MapPoint& pt,
+            const std::vector<BuildingType>& types,
+            rnet_id_t rnet) const;
+
+    Building* GetGoodsDest(
+            const Building* building,
+            rnet_id_t rnet,
+            const MapPoint& pt) const;
 
 private:
     void SetRoadState(const MapPoint& pos, Direction dir, RoadState state);
@@ -97,10 +129,14 @@ private:
     bool InsertIntoExistingGroup(Building* building);
 
 private:
+    void PlanSegment(const MapPoint& pt, Direction dir);
+
     struct Node {
         Building* building          = nullptr;
         FlagState flag              = FlagDoesNotExist;
-        RoadState roads[3]          { RoadDoesNotExist, RoadDoesNotExist, RoadDoesNotExist };
+        unsigned flagPlanCount      = 0;
+        RoadState roads[3]          = { RoadDoesNotExist, RoadDoesNotExist, RoadDoesNotExist };
+        unsigned roadPlanCount[3]   = { 0, 0, 0 };
         //std::vector<Building*> users[3];
     };
 
@@ -111,12 +147,16 @@ private:
     };
 
     AIInterface& aii_;
+    BuildingQualityCalculator bqc_;
     NodeMapBase<Node> nodes_;
     std::vector<MapPoint> flags_;
     std::vector<Group> groups_;
     std::vector<Building*> ungrouped_;
     std::vector<Building*> buildings_;
-    RoadIslands islands_;
+    RoadNetworks roadNetworks_;
+
+    rnet_id_t activePlanRoadNetwork_;
+    bool activePlan_ = false;
 };
 
 } // namespace beowulf

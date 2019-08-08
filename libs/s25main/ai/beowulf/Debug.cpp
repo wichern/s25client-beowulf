@@ -103,9 +103,9 @@ AsciiMap::AsciiMap(const AIInterface& aii, int scale)
 
     RTTR_FOREACH_PT(MapPoint, map_size_) {
         if (aii.IsOwnTerritory(pt))
-            setNode(pt, '_');
+            draw(pt, '_');
         else
-            setNode(pt, '.');
+            draw(pt, '.');
     }
 }
 
@@ -115,17 +115,17 @@ AsciiMap::~AsciiMap()
         delete [] map_;
 }
 
-void AsciiMap::setNode(const MapPoint& pt, char c)
+void AsciiMap::draw(const MapPoint& pt, char c)
 {
     set(getPos(pt), c);
 }
 
-void AsciiMap::setNode(const MapPoint& pt, std::string str)
+void AsciiMap::draw(const MapPoint& pt, const std::string& str)
 {
     set(getPos(pt), str);
 }
 
-void AsciiMap::drawEdge(const MapPoint& pt, unsigned dir, bool fat)
+void AsciiMap::draw(const MapPoint& pt, unsigned dir, bool fat)
 {
     AsciiPosition pos = getPos(pt);
 
@@ -177,29 +177,16 @@ void AsciiMap::drawEdge(const MapPoint& pt, unsigned dir, bool fat)
     }
 }
 
-void AsciiMap::addLayer(const Buildings& buildings)
+void AsciiMap::draw(const Buildings& buildings)
 {
     RTTR_FOREACH_PT(MapPoint, map_size_)
     {
-        if (buildings.GetFlagState(pt) == beowulf::FlagFinished)
-            setNode(pt, 'f');
-        else if (buildings.GetFlagState(pt) == beowulf::FlagRequested)
-            setNode(pt, "f+");
-        else if (buildings.GetFlagState(pt) == beowulf::FlagDestructionRequested)
-            setNode(pt, "f-");
-    }
-}
-
-void AsciiMap::addLayer(const BuildingsPlan& plan)
-{
-    RTTR_FOREACH_PT(MapPoint, map_size_)
-    {
-        if (plan.HasFlag(pt))
-            setNode(pt, 'f');
+        if (buildings.HasFlag(pt))
+            draw(pt, 'f');
 
         for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
-            if (plan.HasRoad(pt, Direction(dir)))
-                drawEdge(pt, dir);
+            if (buildings.HasRoad(pt, Direction(dir)))
+                draw(pt, dir);
         }
     }
 }

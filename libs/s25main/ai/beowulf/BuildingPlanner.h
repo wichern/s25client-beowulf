@@ -18,8 +18,8 @@
 #define BEOWULF_BUILDINGPLANNER_H_INCLUDED
 
 #include "ai/beowulf/Types.h"
+#include "ai/beowulf/Buildings.h"
 #include "ai/beowulf/BuildingQualityCalculator.h"
-#include "ai/beowulf/BuildingsPlan.h"
 #include "ai/beowulf/RoadIslands.h"
 #include "ai/beowulf/ResourceMap.h"
 #include "ai/beowulf/BuildLocations.h"
@@ -44,7 +44,7 @@ public:
 
     ~BuildingPlanner();
 
-    void Init(const std::vector<Building*>& requests, Island island);
+    void Init(const std::vector<Building*>& requests, rnet_id_t rnet);
     void Search();
     void Execute();
     unsigned GetSearches() const { return searches_; }
@@ -55,11 +55,9 @@ private:
     Buildings& buildings_;
     ResourceMap& resources_;
     const MapBase& world_;
-    BuildingQualityCalculator bqc_;
     BuildLocations locations_;
 
-    BuildingsPlan* plan_ = nullptr;
-    Island island_;
+    rnet_id_t rnet_;
     unsigned totalBQ_;
     double bestScore_;
     double lastScore_;

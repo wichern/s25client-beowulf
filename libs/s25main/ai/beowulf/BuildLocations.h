@@ -27,7 +27,7 @@
 namespace beowulf {
 
 class BuildingQualityCalculator;
-class BuildingsBase;
+class Buildings;
 
 class BuildLocations
 {
@@ -36,10 +36,10 @@ public:
     ~BuildLocations();
 
     /// Calculate all possible build locations starting from a flag of the island we want to build for.
-    void Calculate(const GameWorldBase& gwb, BuildingQualityCalculator& bqc, const BuildingsBase* buildings, const MapPoint& start);
+    void Calculate(const Buildings& buildings, const MapPoint& start);
 
     /// Update all build locations around the given position.
-    void Update(BuildingQualityCalculator& bqc, const MapPoint& pos, unsigned radius = 2);
+    void Update(const BuildingQualityCalculator& bqc, const MapPoint& pos, unsigned radius = 2);
 
     std::vector<MapPoint> Get(BuildingQuality bq) const;
     BuildingQuality Get(const MapPoint& pos) const;

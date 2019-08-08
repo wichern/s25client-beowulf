@@ -49,10 +49,10 @@ bool ConstructBuilding(
                 beowulf::InvalidProductionGroup);
     buildings.Construct(bld, pos);
 
-    if (!bld->GetPos().isValid()) return false;
+    if (!bld->GetPt().isValid()) return false;
     if (bld->GetType() != type) return false;
     if (bld->GetState() != beowulf::Building::ConstructionRequested) return false;
-    if (buildings.GetIsland(bld->GetFlag()) == beowulf::InvalidIsland) return false;
+    if (buildings.GetRoadNetwork(bld->GetFlag()) == beowulf::InvalidRoadNetwork) return false;
 
     if (!wait_for_site)
         return true;
@@ -61,10 +61,10 @@ bool ConstructBuilding(
         Proceed(ai, world, player, em);
     }
 
-    if (!bld->GetPos().isValid()) return false;
+    if (!bld->GetPt().isValid()) return false;
     if (bld->GetType() != type) return false;
     if (bld->GetState() != beowulf::Building::UnderConstruction) return false;
-    if (buildings.GetIsland(bld->GetFlag()) == beowulf::InvalidIsland) return false;
+    if (buildings.GetRoadNetwork(bld->GetFlag()) == beowulf::InvalidRoadNetwork) return false;
 
     return true;
 }
@@ -114,7 +114,7 @@ bool CompareBuildingsWithWorld(
      * Check that all buildings of the buildings object also exist in the world.
      */
     for (beowulf::Building* bld : buildings.Get()) {
-        NodalObjectType type = world.GetNO(bld->GetPos())->GetType();
+        NodalObjectType type = world.GetNO(bld->GetPt())->GetType();
 
         if (bld->GetState() == beowulf::Building::UnderConstruction && type != NOP_BUILDINGSITE)
             return false;

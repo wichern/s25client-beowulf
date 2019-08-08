@@ -40,7 +40,7 @@ BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
     beowulf::Buildings& buildings = beowulf.buildings;
 
     beowulf::Building* bld = buildings.Create(BLD_BREWERY, beowulf::Building::PlanningRequest);
-    beowulf.RequestConstruction(bld, buildings.GetIsland(buildings.Get(MapPoint(12, 11))->GetFlag()));
+    beowulf.RequestConstruction(bld, buildings.GetRoadNetwork(buildings.Get(MapPoint(12, 11))->GetFlag()));
 
     while (bld->GetState() != beowulf::Building::UnderConstruction) {
         Proceed(ai, world, curPlayer, em);
@@ -62,7 +62,7 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
     requests.push_back(buildings.Create(BLD_WOODCUTTER, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_FORESTER, beowulf::Building::PlanningRequest));
 
-    beowulf::Island island = buildings.GetIsland(buildings.Get(MapPoint(12, 11))->GetFlag());
+    beowulf::rnet_id_t island = buildings.GetRoadNetwork(buildings.Get(MapPoint(12, 11))->GetFlag());
     for (beowulf::Building* bld : requests)
         beowulf.RequestConstruction(bld, island);
 
@@ -95,7 +95,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
 
-    beowulf::Island island = buildings.GetIsland(buildings.Get(MapPoint(12, 11))->GetFlag());
+    beowulf::rnet_id_t island = buildings.GetRoadNetwork(buildings.Get(MapPoint(12, 11))->GetFlag());
     for (beowulf::Building* bld : requests)
         beowulf.RequestConstruction(bld, island);
 

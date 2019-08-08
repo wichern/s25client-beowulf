@@ -23,21 +23,21 @@
 
 namespace beowulf {
 
-class BuildingsBase;
+class Buildings;
 
-class RoadIslands
+class RoadNetworks
 {
 private:
-    NodeMapBase<Island> islands_;
+    NodeMapBase<rnet_id_t> islands_;
     const MapBase& world_;
-    Island next_ = 0;
+    rnet_id_t next_ = 0;
 
 public:
-    RoadIslands(const MapBase& world);
-    Island Get(const MapPoint& pos) const;
+    RoadNetworks(const MapBase& world);
+    rnet_id_t Get(const MapPoint& pos) const;
 
-    void OnFlagStateChanged(BuildingsBase* buildings, const MapPoint& pos, FlagState state);
-    void Detect(BuildingsBase* buildings);
+    void OnFlagStateChanged(const Buildings& buildings, const MapPoint& pos, FlagState state);
+    void Detect(const Buildings& buildings);
 };
 
 } // namespace beowulf

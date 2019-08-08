@@ -40,11 +40,10 @@ BOOST_FIXTURE_TEST_CASE(BuildLocationsEmptyMap, BiggerWorldWithGCExecution)
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
     const beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
 
-    beowulf::BuildingQualityCalculator bqc(beowulf.GetAIInterface());
     beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
 
     {
-        bl.Calculate(world, bqc, &beowulf.buildings, MapPoint(13, 12)); // HQ flag
+        bl.Calculate(beowulf.buildings, MapPoint(13, 12)); // HQ flag
 
         // no duplicates:
         std::set<unsigned> set;
@@ -62,7 +61,7 @@ BOOST_FIXTURE_TEST_CASE(BuildLocationsEmptyMap, BiggerWorldWithGCExecution)
 
     // Calling Calculate() a second time.
     {
-        bl.Calculate(world, bqc, &beowulf.buildings, MapPoint(13, 12)); // HQ flag
+        bl.Calculate(beowulf.buildings, MapPoint(13, 12)); // HQ flag
 
         // no duplicates:
         std::set<unsigned> set;
@@ -89,14 +88,14 @@ BOOST_FIXTURE_TEST_CASE(BuildLocationsEmptyMap, BiggerWorldWithGCExecution)
         world.SetNO({17, 7}, new noTree({17, 7}, 0, 3));
         world.SetNO({18, 7}, new noTree({18, 7}, 0, 3));
 
-        bl.Update(bqc, {13, 3}, 2);
-        bl.Update(bqc, {14, 4}, 2);
-        bl.Update(bqc, {14, 5}, 2);
-        bl.Update(bqc, {15, 6}, 2);
-        bl.Update(bqc, {15, 7}, 2);
-        bl.Update(bqc, {16, 7}, 2);
-        bl.Update(bqc, {17, 7}, 2);
-        bl.Update(bqc, {18, 7}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {13, 3}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {14, 4}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {14, 5}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {15, 6}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {15, 7}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {16, 7}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {17, 7}, 2);
+        bl.Update(beowulf.buildings.GetBQC(), {18, 7}, 2);
 
         // no duplicates:
         std::set<unsigned> set;

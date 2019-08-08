@@ -95,7 +95,7 @@ void Beowulf::RunGF(const unsigned /*gf*/, bool /*gfisnwf*/)
      */
     if (buildingPlanner_ == nullptr && !constructionRequests_.empty()) {
         std::vector<Building*> requests;
-        Island island = constructionRequests_.front().second;
+        rnet_id_t island = constructionRequests_.front().second;
 
         for (auto& req : constructionRequests_)
             if (req.second == island)
@@ -146,7 +146,7 @@ const AIInterface& Beowulf::GetAIInterface() const
     return aii;
 }
 
-void Beowulf::RequestConstruction(Building* building, Island island)
+void Beowulf::RequestConstruction(Building* building, rnet_id_t island)
 {
     constructionRequests_.push_back({ building, island });
 }
@@ -211,7 +211,7 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
         if (buildings.GetFlagState(bld->GetFlag()) == FlagRequested) {
             buildings.RemoveFlag(bld->GetFlag());
         }
-        buildings.Remove(bld);
+        buildings.Remove(bld); // @todo: reset building planner
     } break;
 
     case BuildingNote::DestructionFailed:
@@ -231,7 +231,7 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
     // A building was destroyed.
     case BuildingNote::Destroyed:
     {
-        buildings.Remove(bld);
+        buildings.Remove(bld); // @todo: reset building planner
     } break;
 
     // Military building was captured.
@@ -265,7 +265,7 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
     // A military building was captured by an enemy.
     case BuildingNote::Lost:
     {
-        buildings.Remove(bld);
+        buildings.Remove(bld);// @todo: reset building planner
     } break;
 
     // Building can't find any more resources.
@@ -278,7 +278,7 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
     case BuildingNote::LuaOrder:
     {
         bld = buildings.Create(note.bld, Building::PlanningRequest, InvalidProductionGroup, note.pos);
-        Island island = buildings.GetIsland(buildings.GetGoodsDest(buildings.GetWorld(), bld, InvalidIsland, note.pos)->GetFlag()); // Use the goods dest as island.
+        rnet_id_t island = buildings.GetRoadNetwork(buildings.GetGoodsDest(bld, InvalidRoadNetwork, note.pos)->GetFlag()); // Use the goods dest as island.
         RequestConstruction(bld, island);
     } break;
 
@@ -312,7 +312,7 @@ void Beowulf::OnRoadNote(const RoadNote& note)
     case RoadNote::Destroyed:
     case RoadNote::ConstructionFailed:
     {
-        buildings.RemoveRoad(note.pos, note.route);
+        buildings.RemoveRoad(note.pos, note.route); // @todo: reset building planner
         // recalculate road users
     } break;
     }

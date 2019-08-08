@@ -32,11 +32,9 @@
 namespace beowulf {
 
 BuildingPositionCosts::BuildingPositionCosts(const AIInterface& aii,
-                                             BuildingQualityCalculator& bqc,
                                              ResourceMap& resourceMap,
-                                             const BuildingsBase* buildings)
+                                             const Buildings& buildings)
     : aii_(aii),
-      bqc_(bqc),
       resourceMap_(resourceMap),
       buildings_(buildings)
 {
@@ -54,7 +52,7 @@ bool BuildingPositionCosts::Score(
         std::vector<double>& score,
         const Building* building,
         const MapPoint& pt,
-        Island island)
+        rnet_id_t island)
 {
     // Set of known storage building types.
     static const std::vector<BuildingType> c_storages =
@@ -68,8 +66,6 @@ bool BuildingPositionCosts::Score(
     static const std::vector<unsigned> c_resourceGroups =
     { 1, 2, 3, 5, 8, 13 };
 
-    const MapBase& world = resourceMap_;
-
     switch (building->GetType()) {
     case BLD_GRANITEMINE:
     {
@@ -81,7 +77,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceGranite), c_resourceGroups));
 
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -98,7 +94,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceCoal), c_resourceGroups));
 
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -115,7 +111,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceIron), c_resourceGroups));
 
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -132,7 +128,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceGold), c_resourceGroups));
 
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -151,7 +147,7 @@ bool BuildingPositionCosts::Score(
             return false;
 
         // Should have enough distance to other towers.
-        auto bld = buildings_->GetNearestBuilding(world, pt, { BLD_LOOKOUTTOWER }, island);
+        auto bld = buildings_.GetNearestBuilding(pt, { BLD_LOOKOUTTOWER }, island);
         if (bld.first.isValid() && bld.second < (VISUALRANGE_LOOKOUTTOWER/3)) {
             score.push_back(1.0 - Rate(bld.second, c_distanceGroups));
         } else {
@@ -176,11 +172,11 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceWood), c_resourceGroups));
 
         // Should be placed close to group forester.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_FORESTER });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_FORESTER });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -193,7 +189,7 @@ bool BuildingPositionCosts::Score(
         if (resourceMap_.Get(pt, BResourceFish) == 0)
             return false;
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -203,7 +199,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceFish), c_resourceGroups));
 
         // Should have enough distance to other fishery.
-        auto bld = buildings_->GetNearestBuilding(world, pt, { BLD_FISHERY }, island);
+        auto bld = buildings_.GetNearestBuilding(pt, { BLD_FISHERY }, island);
         if (bld.first.isValid() && bld.second < 8) // @todo: 8 is a wild guess.
             score.push_back(1.0 - Rate(bld.second, c_distanceGroups));
     } break;
@@ -218,12 +214,12 @@ bool BuildingPositionCosts::Score(
         score.push_back(Rate(resourceMap_.Get(pt, BResourceStone), c_resourceGroups));
 
         // Should be placed close to a storehouse with little stones.
-        auto bld = buildings_->GetNearestBuilding(world, pt, c_storages, island);
+        auto bld = buildings_.GetNearestBuilding(pt, c_storages, island);
         RTTR_Assert(bld.first.isValid()); // we always at least have a HQ.
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should have enough distance to other quarry.
-        bld = buildings_->GetNearestBuilding(world, pt, { BLD_QUARRY }, island);
+        bld = buildings_.GetNearestBuilding(pt, { BLD_QUARRY }, island);
         if (bld.first.isValid() && bld.second < 8) // @todo: 8 is a wild guess.
             score.push_back(1.0 - Rate(bld.second, c_distanceGroups));
     } break;
@@ -235,28 +231,28 @@ bool BuildingPositionCosts::Score(
             return false;
 
         // Should be placed close to group woodcutter.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WOODCUTTER });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WOODCUTTER });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed where there is a lot of plantspace.
         score.push_back(resourceMap_.Get(pt, BResourcePlantSpace_6) > 10 ? 1.0 : 0.5);
 
         // Should be far enough from farms.
-        bld = buildings_->GetNearestBuilding(world, pt, { BLD_FARM }, island);
+        bld = buildings_.GetNearestBuilding(pt, { BLD_FARM }, island);
         score.push_back(1.0 - Rate(bld.second, { 2, 3, 5, 7, 10, 12 })); // @todo: 10 is a wild guess.
     } break;
 
     case BLD_SLAUGHTERHOUSE:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group pigfarm.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_PIGFARM });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_PIGFARM });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
@@ -270,60 +266,60 @@ bool BuildingPositionCosts::Score(
         score.push_back(resourceMap_.Get(pt, BResourceHuntableAnimals) > 4 ? 1.0 : 0.5);
 
         // Should be far enough from hunters.
-        auto bld = buildings_->GetNearestBuilding(world, pt, { BLD_HUNTER }, island);
+        auto bld = buildings_.GetNearestBuilding(pt, { BLD_HUNTER }, island);
         score.push_back(1.0 - Rate(bld.second, { 4, 8, 12, 16, 20, 24 }));
     } break;
 
     case BLD_BREWERY:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group farms.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed close to group wells.
-        bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
+        bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
     case BLD_ARMORY:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group farms.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_IRONSMELTER });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_IRONSMELTER });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
     case BLD_METALWORKS:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group farms.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_IRONSMELTER });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_IRONSMELTER });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
     case BLD_IRONSMELTER:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -340,25 +336,25 @@ bool BuildingPositionCosts::Score(
         score.push_back(resourceMap_.Get(pt, BResourcePlantSpace_2) > 4 ? 1.0 : 0.5);
 
         // Should be far enough from farms.
-        auto bld = buildings_->GetNearestBuilding(world, pt, { BLD_FARM }, island);
+        auto bld = buildings_.GetNearestBuilding(pt, { BLD_FARM }, island);
         score.push_back(1.0 - Rate(bld.second, { 2, 3, 5, 7 })); // @todo: 7 is a wild guess.
     } break;
 
     case BLD_PIGFARM:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group farms.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed close to group wells.
-        bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
+        bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
@@ -366,7 +362,7 @@ bool BuildingPositionCosts::Score(
     case BLD_STOREHOUSE:
     {
         // Should be far enough from other storages.
-        auto bld = buildings_->GetNearestBuilding(world, pt, c_storages, island);
+        auto bld = buildings_.GetNearestBuilding(pt, c_storages, island);
         score.push_back(1.0 - Rate(bld.second, { 2, 3, 5, 7, 10, 12 }));
 
         // @todo: should be far from front
@@ -375,57 +371,57 @@ bool BuildingPositionCosts::Score(
     case BLD_MILL:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group farms.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed close to group wells.
-        bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
+        bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
     case BLD_BAKERY:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group mill.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_MILL });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_MILL });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed close to group wells.
-        bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
+        bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
     case BLD_SAWMILL:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group woodcutter.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WOODCUTTER });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WOODCUTTER });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 
     case BLD_MINT:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -437,8 +433,11 @@ bool BuildingPositionCosts::Score(
     case BLD_WELL:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
-        score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
+        if (dst)
+            score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
+        else
+            score.push_back(0.1);
     } break;
 
     case BLD_SHIPYARD:
@@ -449,7 +448,7 @@ bool BuildingPositionCosts::Score(
     case BLD_FARM:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
@@ -459,18 +458,18 @@ bool BuildingPositionCosts::Score(
     case BLD_DONKEYBREEDER:
     {
         // Should be placed close to destination of its wares.
-        Building* dst = buildings_->GetGoodsDest(world, building, island, pt);
+        Building* dst = buildings_.GetGoodsDest(building, island, pt);
         if (dst)
             score.push_back(Rate(dst->GetDistance(pt), c_distanceGroups));
         else
             score.push_back(0.1);
 
         // Should be placed close to group farm.
-        auto bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
+        auto bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_FARM });
         score.push_back(Rate(bld.second, c_distanceGroups));
 
         // Should be placed close to group wells.
-        bld = buildings_->GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
+        bld = buildings_.GroupMemberDistance(pt, building->GetGroup(), { BLD_WELL });
         score.push_back(Rate(bld.second, c_distanceGroups));
     } break;
 

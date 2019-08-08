@@ -20,7 +20,6 @@
 #include "ai/beowulf/BuildLocations.h"
 #include "ai/beowulf/BuildingQualityCalculator.h"
 #include "ai/beowulf/Buildings.h"
-#include "ai/beowulf/BuildingsBase.h"
 #include "ai/beowulf/Helper.h"
 
 #include <utility> /* std::pair */
@@ -47,7 +46,9 @@ BuildLocations::~BuildLocations()
     }
 }
 
-void BuildLocations::Calculate(const GameWorldBase& gwb, BuildingQualityCalculator& bqc, const BuildingsBase* buildings, const MapPoint& start)
+void BuildLocations::Calculate(
+        const Buildings& buildings,
+        const MapPoint& start)
 {
     RTTR_Assert(start.isValid());
 
@@ -58,18 +59,18 @@ void BuildLocations::Calculate(const GameWorldBase& gwb, BuildingQualityCalculat
     // condition
     [&](const MapPoint& pos, Direction dir)
     {
-        return buildings->IsRoadPossible(gwb, pos, dir);
+        return buildings.IsRoadPossible(pos, dir);
     },
     // action
     [&](const MapPoint& pos)
     {
-        BuildingQuality bq = bqc.GetBQ(pos);
+        BuildingQuality bq = buildings.GetBQC().GetBQ(pos);
         if (bq > BQ_FLAG)
             Add(pos, bq);
     });
 }
 
-void BuildLocations::Update(BuildingQualityCalculator& bqc, const MapPoint& pos, unsigned radius)
+void BuildLocations::Update(const BuildingQualityCalculator& bqc, const MapPoint& pos, unsigned radius)
 {
     map_.VisitPointsInRadius(pos, radius, [&](const MapPoint& pt)
     {

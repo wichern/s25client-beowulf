@@ -27,13 +27,14 @@
 #include "buildings/nobBaseWarehouse.h"
 #include "buildings/nobHQ.h"
 #include "nodeObjs/noFlag.h"
+#include "pathfinding/PathConditionRoad.h"
 
 #include <limits>
 
 namespace beowulf {
 
 Buildings::Buildings(AIInterface& aii)
-    : aii_(aii), islands_(aii.gwb)
+    : aii_(aii), bqc_(aii), roadNetworks_(aii.gwb)
 {
     nodes_.Resize(aii.gwb.GetSize());
 
@@ -68,7 +69,10 @@ Buildings::Buildings(AIInterface& aii)
         }
     }
 
-    islands_.Detect(this);
+    roadNetworks_.Detect(*this);
+
+    bqc_.AddBlockingReason(this);
+    bqc_.AddRoadProvider(this);
 }
 
 Buildings::~Buildings()
@@ -77,38 +81,44 @@ Buildings::~Buildings()
         delete building;
 }
 
-void Buildings::Construct(Building* building, const MapPoint& pos)
+void Buildings::Construct(Building* building, const MapPoint& pt)
 {
     RTTR_Assert(building);
     RTTR_Assert(building->GetState() != Building::Finished);
     RTTR_Assert(building->GetState() != Building::ConstructionRequested);
     RTTR_Assert(building->GetState() != Building::UnderConstruction);
 
-    aii_.SetBuildingSite(pos, building->GetType());
+    ClearPlan();
+
+    aii_.SetBuildingSite(pt, building->GetType());
 
     building->state_ = Building::ConstructionRequested;
-    SetPos(building, pos);
+    SetPos(building, pt);
     if (!HasFlag(building->GetFlag()))
         SetFlagState(building->GetFlag(), FlagRequested);
 }
 
-void Buildings::ConstructFlag(const MapPoint& pos)
+void Buildings::ConstructFlag(const MapPoint& pt)
 {
-    Node& node = nodes_[pos];
+    ClearPlan();
+
+    Node& node = nodes_[pt];
     if (node.flag == FlagDoesNotExist) {
-        aii_.SetFlag(pos);
-        SetFlagState(pos, FlagRequested);
+        aii_.SetFlag(pt);
+        SetFlagState(pt, FlagRequested);
     }
 }
 
-void Buildings::ConstructRoad(const MapPoint& pos, const std::vector<Direction>& route)
+void Buildings::ConstructRoad(const MapPoint& pt, const std::vector<Direction>& route)
 {
-    RTTR_Assert(nodes_[pos].flag == FlagRequested || nodes_[pos].flag == FlagFinished);
-    aii_.BuildRoad(pos, false, route);
-    SetRoadState(pos, route, RoadRequested);
+    ClearPlan();
 
-    // @todo: if constructing multiple segments one final DetectIslands() would suffice.
-    islands_.Detect(this);
+    RTTR_Assert(nodes_[pt].flag == FlagRequested || nodes_[pt].flag == FlagFinished);
+    aii_.BuildRoad(pt, false, route);
+    SetRoadState(pt, route, RoadRequested);
+
+    // @performance: if constructing multiple segments one final DetectIslands() would suffice.
+    roadNetworks_.Detect(*this);
 }
 
 void Buildings::Deconstruct(Building* building)
@@ -116,12 +126,16 @@ void Buildings::Deconstruct(Building* building)
     RTTR_Assert(building);
     RTTR_Assert(building->GetState() != Building::PlanningRequest);
 
-    aii_.DestroyBuilding(building->GetPos());
+    ClearPlan();
+
+    aii_.DestroyBuilding(building->GetPt());
     building->state_ = Building::DestructionRequested;
 }
 
 void Buildings::DeconstructFlag(const MapPoint& pos)
 {
+    ClearPlan();
+
     Node& node = nodes_[pos];
     RTTR_Assert(node.flag == FlagFinished);
 
@@ -156,27 +170,112 @@ void Buildings::DeconstructRoad(const MapPoint& pos, const std::vector<Direction
     RTTR_Assert(!route.empty());
     RTTR_Assert(HasRoad(pos, route.front()));
 
+    ClearPlan();
+
     aii_.DestroyRoad(pos, route.front());
     SetRoadState(pos, route, RoadDestructionRequested);
 
-    islands_.Detect(this);
+    roadNetworks_.Detect(*this);
 }
 
-Island Buildings::GetIsland(const MapPoint& pos) const
+void Buildings::Plan(Building* building, const MapPoint& pt)
 {
-    return islands_.Get(pos);
+    Node& node = nodes_[pt];
+    RTTR_Assert(node.building == nullptr);
+    RTTR_Assert(building);
+    RTTR_Assert(building->GetState() == Building::PlanningRequest);
+
+    node.building = building;
+    building->pt_ = pt;
+
+    PlanFlag(nodes_.GetNeighbour(pt, Direction::SOUTHEAST));
+
+    activePlan_ = true;
 }
 
-MapPoint Buildings::GetFlag(Island island) const
+void Buildings::PlanFlag(const MapPoint& pt)
+{
+    Node& node = nodes_[pt];
+
+    if (node.flag == FlagFinished || node.flag == FlagRequested)
+        return;
+
+    node.flagPlanCount++;
+
+    if (node.flagPlanCount == 1)
+        flags_.push_back(pt);
+
+    activePlan_ = true;
+}
+
+void Buildings::PlanRoad(const MapPoint& pt, const std::vector<Direction>& route)
+{
+    MapPoint cur = pt;
+    for (size_t i = 0; i < route.size(); ++i) {
+        PlanSegment(cur, route[i]);
+//        if (i > 1 && i < route.size() - 2)
+//            if (GetBM(cur) == BlockingManner::None)
+//                possibleFlags_.push_back(cur);
+        cur = nodes_.GetNeighbour(cur, route[i]);
+    }
+
+    PlanFlag(cur);
+
+    activePlan_ = true;
+}
+
+void Buildings::ClearPlan()
+{
+    if (!activePlan_)
+        return;
+
+    // Clear planned flags.
+    flags_.erase(std::remove_if(flags_.begin(), flags_.end(),
+        [&](const MapPoint& pt)
+    {
+        return nodes_[pt].flagPlanCount > 0;
+    }), flags_.end());
+
+    // Clear all nodes
+    // @performance: it is always faster to just iterate over the elements of the std::vector instead of searching for each node individually!
+    RTTR_FOREACH_PT(MapPoint, nodes_.GetSize())
+    {
+        Node& node = nodes_[pt];
+
+        if (node.building && node.building->GetState() == Building::PlanningRequest)
+            node.building = nullptr;
+
+        node.flagPlanCount = 0;
+        node.roadPlanCount[0] = 0;
+        node.roadPlanCount[1] = 0;
+        node.roadPlanCount[2] = 0;
+    }
+
+    activePlan_ = false;
+}
+
+rnet_id_t Buildings::GetRoadNetwork(const MapPoint& pt) const
+{
+    rnet_id_t ret = roadNetworks_.Get(pt);
+    if (activePlan_ && ret == InvalidRoadNetwork) {
+        if (nodes_[pt].flagPlanCount > 0)
+            ret = activePlanRoadNetwork_;
+    }
+    return ret;
+}
+
+MapPoint Buildings::GetFlag(rnet_id_t rnet) const
 {
     for (const MapPoint& flag : flags_)
-        if (islands_.Get(flag) == island)
+        if (roadNetworks_.Get(flag) == rnet)
             return flag;
     return MapPoint::Invalid();
 }
 
 void Buildings::Remove(Building* building)
 {
+    ClearPlan();
+
     if (building->GetGroup() != InvalidProductionGroup) {
         Group& group = groups_[building->GetGroup()];
         size_t nullEntries = 0;
@@ -192,8 +291,8 @@ void Buildings::Remove(Building* building)
             groups_.erase(groups_.begin() + building->GetGroup());
     }
 
-    if (building->GetPos().isValid())
-        nodes_[building->GetPos()].building = nullptr;
+    if (building->GetPt().isValid())
+        nodes_[building->GetPt()].building = nullptr;
 
     buildings_.erase(std::remove(buildings_.begin(), buildings_.end(), building), buildings_.end());
     //RemoveRoadUser(building);
@@ -201,25 +300,29 @@ void Buildings::Remove(Building* building)
     delete building;
 }
 
-void Buildings::RemoveFlag(const MapPoint& pos)
+void Buildings::RemoveFlag(const MapPoint& pt)
 {
-    SetFlagState(pos, FlagDoesNotExist);
+    ClearPlan();
+    SetFlagState(pt, FlagDoesNotExist);
 }
 
-void Buildings::RemoveRoad(const MapPoint& pos, const std::vector<Direction>& route)
+void Buildings::RemoveRoad(const MapPoint& pt, const std::vector<Direction>& route)
 {
-    SetRoadState(pos, route, RoadDoesNotExist);
-    islands_.Detect(this);
+    ClearPlan();
+    SetRoadState(pt, route, RoadDoesNotExist);
+    roadNetworks_.Detect(*this);
 }
 
 Building* Buildings::Create(
         BuildingType type,
         Building::State state,
-        ProductionGroup group,
-        const MapPoint& pos)
+        pgroup_id_t group,
+        const MapPoint& pt)
 {
+    ClearPlan();
+
     Building* building = new Building(*this, type, state);
-    building->pos_ = pos;
+    building->pt_ = pt;
     buildings_.push_back(building);
 
     if (group != InvalidProductionGroup) {
@@ -324,10 +427,10 @@ const std::vector<MapPoint>& Buildings::GetFlags() const
     return flags_;
 }
 
-bool Buildings::HasFlag(const MapPoint& pos) const
+bool Buildings::HasFlag(const MapPoint& pt) const
 {
-    FlagState state = GetFlagState(pos);
-    return state == FlagRequested || state == FlagFinished;
+    const Node& node = nodes_[pt];
+    return node.flag == FlagRequested || node.flag == FlagFinished || node.flagPlanCount > 0;
 }
 
 FlagState Buildings::GetFlagState(const MapPoint& pos) const
@@ -350,34 +453,46 @@ void Buildings::SetFlagState(const MapPoint& pos, FlagState state)
     }
 
     nodes_[pos].flag = state;
-    islands_.OnFlagStateChanged(this, pos, state);
+    roadNetworks_.OnFlagStateChanged(*this, pos, state);
 }
 
-bool Buildings::IsFlagConnected(const MapPoint& pos) const
+bool Buildings::IsFlagConnected(const MapPoint& pt) const
 {
-    RTTR_Assert(HasFlag(pos));
+    RTTR_Assert(HasFlag(pt));
 
     for (unsigned dir = 0; dir < Direction::COUNT; ++dir) {
-        if (HasRoad(pos, Direction(dir)))
+        if (HasRoad(pt, Direction(dir)))
             return true;
     }
 
     return false;
 }
 
-bool Buildings::HasRoad(const MapPoint& pos, Direction dir) const
+bool Buildings::HasRoad(const MapPoint& pt, Direction dir) const
 {
-    RoadState state = GetRoadState(pos, dir);
-    return state == RoadRequested || state == RoadFinished;
+    MapPoint nodePt;
+    unsigned idx;
+
+    if (dir.toUInt() >= 3) {
+        nodePt = pt;
+        idx = OppositeDirection(dir).toUInt();
+    } else {
+        nodePt = nodes_.GetNeighbour(pt, dir);
+        idx = dir.toUInt();
+    }
+
+    const Node& node = nodes_[nodePt];
+    RoadState state = node.roads[idx];
+    return state == RoadRequested || state == RoadFinished || node.roadPlanCount[idx] > 0;
 }
 
-RoadState Buildings::GetRoadState(const MapPoint& pos, Direction dir) const
+RoadState Buildings::GetRoadState(const MapPoint& pt, Direction dir) const
 {
     Direction oppositeDir = OppositeDirection(dir);
     if (dir.toUInt() >= 3)
-        return nodes_[pos].roads[oppositeDir.toUInt()];
+        return nodes_[pt].roads[oppositeDir.toUInt()];
     else
-        return nodes_[nodes_.GetNeighbour(pos, dir)].roads[dir.toUInt()];
+        return nodes_[nodes_.GetNeighbour(pt, dir)].roads[dir.toUInt()];
 }
 
 void Buildings::SetRoadState(const MapPoint& pos, Direction dir, RoadState state)
@@ -396,6 +511,11 @@ void Buildings::SetRoadState(const MapPoint& pos, const std::vector<Direction>& 
         SetRoadState(cur, route[i], state);
         cur = nodes_.GetNeighbour(cur, route[i]);
     }
+}
+
+const BuildingQualityCalculator& Buildings::GetBQC() const
+{
+    return bqc_;
 }
 
 //void Buildings::AddRoadUser(Building* building, const std::vector<Direction>& route)
@@ -432,6 +552,131 @@ const GameWorldBase& Buildings::GetWorld() const
     return aii_.gwb;
 }
 
+bool Buildings::IsRoadPossible(
+        const MapPoint& pt,
+        Direction dir) const
+{
+    MapPoint dest = aii_.gwb.GetNeighbour(pt, dir);
+
+    if (HasFlag(dest))
+        return true;
+
+    for (unsigned d = 0; d < Direction::COUNT; ++d) {
+        if (HasRoad(dest, Direction(d))) {
+            return bqc_.GetBQ(dest) >= BQ_FLAG;
+        }
+    }
+
+    return makePathConditionRoad(aii_.gwb, false).IsNodeOk(dest);
+}
+
+std::pair<MapPoint, unsigned> Buildings::GetNearestBuilding(
+        const MapPoint& pt,
+        const std::vector<BuildingType>& types,
+        rnet_id_t rnet) const
+{
+    // shortest euclidean distance.
+    unsigned dist = std::numeric_limits<unsigned>::max();
+    MapPoint closest = MapPoint::Invalid();
+
+    uint64_t query = 0;
+    for (BuildingType type : types)
+        query |= 1ul << static_cast<uint64_t>(type);
+
+    for (const Building* building : Get()) {
+        // skip buildings of different type
+        if (0 == (query & (1ul << static_cast<uint64_t>(building->GetType()))))
+            continue;
+        // skip buildings that have no position yet.
+        if (!building->GetPt().isValid())
+            continue;
+        // skip buildings on different islands.
+        if (rnet != InvalidRoadNetwork && GetRoadNetwork(building->GetFlag()) != rnet)
+            continue;
+
+        unsigned d = nodes_.CalcDistance(pt, building->GetPt());
+        if (d < dist) {
+            closest = building->GetPt();
+            dist = d;
+        }
+    }
+
+    return { closest, dist };
+}
+
+Building* Buildings::GetGoodsDest(
+        const Building* building,
+        rnet_id_t rnet,
+        const MapPoint& pt) const
+{
+    struct ProductionDest {
+        bool checkGroup;
+        std::vector<BuildingType> types;
+    };
+
+    static const ProductionDest SUPPRESS_UNUSED GOODS_DESTINATIONS[NUM_BUILDING_TYPES] =
+    {
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HEADQUARTERS
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_BARRACKS
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_GUARDHOUSE
+        { false, {  } },  // BLD_NOTHING2
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_WATCHTOWER
+        { false, {  } },  // BLD_NOTHING3
+        { false, {  } },  // BLD_NOTHING4
+        { false, {  } },  // BLD_NOTHING5
+        { false, {  } },  // BLD_NOTHING6
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_FORTRESS
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GRANITEMINE
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_COALMINE
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_IRONMINE
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GOLDMINE
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_LOOKOUTTOWER
+        { false, {  } },  // BLD_NOTHING7
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CATAPULT
+        { true,  { BLD_SAWMILL } },       // BLD_WOODCUTTER
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FISHERY
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_QUARRY
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FORESTER
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SLAUGHTERHOUSE
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_HUNTER   // the hunter produces very little food
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BREWERY
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_ARMORY
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_METALWORKS
+        { true,  { BLD_ARMORY, BLD_METALWORKS } }, // BLD_IRONSMELTER
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CHARBURNER
+        { true,  { BLD_SLAUGHTERHOUSE } },// BLD_PIGFARM
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_STOREHOUSE
+        { false, {  } },  // BLD_NOTHING9
+        { true,  { BLD_BAKERY } },        // BLD_MILL
+        { true,  { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BAKERY
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SAWMILL
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_MINT
+        { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_WELL
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SHIPYARD
+        { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_FARM
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_DONKEYBREEDER
+        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HARBORBUILDING
+    };
+
+    // Get destination infos for this type of building.
+    const ProductionDest& dest = GOODS_DESTINATIONS[building->GetType()];
+
+    if (dest.checkGroup) {
+        for (Building* bld : Get()) {
+            if (bld->GetGroup() != building->GetGroup())
+                continue;
+
+            if (std::find(dest.types.begin(), dest.types.end(), bld->GetType()) != dest.types.end()) {
+                return bld;
+            }
+        }
+    }
+
+    auto nearest = GetNearestBuilding(pt, dest.types, rnet);
+
+    return nearest.first.isValid() ? Get(nearest.first) : nullptr;
+}
+
 //void Buildings::AddRoadUser(const MapPoint& pos, Direction dir, Building* building)
 //{
 //    if (dir.toUInt() < 3) {
@@ -466,7 +711,7 @@ const GameWorldBase& Buildings::GetWorld() const
 
 bool Buildings::InsertIntoExistingGroup(Building* building)
 {
-    for (ProductionGroup gidx = 0; gidx < groups_.size(); ++gidx) {
+    for (pgroup_id_t gidx = 0; gidx < groups_.size(); ++gidx) {
         Group& group = groups_[gidx];
         for (size_t i = 0; i < group.types.size(); ++i) {
             if (group.buildings[i] == nullptr && group.types[i] == building->GetType()) {
@@ -480,16 +725,24 @@ bool Buildings::InsertIntoExistingGroup(Building* building)
     return false;
 }
 
+void Buildings::PlanSegment(const MapPoint& pt, Direction dir)
+{
+    if (dir.toUInt() >= 3)
+        nodes_[pt].roadPlanCount[OppositeDirection(dir).toUInt()]++;
+    else
+        nodes_[nodes_.GetNeighbour(pt, dir)].roadPlanCount[dir.toUInt()]++;
+}
+
 void Buildings::SetPos(Building* building, const MapPoint& pt)
 {
     Node& node = nodes_[pt];
     RTTR_Assert(node.building == nullptr);
 
-    if (building->pos_.isValid())
-        nodes_[building->pos_].building = nullptr;
+    if (building->pt_.isValid())
+        nodes_[building->pt_].building = nullptr;
 
     node.building = building;
-    building->pos_ = pt;
+    building->pt_ = pt;
 }
 
 BlockingManner Buildings::GetBM(const MapPoint& pt) const
@@ -501,19 +754,21 @@ BlockingManner Buildings::GetBM(const MapPoint& pt) const
     if (HasFlag(pt))
         return BlockingManner::Flag;
 
-    // @hint: flags around probably has a different meaning :/
-//    for (unsigned dir = 0; dir < Direction::COUNT; ++dir) {
-//        if (HasFlag(nodes_.GetNeighbour(pt, Direction(dir))))
-//            return BlockingManner::FlagsAround;
-//    }
-
     return BlockingManner::None;
+}
+
+bool Buildings::IsOnRoad(const MapPoint& pt) const
+{
+    for (unsigned dir = 0; dir < Direction::COUNT; ++dir)
+        if (HasRoad(pt, Direction(dir)))
+            return true;
+    return false;
 }
 
 std::pair<MapPoint, unsigned>
 Buildings::GroupMemberDistance(
         const MapPoint& pt,
-        ProductionGroup group,
+        pgroup_id_t group,
         const std::vector<BuildingType>& types) const
 {
     std::pair<MapPoint, unsigned> ret{MapPoint::Invalid(), std::numeric_limits<unsigned>::max()};
@@ -524,7 +779,7 @@ Buildings::GroupMemberDistance(
             if (g.buildings[i] == nullptr)
                 continue;
 
-            if (!g.buildings[i]->GetPos().isValid())
+            if (!g.buildings[i]->GetPt().isValid())
                 continue;
 
             unsigned dist = aii_.gwb.CalcDistance(g.buildings[i]->GetFlag(), pt);

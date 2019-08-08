@@ -27,8 +27,10 @@
 namespace beowulf {
 
 class Buildings;
-// class IBuildings;
 
+/**
+ * @brief The Building class contains the additional data Beowulf needs to store.
+ */
 class Building
 {
 public:
@@ -51,10 +53,10 @@ public:
 
 private:
     Buildings& buildings_;
-    MapPoint pos_;
+    MapPoint pt_;
     BuildingType type_;
     State state_;
-    ProductionGroup group_;
+    pgroup_id_t group_;
 
     // Only 'Buildings' can create and destroy building objects or change their state or group.
     friend class Buildings;
@@ -64,17 +66,19 @@ private:
     ~Building() = default;
 
 public:
-    const MapPoint& GetPos() const;
+    const MapPoint& GetPt() const;
     MapPoint GetFlag() const;
     BuildingType GetType() const;
     State GetState() const;
-    ProductionGroup GetGroup() const;
+    pgroup_id_t GetGroup() const;
     BuildingQuality GetQuality() const;
-    unsigned GetDistance(const MapPoint& pos) const;
+    unsigned GetDistance(const MapPoint& pt) const;
+
+    /**
+     * Whether this building will produce goods.
+     */
     bool IsProduction() const;
 };
-
-// Building* GetGoodsDest(IBuildings* buildings, const Building* building, Island island);
 
 } // namespace beowulf
 
