@@ -23,6 +23,7 @@
 #include "ai/beowulf/Helper.h"
 
 #include <utility> /* std::pair */
+#include <algorithm> /* std::max */
 
 namespace beowulf {
 
@@ -70,8 +71,14 @@ void BuildLocations::Calculate(
     });
 }
 
-void BuildLocations::Update(const BuildingQualityCalculator& bqc, const MapPoint& pos, unsigned radius)
+void BuildLocations::Update(
+        const BuildingQualityCalculator& bqc,
+        const MapPoint& pos,
+        unsigned radius)
 {
+    // there is no point in updating a radius less than 2:
+    radius = std::max(radius, unsigned(2));
+
     map_.VisitPointsInRadius(pos, radius, [&](const MapPoint& pt)
     {
         BuildingQuality bq = bqc.GetBQ(pt);
@@ -91,7 +98,8 @@ void BuildLocations::Update(const BuildingQualityCalculator& bqc, const MapPoint
     }, true);
 }
 
-std::vector<MapPoint> BuildLocations::Get(BuildingQuality bq) const
+std::vector<MapPoint> BuildLocations::Get(
+        BuildingQuality bq) const
 {
     std::vector<MapPoint> ret;
     ret.reserve(size_);
@@ -147,7 +155,9 @@ unsigned BuildLocations::GetSize() const
     return size_;
 }
 
-void BuildLocations::Add(const MapPoint& pos, BuildingQuality bq)
+void BuildLocations::Add(
+        const MapPoint& pos,
+        BuildingQuality bq)
 {
     Node* node;
     if (freelist_) {

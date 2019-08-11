@@ -90,9 +90,10 @@ bool BuildingPlannerBase::Place(
             buildings_.ConstructRoad(flagPos, route);
         else
             buildings_.PlanRoad(flagPos, route);
+        locations_.Update(buildings_.GetBQC(), flagPos, route.size() + 1);
+    } else {
+        locations_.Update(buildings_.GetBQC(), pt);
     }
-
-    locations_.Update(buildings_.GetBQC(), pt, route.size());
 
     return true;
 }

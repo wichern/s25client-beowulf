@@ -15,6 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
+#if 1
+
 #include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
@@ -22,6 +24,7 @@
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/BuildLocations.h"
 #include "ai/beowulf/BuildingQualityCalculator.h"
+#include "ai/beowulf/Debug.h"
 
 #include "nodeObjs/noTree.h"
 
@@ -112,4 +115,141 @@ BOOST_FIXTURE_TEST_CASE(BuildLocationsEmptyMap, BiggerWorldWithGCExecution)
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(PlaceFarmsClosely, BiggerWorldWithGCExecution)
+{
+    std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
+    beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
+
+    MapPoint farm1Point(9, 11);
+    MapPoint farm2Point(7, 11);
+    MapPoint farm3Point(6, 11);
+
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm1Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm2Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm3Point) >= BQ_CASTLE);
+
+    beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
+    bl.Calculate(beowulf.buildings, MapPoint(13, 12)); // HQ flag
+    BOOST_REQUIRE(bl.Get(farm1Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm2Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
+
+    beowulf::Building* farm1 = beowulf.buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest);
+    beowulf.buildings.Construct(farm1, farm1Point);
+
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm1Point) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm2Point) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm3Point) >= BQ_CASTLE);
+    bl.Update(beowulf.buildings.GetBQC(), farm1Point);
+    BOOST_REQUIRE(bl.Get(farm1Point) < BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm2Point) < BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
+
+    Proceed(ai, world, curPlayer, em);
+
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm1Point) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm2Point) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf.buildings.GetBQC().GetBQ(farm3Point) >= BQ_CASTLE);
+    bl.Update(beowulf.buildings.GetBQC(), farm1Point);
+    BOOST_REQUIRE(bl.Get(farm1Point) < BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm2Point) < BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
+}
+
+BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
+{
+    /*
+     * We place a couple of construction sites and check whether BQC and BuildLocations map perfectly.
+     */
+    std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
+    beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
+
+    beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
+    bl.Calculate(beowulf.buildings, MapPoint(13, 12)); // HQ flag
+
+    RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
+        BuildingQuality bq_BuildLocations = bl.Get(pt);
+        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_GWB = beowulf.GetAIInterface().gwb.GetBQ(pt, beowulf.GetPlayerId());
+
+        BOOST_REQUIRE(bq_GWB == bq_Beowulf);
+
+        // BuildingLocations ignores flags
+        if (bq_GWB != BQ_FLAG) {
+            BOOST_REQUIRE(bq_GWB == bq_BuildLocations);
+        }
+    }
+
+    MapPoint farmPoint(9, 11);
+    MapPoint wellPoint(7, 11);
+    MapPoint millPoint(11, 13);
+
+    beowulf.buildings.Construct(beowulf.buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest), farmPoint);
+    bl.Update(beowulf.buildings.GetBQC(), farmPoint);
+    beowulf.buildings.Construct(beowulf.buildings.Create(BLD_WELL, beowulf::Building::PlanningRequest), wellPoint);
+    bl.Update(beowulf.buildings.GetBQC(), wellPoint);
+    beowulf.buildings.Construct(beowulf.buildings.Create(BLD_MILL, beowulf::Building::PlanningRequest), millPoint);
+    bl.Update(beowulf.buildings.GetBQC(), millPoint);
+
+    Proceed(ai, world, curPlayer, em);
+
+    BOOST_REQUIRE(beowulf.buildings.Get(farmPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf.buildings.Get(wellPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf.buildings.Get(millPoint)->GetState() == beowulf::Building::UnderConstruction);
+
+    RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
+        BuildingQuality bq_BuildLocations = bl.Get(pt);
+        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_GWB = beowulf.GetAIInterface().gwb.GetBQ(pt, beowulf.GetPlayerId());
+
+        BOOST_REQUIRE(bq_GWB == bq_Beowulf);
+
+        // BuildingLocations ignores flags
+        if (bq_GWB != BQ_FLAG) {
+            BOOST_REQUIRE(bq_GWB == bq_BuildLocations);
+        }
+    }
+
+    // Place Road
+    std::vector<Direction> route = { Direction::EAST, Direction::EAST, Direction::EAST,
+                                     Direction::NORTHWEST, Direction::NORTHWEST, Direction::WEST };
+    //std::vector<Direction> route = { Direction::NORTHEAST, Direction::NORTHEAST };
+    beowulf.buildings.ConstructRoad(MapPoint(12, 14), route);
+
+    beowulf::AsciiMap map(beowulf.GetAIInterface());
+    map.draw(beowulf.buildings);
+    map.write();
+
+    bl.Update(beowulf.buildings.GetBQC(), MapPoint(12, 14), route.size());
+    RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
+        BuildingQuality bq_BuildLocations = bl.Get(pt);
+        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+
+        // BuildingLocations ignores flags
+        if (bq_Beowulf != BQ_FLAG) {
+            if (bq_Beowulf != bq_BuildLocations) {
+                BOOST_REQUIRE(false);
+            }
+        }
+    }
+
+    Proceed(ai, world, curPlayer, em);
+
+    bl.Update(beowulf.buildings.GetBQC(), MapPoint(12, 14), route.size());
+    RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
+        BuildingQuality bq_BuildLocations = bl.Get(pt);
+        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_GWB = beowulf.GetAIInterface().gwb.GetBQ(pt, beowulf.GetPlayerId());
+
+        BOOST_REQUIRE(bq_GWB == bq_Beowulf);
+
+        // BuildingLocations ignores flags
+        if (bq_GWB != BQ_FLAG) {
+            BOOST_REQUIRE(bq_GWB == bq_BuildLocations);
+        }
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
+
+#endif
