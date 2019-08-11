@@ -18,6 +18,7 @@
 #include "rttrDefines.h" // IWYU pragma: keep
 
 #include "ai/beowulf/Beowulf.h"
+#include "ai/beowulf/BuildingPlannerSimple.h"
 
 #include "network/GameClient.h"
 #include "network/GameMessages.h"
@@ -95,20 +96,21 @@ void Beowulf::RunGF(const unsigned /*gf*/, bool /*gfisnwf*/)
      */
     if (buildingPlanner_ == nullptr && !constructionRequests_.empty()) {
         std::vector<Building*> requests;
-        rnet_id_t island = constructionRequests_.front().second;
+        rnet_id_t rnet = constructionRequests_.front().second;
 
         for (auto& req : constructionRequests_)
-            if (req.second == island)
+            if (req.second == rnet)
                 requests.push_back(req.first);
 
         constructionRequests_.erase(
                     std::remove_if(
                         constructionRequests_.begin(),
                         constructionRequests_.end(),
-                        [island](const auto& x) { return x.second == island; }));
+                        [rnet](const auto& x) { return x.second == rnet; }),
+                    constructionRequests_.end());
 
-        buildingPlanner_ = new BuildingPlanner(aii, buildings, resources);
-        buildingPlanner_->Init(requests, island);
+        buildingPlanner_ = new BuildingPlannerSimple(aii, buildings, resources, rnet);
+        buildingPlanner_->Init(requests);
     }
 
     if (buildingPlanner_) {
@@ -117,7 +119,7 @@ void Beowulf::RunGF(const unsigned /*gf*/, bool /*gfisnwf*/)
             delete buildingPlanner_;
             buildingPlanner_ = nullptr;
         } else {
-            for (unsigned i = 0; i < 10; ++i)
+            for (unsigned i = 0; i < 10 && buildingPlanner_->GetSearches() < buildingPlanner_->GetMaxSearches(); ++i)
                 buildingPlanner_->Search();
         }
     }

@@ -18,6 +18,8 @@
 #include "rttrDefines.h" // IWYU pragma: keep
 
 #include "ai/beowulf/Debug.h"
+#include "gameData/BuildingConsts.h"
+#include "nodeObjs/noTree.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -92,21 +94,10 @@ std::string to_string(Direction dir)
     }
 }
 
-AsciiMap::AsciiMap(const MapExtent& size, int scale)
-{
-    init(size, scale);
-}
-
 AsciiMap::AsciiMap(const AIInterface& aii, int scale)
+    : aii_(aii)
 {
     init(aii.gwb.GetSize(), scale);
-
-    RTTR_FOREACH_PT(MapPoint, map_size_) {
-        if (aii.IsOwnTerritory(pt))
-            draw(pt, '_');
-        else
-            draw(pt, '.');
-    }
 }
 
 AsciiMap::~AsciiMap()
@@ -179,6 +170,13 @@ void AsciiMap::draw(const MapPoint& pt, unsigned dir, bool fat)
 
 void AsciiMap::draw(const Buildings& buildings)
 {
+    static const char* c_short_building_names[NUM_BUILDING_TYPES] = {
+        "HQ", "Bar", "Gua", "", "Wat", "", "", "", "", "Fort", "GrM", "CoM", "IrM", "GoM", "Loo",
+        "", "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre", "Arm", "Met",
+        "Iro", "Cha", "Pig", "Sto", "", "Mil", "Bak", "Saw", "Min", "Wel",
+        "Shi", "Far", "Don", "Har"
+    };
+
     RTTR_FOREACH_PT(MapPoint, map_size_)
     {
         if (buildings.HasFlag(pt))
@@ -187,6 +185,62 @@ void AsciiMap::draw(const Buildings& buildings)
         for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
             if (buildings.HasRoad(pt, Direction(dir)))
                 draw(pt, dir);
+        }
+
+        Building* building = buildings.Get(pt);
+        if (building) {
+            draw(pt, c_short_building_names[building->GetType()]);
+        }
+    }
+}
+
+void AsciiMap::draw(const RoadNetworks& roadNetworks)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        rnet_id_t id = roadNetworks.Get(pt);
+        if (id != InvalidRoadNetwork)
+            draw(pt, std::to_string(id));
+    }
+}
+
+void AsciiMap::drawResources(const GameWorldBase& world)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        const Resource& res = world.GetNode(pt).resources;
+        switch (res.getType()) {
+        case Resource::Iron:
+            draw(pt, "I" + std::to_string(res.getAmount()));
+            break;
+        case Resource::Gold:
+            draw(pt, "G" + std::to_string(res.getAmount()));
+            break;
+        case Resource::Coal:
+            draw(pt, "C" + std::to_string(res.getAmount()));
+            break;
+        case Resource::Granite:
+            draw(pt, "Gr" + std::to_string(res.getAmount()));
+            break;
+        case Resource::Water:
+            draw(pt, "W" + std::to_string(res.getAmount()));
+            break;
+        case Resource::Fish:
+            draw(pt, "F" + std::to_string(res.getAmount()));
+            break;
+        default: break;
+        }
+
+        DescIdx<TerrainDesc> t1 = world.GetNode(pt).t1;
+        if (world.GetDescription().get(t1).Is(ETerrain::Walkable)) {
+            NodalObjectType no = world.GetNO(pt)->GetType();
+
+            if (no == NOP_TREE) {
+                if (world.GetSpecObj<noTree>(pt)->ProducesWood())
+                    draw(pt, "T");
+            } else if (no == NOP_GRANITE) {
+                draw(pt, "S");
+            }
         }
     }
 }
@@ -207,6 +261,13 @@ void AsciiMap::clear()
 
     // Add null terminator.
     map_[map_buffer_len_ - 1] = 0;
+
+    RTTR_FOREACH_PT(MapPoint, map_size_) {
+        if (aii_.IsOwnTerritory(pt))
+            draw(pt, '_');
+        else
+            draw(pt, '.');
+    }
 }
 
 void AsciiMap::write(std::ostream& out) const

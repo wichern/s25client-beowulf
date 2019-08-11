@@ -20,7 +20,6 @@
 #include "ai/beowulf/ResourceMap.h"
 #include "ai/beowulf/ProductionPlanner.h"
 #include "ai/beowulf/Buildings.h"
-#include "ai/beowulf/BuildingPlanner.h"
 
 #include "ai/AIPlayer.h"
 
@@ -36,6 +35,8 @@ class FlagNote;
 
 namespace beowulf {
 
+class BuildingPlannerBase;
+
 /**
  * Todo-List
  * ~~~~~~~~~
@@ -46,7 +47,7 @@ namespace beowulf {
  */
 class Beowulf : public AIPlayer
 {
-    BuildingPlanner* buildingPlanner_ = nullptr;
+    BuildingPlannerBase* buildingPlanner_ = nullptr;
     std::vector<Subscribtion> eventSubscriptions_;
     std::vector<std::pair<Building*, rnet_id_t>> constructionRequests_;
     bool defeated_ = false;

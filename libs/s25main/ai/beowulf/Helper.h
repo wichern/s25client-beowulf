@@ -137,14 +137,20 @@ bool FindPath(
     return true;
 }
 
-template<typename Condition, typename Cost, typename End>
+/**
+ * @brief Search route from 'start' to the first point that matches the 'end' condition.
+ *
+ *
+ */
+template<typename Condition, typename End, typename Heuristic, typename Cost>
 bool FindPath(
         const MapPoint& start,
         const MapBase& world,
+        std::vector<Direction>* route,
         Condition condition,
-        Cost cost,
         End end,
-        std::vector<Direction>* route = nullptr)
+        Heuristic heuristic,
+        Cost cost)
 {
     typedef unsigned pt_idx_t;
     typedef unsigned distance_t;
@@ -156,7 +162,7 @@ bool FindPath(
         { return l.second > r.second; }
     };
     std::priority_queue<front_pos_t, std::vector<front_pos_t>, PosCompare> frontier;
-    std::map<pt_idx_t, Direction> came_from;
+    std::map<pt_idx_t, Direction> came_from; // @performance: use array?
     std::map<pt_idx_t, distance_t> cost_so_far;
     cost_so_far[world.GetIdx(start)] = 0;
     MapPoint dest;
@@ -182,7 +188,7 @@ bool FindPath(
                     new_cost < cost_so_far[world.GetIdx(next)])
             {
                 cost_so_far[world.GetIdx(next)] = new_cost;
-                frontier.push({ next, new_cost + world.CalcDistance(next, dest) });
+                frontier.push({ next, new_cost + heuristic(next) });
                 came_from[world.GetIdx(next)] = Direction(dir);
             }
         }

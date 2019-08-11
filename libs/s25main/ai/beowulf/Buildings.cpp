@@ -202,8 +202,10 @@ void Buildings::PlanFlag(const MapPoint& pt)
 
     node.flagPlanCount++;
 
-    if (node.flagPlanCount == 1)
+    if (node.flagPlanCount == 1) {
         flags_.push_back(pt);
+        roadNetworks_.OnFlagStateChanged(*this, pt, FlagRequested);
+    }
 
     activePlan_ = true;
 }
@@ -220,6 +222,7 @@ void Buildings::PlanRoad(const MapPoint& pt, const std::vector<Direction>& route
     }
 
     PlanFlag(cur);
+    roadNetworks_.Detect(*this);
 
     activePlan_ = true;
 }
@@ -233,7 +236,11 @@ void Buildings::ClearPlan()
     flags_.erase(std::remove_if(flags_.begin(), flags_.end(),
         [&](const MapPoint& pt)
     {
-        return nodes_[pt].flagPlanCount > 0;
+        if (nodes_[pt].flagPlanCount > 0) {
+            roadNetworks_.OnFlagStateChanged(*this, pt, FlagDestructionRequested);
+            return true;
+        }
+        return false;
     }), flags_.end());
 
     // Clear all nodes
@@ -250,6 +257,8 @@ void Buildings::ClearPlan()
         node.roadPlanCount[1] = 0;
         node.roadPlanCount[2] = 0;
     }
+
+    roadNetworks_.Detect(*this);
 
     activePlan_ = false;
 }
@@ -270,6 +279,11 @@ MapPoint Buildings::GetFlag(rnet_id_t rnet) const
         if (roadNetworks_.Get(flag) == rnet)
             return flag;
     return MapPoint::Invalid();
+}
+
+const RoadNetworks& Buildings::GetRoadNetworks() const
+{
+    return roadNetworks_;
 }
 
 void Buildings::Remove(Building* building)
@@ -456,10 +470,8 @@ void Buildings::SetFlagState(const MapPoint& pos, FlagState state)
     roadNetworks_.OnFlagStateChanged(*this, pos, state);
 }
 
-bool Buildings::IsFlagConnected(const MapPoint& pt) const
+bool Buildings::IsPointConnected(const MapPoint& pt) const
 {
-    RTTR_Assert(HasFlag(pt));
-
     for (unsigned dir = 0; dir < Direction::COUNT; ++dir) {
         if (HasRoad(pt, Direction(dir)))
             return true;
@@ -567,6 +579,9 @@ bool Buildings::IsRoadPossible(
         }
     }
 
+    if (GetBM(dest) != BlockingManner::None)
+        return false;
+
     return makePathConditionRoad(aii_.gwb, false).IsNodeOk(dest);
 }
 
@@ -604,77 +619,102 @@ std::pair<MapPoint, unsigned> Buildings::GetNearestBuilding(
     return { closest, dist };
 }
 
+struct ProductionDest {
+    bool checkGroup;
+    std::vector<BuildingType> types;
+};
+
+static const ProductionDest SUPPRESS_UNUSED GOODS_DESTINATIONS[NUM_BUILDING_TYPES] =
+{
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HEADQUARTERS
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_BARRACKS
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_GUARDHOUSE
+    { false, {  } },  // BLD_NOTHING2
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_WATCHTOWER
+    { false, {  } },  // BLD_NOTHING3
+    { false, {  } },  // BLD_NOTHING4
+    { false, {  } },  // BLD_NOTHING5
+    { false, {  } },  // BLD_NOTHING6
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_FORTRESS
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GRANITEMINE
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_COALMINE
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_IRONMINE
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GOLDMINE
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_LOOKOUTTOWER
+    { false, {  } },  // BLD_NOTHING7
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CATAPULT
+    { true,  { BLD_SAWMILL } },       // BLD_WOODCUTTER
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FISHERY
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_QUARRY
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FORESTER
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SLAUGHTERHOUSE
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_HUNTER   // the hunter produces very little food
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BREWERY
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_ARMORY
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_METALWORKS
+    { true,  { BLD_ARMORY, BLD_METALWORKS } }, // BLD_IRONSMELTER
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CHARBURNER
+    { true,  { BLD_SLAUGHTERHOUSE } },// BLD_PIGFARM
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_STOREHOUSE
+    { false, {  } },  // BLD_NOTHING9
+    { true,  { BLD_BAKERY } },        // BLD_MILL
+    { true,  { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BAKERY
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SAWMILL
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_MINT
+    { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_WELL
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SHIPYARD
+    { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_FARM
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_DONKEYBREEDER
+    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HARBORBUILDING
+};
+
 Building* Buildings::GetGoodsDest(
         const Building* building,
         rnet_id_t rnet,
         const MapPoint& pt) const
 {
-    struct ProductionDest {
-        bool checkGroup;
-        std::vector<BuildingType> types;
-    };
-
-    static const ProductionDest SUPPRESS_UNUSED GOODS_DESTINATIONS[NUM_BUILDING_TYPES] =
-    {
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HEADQUARTERS
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_BARRACKS
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_GUARDHOUSE
-        { false, {  } },  // BLD_NOTHING2
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_WATCHTOWER
-        { false, {  } },  // BLD_NOTHING3
-        { false, {  } },  // BLD_NOTHING4
-        { false, {  } },  // BLD_NOTHING5
-        { false, {  } },  // BLD_NOTHING6
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_FORTRESS
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GRANITEMINE
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_COALMINE
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_IRONMINE
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GOLDMINE
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_LOOKOUTTOWER
-        { false, {  } },  // BLD_NOTHING7
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CATAPULT
-        { true,  { BLD_SAWMILL } },       // BLD_WOODCUTTER
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FISHERY
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_QUARRY
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FORESTER
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SLAUGHTERHOUSE
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_HUNTER   // the hunter produces very little food
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BREWERY
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_ARMORY
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_METALWORKS
-        { true,  { BLD_ARMORY, BLD_METALWORKS } }, // BLD_IRONSMELTER
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CHARBURNER
-        { true,  { BLD_SLAUGHTERHOUSE } },// BLD_PIGFARM
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_STOREHOUSE
-        { false, {  } },  // BLD_NOTHING9
-        { true,  { BLD_BAKERY } },        // BLD_MILL
-        { true,  { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BAKERY
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SAWMILL
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_MINT
-        { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_WELL
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SHIPYARD
-        { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_FARM
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_DONKEYBREEDER
-        { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HARBORBUILDING
-    };
-
     // Get destination infos for this type of building.
     const ProductionDest& dest = GOODS_DESTINATIONS[building->GetType()];
 
     if (dest.checkGroup) {
         for (Building* bld : Get()) {
+            // Is the building in the same group?
             if (bld->GetGroup() != building->GetGroup())
                 continue;
 
-            if (std::find(dest.types.begin(), dest.types.end(), bld->GetType()) != dest.types.end()) {
+            // Does the building have the same type?
+            if (std::find(dest.types.begin(), dest.types.end(), bld->GetType()) != dest.types.end())
                 return bld;
-            }
         }
     }
 
     auto nearest = GetNearestBuilding(pt, dest.types, rnet);
 
     return nearest.first.isValid() ? Get(nearest.first) : nullptr;
+}
+
+bool Buildings::HasGoodsDest(const Building* building) const
+{
+    // Get destination infos for this type of building.
+    const ProductionDest& dest = GOODS_DESTINATIONS[building->GetType()];
+
+    if (dest.checkGroup) {
+        for (Building* building : Get()) {
+            // Is the building in the same group?
+            if (building->GetGroup() != building->GetGroup())
+                continue;
+
+            // Does the building have the same type?
+            if (std::find(dest.types.begin(), dest.types.end(), building->GetType()) != dest.types.end()) {
+                // Has the building already been placed?
+                if (building->GetPt().isValid())
+                    return true;
+            }
+        }
+        return false;
+    } else {
+        return true;
+    }
 }
 
 //void Buildings::AddRoadUser(const MapPoint& pos, Direction dir, Building* building)

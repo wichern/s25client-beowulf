@@ -70,10 +70,11 @@ public:
     rnet_id_t GetRoadNetwork(const MapPoint& pt) const;
     /// Get any flag connected to given road network. (Note: not updated while planning.)
     MapPoint GetFlag(rnet_id_t rnet) const;
+    const RoadNetworks& GetRoadNetworks() const;
 
     // Remove (remove the object from our data structure)
     void Remove(Building* building);
-    void RemoveFlag(const MapPoint& pt);
+    void RemoveFlag(const MapPoint& pt); // you probably want to use DeconstructFlag!
     void RemoveRoad(const MapPoint& pt, const std::vector<Direction>& route);
 
     // Buildings
@@ -89,7 +90,7 @@ public:
     bool HasFlag(const MapPoint& pt) const;
     FlagState GetFlagState(const MapPoint& pt) const;
     void SetFlagState(const MapPoint& pt, FlagState state);
-    bool IsFlagConnected(const MapPoint& pt) const;
+    bool IsPointConnected(const MapPoint& pt) const;
 
     // Roads
     bool HasRoad(const MapPoint& pt, Direction dir) const;
@@ -119,6 +120,8 @@ public:
             const Building* building,
             rnet_id_t rnet,
             const MapPoint& pt) const;
+
+    bool HasGoodsDest(const Building* building) const;
 
 private:
     void SetRoadState(const MapPoint& pos, Direction dir, RoadState state);

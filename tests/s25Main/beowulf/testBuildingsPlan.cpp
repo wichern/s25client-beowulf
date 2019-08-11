@@ -68,8 +68,6 @@ BOOST_FIXTURE_TEST_CASE(PlanRoadSouthEast, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
     bl.Calculate(beowulf.buildings, MapPoint(13, 12)); // HQ flag
 
-    //beowulf::CreateSvg(beowulf.GetAIInterface(), bl, "test1.svg");
-
     beowulf.buildings.PlanRoad(MapPoint(13,12), {Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST});
     bl.Update(bqc, MapPoint(13,12), 4);
 
@@ -97,9 +95,9 @@ BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
 
-    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
-    map.draw(beowulf.buildings);
-    map.write();
+//    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+//    map.draw(beowulf.buildings);
+//    map.write();
 
     BOOST_REQUIRE(beowulf.buildings.IsRoadPossible(MapPoint(13, 12), Direction::SOUTHEAST));
     BOOST_REQUIRE(beowulf.buildings.IsRoadPossible(world.GetNeighbour(MapPoint(13, 12), Direction::SOUTHEAST), Direction::NORTHWEST));
@@ -112,8 +110,8 @@ BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
 
     beowulf.buildings.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
 
-    map.draw(beowulf.buildings);
-    map.write();
+//    map.draw(beowulf.buildings);
+//    map.write();
 
     // there is currently no flag at 10,12 but we could add one.
     BOOST_REQUIRE(beowulf.buildings.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST));

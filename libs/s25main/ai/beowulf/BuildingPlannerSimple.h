@@ -14,32 +14,35 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_ROADISLANDS_H_INCLUDED
-#define BEOWULF_ROADISLANDS_H_INCLUDED
+#ifndef BEOWULF_BUILDINGPLANNERSIMPLE_H_INCLUDED
+#define BEOWULF_BUILDINGPLANNERSIMPLE_H_INCLUDED
 
-#include "ai/beowulf/Types.h"
-
-#include "world/NodeMapBase.h"
+#include "ai/beowulf/BuildingPlannerBase.h"
 
 namespace beowulf {
 
-class Buildings;
-
-class RoadNetworks
+class BuildingPlannerSimple : public BuildingPlannerBase
 {
-private:
-    NodeMapBase<rnet_id_t> islands_;
-    const MapBase& world_;
-    rnet_id_t next_ = 0;
-
 public:
-    RoadNetworks(const MapBase& world); // @todo: make Buildings a member
-    rnet_id_t Get(const MapPoint& pos) const;
+    BuildingPlannerSimple(
+            AIInterface& aii,
+            Buildings& buildings,
+            ResourceMap& resources,
+            rnet_id_t rnet);
 
-    void OnFlagStateChanged(const Buildings& buildings, const MapPoint& pos, FlagState state);
-    void Detect(const Buildings& buildings);
+    ~BuildingPlannerSimple();
+
+    void Init(const std::vector<Building*>& requests) override;
+    void Search() override;
+    void Execute() override;
+    unsigned GetSearches() const override;
+    unsigned GetMaxSearches() const override;
+
+private:
+    std::vector<Building*> requests_;
+    unsigned searches_ = 0;
 };
 
 } // namespace beowulf
 
-#endif //! BEOWULF_ROADISLANDS_H_INCLUDED
+#endif //! BEOWULF_BUILDINGPLANNERSIMPLE_H_INCLUDED

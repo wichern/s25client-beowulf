@@ -23,6 +23,7 @@
 #include "gameTypes/Direction.h"
 
 #include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/RoadIslands.h"
 
 #include <string>
 #include <vector>
@@ -65,7 +66,6 @@ public:
      * @param size          Size of a map.
      * @param scale         Scaling of the representation.
      */
-    AsciiMap(const MapExtent& size, int scale = 1);
     AsciiMap(const AIInterface& aii, int scale = 1);
     ~AsciiMap();
 
@@ -73,6 +73,8 @@ public:
     void draw(const MapPoint& pt, const std::string& str);
     void draw(const MapPoint& pt, unsigned dir, bool fat = false);
     void draw(const Buildings& buildings);
+    void draw(const RoadNetworks& roadNetworks);
+    void drawResources(const GameWorldBase& world);
 
     void clear();
     void write(std::ostream& out = std::cout) const;
@@ -88,6 +90,7 @@ private:
     void set(AsciiPosition pos, const std::string& str);
     bool onMap(const AsciiPosition& pos) const;
 
+    const AIInterface& aii_;
     MapExtent map_size_;
     AsciiPosition::ElementType w_;
     AsciiPosition::ElementType h_;
