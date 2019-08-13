@@ -794,6 +794,14 @@ BlockingManner Buildings::GetBM(const MapPoint& pt) const
     if (HasFlag(pt))
         return BlockingManner::Flag;
 
+    // Check for castle extensions
+    for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
+        Building* building = nodes_[nodes_.GetNeighbour(pt, Direction(dir))].building;
+        if (building && building->GetQuality() == BQ_CASTLE) {
+            return BlockingManner::Single;
+        }
+    }
+
     return BlockingManner::None;
 }
 

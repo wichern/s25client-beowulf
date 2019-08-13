@@ -24,6 +24,7 @@
 
 #include "ai/beowulf/Buildings.h"
 #include "ai/beowulf/RoadIslands.h"
+#include "ai/beowulf/BuildLocations.h"
 
 #include <string>
 #include <vector>
@@ -74,6 +75,7 @@ public:
     void draw(const MapPoint& pt, unsigned dir, bool fat = false);
     void draw(const Buildings& buildings);
     void draw(const RoadNetworks& roadNetworks);
+    void draw(const BuildLocations& buildLocations);
     void drawResources(const GameWorldBase& world);
 
     void clear();

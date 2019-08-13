@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#if 0
+#if 1
 
 #include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"

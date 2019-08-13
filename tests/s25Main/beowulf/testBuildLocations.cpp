@@ -216,9 +216,9 @@ BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
     //std::vector<Direction> route = { Direction::NORTHEAST, Direction::NORTHEAST };
     beowulf.buildings.ConstructRoad(MapPoint(12, 14), route);
 
-    beowulf::AsciiMap map(beowulf.GetAIInterface());
-    map.draw(beowulf.buildings);
-    map.write();
+//    beowulf::AsciiMap map(beowulf.GetAIInterface());
+//    map.draw(beowulf.buildings);
+//    map.write();
 
     bl.Update(beowulf.buildings.GetBQC(), MapPoint(12, 14), route.size());
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {

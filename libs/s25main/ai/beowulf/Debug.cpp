@@ -189,7 +189,10 @@ void AsciiMap::draw(const Buildings& buildings)
 
         Building* building = buildings.Get(pt);
         if (building) {
-            draw(pt, c_short_building_names[building->GetType()]);
+            if (building->GetState() == Building::ConstructionRequested)
+                draw(pt, std::string("(") + c_short_building_names[building->GetType()] + ")");
+            else
+                draw(pt, c_short_building_names[building->GetType()]);
         }
     }
 }
@@ -201,6 +204,36 @@ void AsciiMap::draw(const RoadNetworks& roadNetworks)
         rnet_id_t id = roadNetworks.Get(pt);
         if (id != InvalidRoadNetwork)
             draw(pt, std::to_string(id));
+    }
+}
+
+void AsciiMap::draw(const BuildLocations& buildLocations)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        BuildingQuality bq = buildLocations.Get(pt);
+        switch (bq) {
+        case BQ_HUT:
+            draw(pt, 'h');
+            break;
+        case BQ_HOUSE:
+            draw(pt, 'H');
+            break;
+        case BQ_CASTLE:
+            draw(pt, 'C');
+            break;
+        case BQ_MINE:
+            draw(pt, 'm');
+            break;
+        case BQ_HARBOR:
+            draw(pt, 'H');
+            break;
+        case BQ_FLAG:
+        case BQ_NOTHING:
+        default:
+            // skip
+            break;
+        }
     }
 }
 
@@ -273,7 +306,7 @@ void AsciiMap::clear()
 void AsciiMap::write(std::ostream& out) const
 {
     assert(map_[map_buffer_len_ - 1] == 0); // Check for null terminator.
-    out << map_;
+    out << map_ << std::flush;
 }
 
 void AsciiMap::init(const MapExtent& size, int scale)

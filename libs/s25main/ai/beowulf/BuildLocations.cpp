@@ -58,12 +58,12 @@ void BuildLocations::Calculate(
 
     FloodFill(map_, start,
     // condition
-    [&](const MapPoint& pos, Direction dir)
+    [&buildings](const MapPoint& pos, Direction dir)
     {
         return buildings.IsRoadPossible(pos, dir);
     },
     // action
-    [&](const MapPoint& pos)
+    [this, &buildings](const MapPoint& pos)
     {
         BuildingQuality bq = buildings.GetBQC().GetBQ(pos);
         if (bq > BQ_FLAG)

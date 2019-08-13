@@ -24,6 +24,9 @@
 
 #include "ai/AIInterface.h"
 
+#include "ai/beowulf/Debug.h"
+#include "gameData/BuildingConsts.h"
+
 namespace beowulf {
 
 BuildingPlannerBase::BuildingPlannerBase(
@@ -69,6 +72,8 @@ bool BuildingPlannerBase::Place(
             return false;
     }
 
+    //std::cout << "Construct " << BUILDING_NAMES[building->GetType()] << " at " << to_string(pt) << std::endl;
+
     if (construct)
         buildings_.Construct(building, pt);
     else
@@ -86,6 +91,8 @@ bool BuildingPlannerBase::Place(
     }
 
     if (!route.empty()) {
+        //std::cout << "Construct route from " << to_string(flagPos) << " to " << to_string(route) << std::endl;
+
         if (construct)
             buildings_.ConstructRoad(flagPos, route);
         else
