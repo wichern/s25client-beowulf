@@ -83,11 +83,18 @@ bool BuildingPlannerBase::Place(
     MapPoint goodsDest = MapPoint::Invalid();
     Building* goodsDestBld = buildings_.GetGoodsDest(building, rnet_, pt);
     if (goodsDestBld)
-        goodsDest = goodsDestBld->GetPt();
-    if (!FindBestRoute(flagPos, goodsDest, route)) {
-        // @todo: Find a second best building position and try there.
-        locations_.Update(buildings_.GetBQC(), pt);
-        return false;
+        goodsDest = goodsDestBld->GetFlag();
+    else
+        goodsDest = aii_.gwb.GetNeighbour(buildings_.GetNearestBuilding(flagPos, { BLD_STOREHOUSE, BLD_HARBORBUILDING, BLD_HEADQUARTERS }, rnet_).first, Direction::SOUTHEAST);
+    // still no dest? skip route building.
+    if (!goodsDest.isValid()) {
+        route.clear();
+    } else {
+        if (!FindBestRoute(flagPos, goodsDest, route)) {
+            // @todo: Find a second best building position and try there.
+            locations_.Update(buildings_.GetBQC(), pt);
+            return false;
+        }
     }
 
     if (!route.empty()) {
@@ -107,9 +114,11 @@ bool BuildingPlannerBase::Place(
 
 bool BuildingPlannerBase::FindBestRoute(
         const MapPoint& start,
-        const MapPoint& ,
+        const MapPoint& goodsDest,
         std::vector<Direction>& route)
 {
+    route.clear();
+
     // We might already be connected and we can assume that it is impossible to
     // be connected to another island than the one we want to.
     if (buildings_.IsPointConnected(start)) {
@@ -123,32 +132,54 @@ bool BuildingPlannerBase::FindBestRoute(
      * The search will terminate when it has reached a flag or a position on
      * an existing road where we can put a flag (of the same island).
      */
-    return FindPath(start, aii_.gwb, /*goodsDest,*/ &route,
+    std::vector<Direction> routeComplete;
+    bool ret = FindPath(start, aii_.gwb, &routeComplete,
     // Condition
-    [this, start](const MapPoint& pos, Direction dir)
+    [this, start](const MapPoint& pt, Direction dir)
     {
-        if (pos == start && dir == Direction::NORTHWEST)
+        if (pt == start && dir == Direction::NORTHWEST)
             return false;
 
-        return buildings_.IsRoadPossible(pos, dir);
+        bool hasRoad = buildings_.HasRoad(pt, dir);
+        bool roadPossible = buildings_.IsRoadPossible(pt, dir);
+        return hasRoad || roadPossible;
     },
     // End
-    [&](const MapPoint& pos)
+    [goodsDest](const MapPoint& pt)
     {
         // The search can end if we found a way to any flag of the destination
         // island.
-        return buildings_.GetRoadNetwork(pos) == rnet_;
+        return pt == goodsDest;
     },
     // Heuristic
-    [&](const MapPoint&)
+    [this, goodsDest](const MapPoint& pt)
     {
-        return 0;
+        return buildings_.GetWorld().CalcDistance(pt, goodsDest);
     },
     // Cost
-    [](const MapPoint&, Direction)
+    [this](const MapPoint& pt, Direction dir)
     {
-        return 1;
+        /* New roads cost '3' and existing roads cost '1'. */
+        if (buildings_.HasRoad(pt, dir))
+            return 1;
+        return 3;
     });
+
+    std::cout << "From " << to_string(start) << " via " << to_string(routeComplete) << std::endl;
+
+    if (!ret)
+        return ret;
+
+    // Strip parts that already exist.
+    MapPoint cur = start;
+    for (Direction dir : routeComplete) {
+        if (buildings_.HasRoad(cur, dir))
+            break;
+        route.push_back(dir);
+        cur = aii_.gwb.GetNeighbour(cur, dir);
+    }
+
+    return ret;
 }
 
 } // namespace beowulf
