@@ -314,7 +314,7 @@ void Beowulf::OnRoadNote(const RoadNote& note)
     case RoadNote::Destroyed:
     case RoadNote::ConstructionFailed:
     {
-        buildings.RemoveRoad(note.pos, note.route); // @todo: reset building planner
+        buildings.RemoveRoad(note.pos, note.route);
         // recalculate road users
     } break;
     }

@@ -72,8 +72,6 @@ bool BuildingPlannerBase::Place(
             return false;
     }
 
-    //std::cout << "Construct " << BUILDING_NAMES[building->GetType()] << " at " << to_string(pt) << std::endl;
-
     if (construct)
         buildings_.Construct(building, pt);
     else
@@ -98,8 +96,6 @@ bool BuildingPlannerBase::Place(
     }
 
     if (!route.empty()) {
-        //std::cout << "Construct route from " << to_string(flagPos) << " to " << to_string(route) << std::endl;
-
         if (construct)
             buildings_.ConstructRoad(flagPos, route);
         else
@@ -162,10 +158,8 @@ bool BuildingPlannerBase::FindBestRoute(
         /* New roads cost '3' and existing roads cost '1'. */
         if (buildings_.HasRoad(pt, dir))
             return 1;
-        return 3;
+        return 3; // @todo: decrease cost when we can place a flag at dest
     });
-
-    std::cout << "From " << to_string(start) << " via " << to_string(routeComplete) << std::endl;
 
     if (!ret)
         return ret;

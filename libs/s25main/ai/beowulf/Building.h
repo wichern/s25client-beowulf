@@ -73,11 +73,13 @@ public:
     pgroup_id_t GetGroup() const;
     BuildingQuality GetQuality() const;
     unsigned GetDistance(const MapPoint& pt) const;
+    const std::vector<BuildingType>& GetDestTypes(bool& checkGroup) const;
 
     /**
      * Whether this building will produce goods.
      */
     bool IsProduction() const;
+    bool IsStorage() const;
 };
 
 } // namespace beowulf

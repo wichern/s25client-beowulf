@@ -19,7 +19,10 @@
 
 #include "ai/beowulf/BuildingPlannerSimple.h"
 #include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/Debug.h"
 #include "ai/beowulf/ResourceMap.h"
+
+#include "gameData/BuildingConsts.h"
 
 #include "ai/AIInterface.h"
 
@@ -51,30 +54,68 @@ void BuildingPlannerSimple::Init(const std::vector<Building*>& requests)
 
 void BuildingPlannerSimple::Search()
 {
-    /*
-     * Sorting order
-     *
-     *  a) Buildings with fixed position before those where we need to find a position.
-     *  b) Buildings with their goods destinations in a production group and already
-     *     placed before those where it is not already placed.
-     *  c) Buildings with high quality before low quality.
-     */
+    static const unsigned c_buildingOrder[NUM_BUILDING_TYPES] =
+    {
+        0,  // BLD_HEADQUARTERS
+        5,  // BLD_BARRACKS
+        4,  // BLD_GUARDHOUSE
+        0,  // BLD_NOTHING2
+        3,  // BLD_WATCHTOWER
+        0,  // BLD_NOTHING3
+        0,  // BLD_NOTHING4
+        0,  // BLD_NOTHING5
+        0,  // BLD_NOTHING6
+        2,  // BLD_FORTRESS
+        30, // BLD_GRANITEMINE
+        30, // BLD_COALMINE
+        30, // BLD_IRONMINE
+        30, // BLD_GOLDMINE
+        100,// BLD_LOOKOUTTOWER
+        0,  // BLD_NOTHING7
+        50, // BLD_CATAPULT
+        30, // BLD_WOODCUTTER
+        20, // BLD_FISHERY
+        20, // BLD_QUARRY
+        30, // BLD_FORESTER
+        10, // BLD_SLAUGHTERHOUSE
+        20, // BLD_HUNTER
+        10, // BLD_BREWERY
+        10, // BLD_ARMORY
+        10, // BLD_METALWORKS
+        20, // BLD_IRONSMELTER
+        30, // BLD_CHARBURNER
+        20, // BLD_PIGFARM
+        2,  // BLD_STOREHOUSE
+        0,  // BLD_NOTHING9
+        20, // BLD_MILL
+        10, // BLD_BAKERY
+        10, // BLD_SAWMILL
+        10, // BLD_MINT
+        100,// BLD_WELL
+        1,  // BLD_SHIPYARD
+        30, // BLD_FARM
+        15, // BLD_DONKEYBREEDER
+        1,  // BLD_HARBORBUILDING
+    };
+    std::stable_sort(requests_.begin(), requests_.end(),
+              [this](const Building* l, const Building* r)
+    {
+        return c_buildingOrder[l->GetType()] < c_buildingOrder[r->GetType()];
+    });
     std::stable_sort(requests_.begin(), requests_.end(),
               [this](const Building* l, const Building* r)
     {
         if (l->GetPt().isValid() && !r->GetPt().isValid())
             return true;
-
+        if (!l->GetPt().isValid() && r->GetPt().isValid())
+            return true;
         if (l->IsProduction() && r->IsProduction()) {
-            bool ldest = buildings_.HasGoodsDest(l);
-            bool rdest = buildings_.HasGoodsDest(r);
-            if (ldest && !rdest)
+            if (l->GetGroup() < r->GetGroup())
                 return true;
-            if (!ldest && rdest)
+            if (l->GetGroup() > r->GetGroup())
                 return false;
         }
-
-        return l->GetQuality() > r->GetQuality();
+        return false;
     });
 
     searches_++;

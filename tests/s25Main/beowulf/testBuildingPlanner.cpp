@@ -50,9 +50,9 @@ BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
         Proceed(ai, world, curPlayer, em);
     }
 
-    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
-    map.draw(beowulf.buildings);
-    map.write();
+//    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+//    map.draw(beowulf.buildings);
+//    map.write();
 }
 
 BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
@@ -76,10 +76,10 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
         Proceed(ai, world, curPlayer, em);
     }
 
-    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
-    map.drawResources(ai->gwb);
-    map.draw(beowulf.buildings);
-    map.write();
+//    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+//    map.drawResources(ai->gwb);
+//    map.draw(beowulf.buildings);
+//    map.write();
 }
 
 BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
@@ -371,19 +371,19 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     beowulf::Buildings& buildings = beowulf.buildings;
 
     std::vector<beowulf::Building*> requests;
+    requests.push_back(buildings.Create(BLD_WOODCUTTER, beowulf::Building::PlanningRequest));
+    requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
+    requests.push_back(buildings.Create(BLD_MILL, beowulf::Building::PlanningRequest));
+    requests.push_back(buildings.Create(BLD_FORESTER, beowulf::Building::PlanningRequest));
+    requests.push_back(buildings.Create(BLD_QUARRY, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_SAWMILL, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_WOODCUTTER, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_WOODCUTTER, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_FORESTER, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_STOREHOUSE, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_QUARRY, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_QUARRY, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_MILL, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_BAKERY, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_WELL, beowulf::Building::PlanningRequest));
+    requests.push_back(buildings.Create(BLD_BAKERY, beowulf::Building::PlanningRequest));
     requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
-    requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
+    //requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
 
     beowulf::rnet_id_t island = buildings.GetRoadNetwork(buildings.Get(MapPoint(12, 11))->GetFlag());
     for (beowulf::Building* bld : requests)
@@ -409,81 +409,11 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
         }
     }
 
-    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
-    map.draw(beowulf.buildings);
-    map.draw(beowulf.buildings.GetRoadNetworks());
-    map.write();
+//    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+//    map.draw(beowulf.buildings);
+//    map.draw(beowulf.buildings.GetRoadNetworks());
+//    map.write();
 }
-
-//BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
-//{
-//    std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
-//    beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-
-//    beowulf::BuildingPlanner bp(beowulf.GetAIInterface(), beowulf.buildings, beowulf.resourceMap);
-//    bp.Request(BLD_WELL);
-
-//    bp.Init();
-
-//    bool success = false;
-//    for (unsigned i = 0; i < 10; ++i)
-//        success |= bp.Search();
-
-//    BOOST_REQUIRE_EQUAL(success, true);
-
-//    BOOST_REQUIRE_EQUAL(bp.ExecuteBestPlan(), true);
-
-//    std::vector<gc::GameCommandPtr> aiGcs = ai->FetchGameCommands();
-//    for (gc::GameCommandPtr& gc : aiGcs)
-//        gc->Execute(world, curPlayer);
-
-//    auto blds = beowulf.GetAIInterface().GetBuildingSites();
-//    BOOST_REQUIRE(std::find_if(blds.begin(), blds.end(), [](const noBuildingSite* bld) { return bld->GetBuildingType() == BLD_WELL; }) != blds.end());
-
-//    //beowulf::CreateSvg(beowulf.GetAIInterface(), beowulf.buildings, "plan.svg");
-//}
-
-//BOOST_FIXTURE_TEST_CASE(PlanBoardProductionBuilding, BiggerWorldWithGCExecution)
-//{
-//    std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
-//    beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-
-////    // Place a few trees
-////    for(const MapPoint& pt : world.GetPointsInRadius(hqPos + MapPoint(4, 0), 2))
-////    {
-////        if(!world.GetNode(pt).obj)
-////            world.SetNO(pt, new noTree(pt, 0, 3));
-////    }
-
-//    beowulf::BuildingPlanner bp(beowulf.GetAIInterface(), beowulf.buildings, beowulf.resourceMap);
-//    bp.Request(BLD_SAWMILL);
-//    bp.Request(BLD_WOODCUTTER);
-//    bp.Request(BLD_WOODCUTTER);
-//    bp.Request(BLD_FORESTER);
-
-//    bp.Init();
-
-//    bool success = false;
-//    for (unsigned i = 0; i < 10; ++i)
-//        success |= bp.Search();
-
-//    BOOST_REQUIRE_EQUAL(success, true);
-
-//    BOOST_REQUIRE_EQUAL(bp.ExecuteBestPlan(), true);
-
-
-
-//    std::vector<gc::GameCommandPtr> aiGcs = ai->FetchGameCommands();
-//    for (gc::GameCommandPtr& gc : aiGcs)
-//        gc->Execute(world, curPlayer);
-
-//    auto blds = beowulf.GetAIInterface().GetBuildingSites();
-//    BOOST_REQUIRE(std::find_if(blds.begin(), blds.end(), [](const noBuildingSite* bld) { return bld->GetBuildingType() == BLD_SAWMILL; }) != blds.end());
-//    BOOST_REQUIRE(std::find_if(blds.begin(), blds.end(), [](const noBuildingSite* bld) { return bld->GetBuildingType() == BLD_WOODCUTTER; }) != blds.end());
-//    BOOST_REQUIRE(std::find_if(blds.begin(), blds.end(), [](const noBuildingSite* bld) { return bld->GetBuildingType() == BLD_FORESTER; }) != blds.end());
-
-//    beowulf::CreateSvg(beowulf.GetAIInterface(), beowulf.buildings, "plan_boards.svg");
-//}
 
 BOOST_AUTO_TEST_SUITE_END()
 

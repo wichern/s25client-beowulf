@@ -121,8 +121,6 @@ public:
             rnet_id_t rnet,
             const MapPoint& pt) const;
 
-    bool HasGoodsDest(const Building* building) const;
-
 private:
     void SetRoadState(const MapPoint& pos, Direction dir, RoadState state);
     //void AddRoadUser(const MapPoint& pos, Direction dir, Building* building);
