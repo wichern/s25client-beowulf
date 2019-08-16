@@ -26,7 +26,7 @@
 
 namespace beowulf {
 
-class Buildings;
+class World;
 
 /**
  * @brief The Building class contains the additional data Beowulf needs to store.
@@ -52,17 +52,17 @@ public:
     };
 
 private:
-    Buildings& buildings_;
+    World& world_;
     MapPoint pt_;
     BuildingType type_;
     State state_;
     pgroup_id_t group_;
 
     // Only 'Buildings' can create and destroy building objects or change their state or group.
-    friend class Buildings;
+    friend class World;
     friend class BuildingsPlan;
 
-    Building(Buildings& buildings, BuildingType type, State state);
+    Building(World& world, BuildingType type, State state);
     ~Building() = default;
 
 public:

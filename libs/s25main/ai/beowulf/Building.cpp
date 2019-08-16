@@ -18,7 +18,7 @@
 #include "rttrDefines.h" // IWYU pragma: keep
 
 #include "ai/beowulf/Building.h"
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 
 #include "gameData/BuildingConsts.h"
 
@@ -76,10 +76,10 @@ static const ProductionDest SUPPRESS_UNUSED GOODS_DESTINATIONS[NUM_BUILDING_TYPE
 };
 
 Building::Building(
-        Buildings& buildings,
+        World& buildings,
         BuildingType type,
         State state)
-    : buildings_(buildings),
+    : world_(buildings),
       pt_(MapPoint::Invalid()),
       type_(type),
       state_(state),
@@ -96,7 +96,7 @@ const MapPoint& Building::GetPt() const
 MapPoint Building::GetFlag() const
 {
     if (pt_.isValid())
-        return buildings_.GetWorld().GetNeighbour(pt_, Direction::SOUTHEAST);
+        return world_.GetNeighbour(pt_, Direction::SOUTHEAST);
     return MapPoint::Invalid();
 }
 
@@ -122,7 +122,7 @@ BuildingQuality Building::GetQuality() const
 
 unsigned Building::GetDistance(const MapPoint& pt) const
 {
-    return buildings_.GetWorld().CalcDistance(GetPt(), pt);
+    return world_.CalcDistance(GetPt(), pt);
 }
 
 const std::vector<BuildingType>& Building::GetDestTypes(bool& checkGroup) const

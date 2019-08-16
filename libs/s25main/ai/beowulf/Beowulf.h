@@ -17,9 +17,9 @@
 #ifndef BEOWULF_BEOWULF_H_INCLUDED
 #define BEOWULF_BEOWULF_H_INCLUDED
 
-#include "ai/beowulf/ResourceMap.h"
+#include "ai/beowulf/Resources.h"
 #include "ai/beowulf/ProductionPlanner.h"
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 
 #include "ai/AIPlayer.h"
 
@@ -37,14 +37,6 @@ namespace beowulf {
 
 class BuildingPlannerBase;
 
-/**
- * Todo-List
- * ~~~~~~~~~
- *
- * - How to handle requests that cannot be resolved?
- * - Placing a single building in the building planner does not require
- *   simulated annealing. Simply searching for the best solution is enough.
- */
 class Beowulf : public AIPlayer
 {
     BuildingPlannerBase* buildingPlanner_ = nullptr;
@@ -53,12 +45,13 @@ class Beowulf : public AIPlayer
     bool defeated_ = false;
 
 public:
-    ResourceMap resources;
-    Buildings buildings;
+    Resources resources;
+    World world;
     ProductionPlanner productionPlanner;
 
 public:
-    Beowulf(const unsigned char playerId, const GameWorldBase& gwb,
+    Beowulf(const unsigned char playerId,
+            const GameWorldBase& gwb,
             const AI::Level level);
     ~Beowulf();
 
@@ -67,7 +60,7 @@ public:
     AIInterface& GetAIInterface();
     const AIInterface& GetAIInterface() const;
 
-    void RequestConstruction(Building* building, rnet_id_t island);
+    void RequestConstruction(Building* building, rnet_id_t rnet);
 
 private:
     bool CheckDefeat();
@@ -75,7 +68,7 @@ private:
     void DecommissionUnusedRoads();
     void ResolveGoodsJams();
     void PlaceAdditionalFlags();
-    void ConnectIslands();
+    void ConnectRoadNetworks();
     void Chat(const std::string& message);
 
     void OnBuildingNote(const BuildingNote& note);

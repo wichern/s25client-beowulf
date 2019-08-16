@@ -22,7 +22,7 @@
 
 #include "factories/AIFactory.h"
 #include "ai/beowulf/Beowulf.h"
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 #include "ai/beowulf/Debug.h"
 #include "ai/beowulf/Types.h"
 
@@ -50,12 +50,13 @@ BOOST_FIXTURE_TEST_CASE(InitialState, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     // Check that HQ has been added.
-    BOOST_REQUIRE(buildings.GetBM(MapPoint(12, 11)) == BlockingManner::Building);
-    BOOST_REQUIRE(buildings.GetBM(MapPoint(13, 12)) == BlockingManner::Flag);
-    //BOOST_REQUIRE(buildings.GetBM(MapPoint(12, 13)) == BlockingManner::FlagsAround);
+    beowulf::Building* building = buildings.Get(MapPoint(12, 11));
+    BOOST_REQUIRE(building != nullptr);
+    BOOST_REQUIRE(building->GetType() == BLD_HEADQUARTERS);
+    BOOST_REQUIRE(buildings.HasFlag(MapPoint(13, 12)));
 
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
 }
@@ -65,7 +66,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructValidBuilding, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     MapPoint buildPos(10, 11);
     MapPoint flagPos(11, 12);
@@ -92,7 +93,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructBuildingOnInvalidPosition, BiggerWorldWithGCExe
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     MapPoint buildPos(11, 11);
     MapPoint flagPos(12, 12);
@@ -111,7 +112,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructBuildingWhileStillRequested, BiggerWorldWithG
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     MapPoint buildPos(10, 11);
     MapPoint flagPos(11, 12);
@@ -132,7 +133,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructConstructionSite, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     MapPoint buildPos(10, 11);
     MapPoint flagPos(11, 12);
@@ -153,7 +154,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructFinishedBuilding, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     MapPoint buildPos(10, 11);
     MapPoint flagPos(11, 12);
@@ -182,7 +183,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructConnectedBuilding, BiggerWorldWithGCExecution
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     // Create a road
     buildings.ConstructFlag(MapPoint(9, 12));
@@ -211,7 +212,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructFlags, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     // Create a road
     buildings.ConstructFlag(MapPoint(9, 12));
@@ -246,7 +247,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructFlags, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     // Create a road
     buildings.ConstructFlag(MapPoint(9, 12));
@@ -290,7 +291,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructRoad, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     // Create a second island
     buildings.ConstructFlag(MapPoint(11, 12));
@@ -325,7 +326,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructInvalidRoad, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     buildings.ConstructFlag(MapPoint(11, 12));
     BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) != buildings.GetRoadNetwork(MapPoint(13, 12)));
@@ -346,7 +347,7 @@ BOOST_FIXTURE_TEST_CASE(NewBuildingsAreAssignedToProductionGroups, BiggerWorldWi
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     MapPoint sawmillPos(10, 9);
     MapPoint woodcutterPos(9, 15);

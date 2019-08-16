@@ -17,7 +17,7 @@
 
 #include "rttrDefines.h" // IWYU pragma: keep
 
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 #include "ai/beowulf/Building.h"
 #include "ai/beowulf/Helper.h"
 
@@ -33,35 +33,37 @@
 
 namespace beowulf {
 
-Buildings::Buildings(AIInterface& aii)
-    : aii_(aii), bqc_(aii), roadNetworks_(aii.gwb)
+World::World(AIInterface& aii)
+    : aii_(aii), bqc_(*this, aii.gwb), roadNetworks_(*this)
 {
-    nodes_.Resize(aii.gwb.GetSize());
+    Resize(aii.gwb.GetSize());
+    nodes_.Resize(GetSize());
+    roadNetworks_.Resize(GetSize());
 
     // Set existing buildings.
     const nobHQ* bld = aii.GetHeadquarter();
     if (bld)
-        SetPos(Create(BLD_HEADQUARTERS, Building::Finished), bld->GetPos());
+        SetPoint(Create(BLD_HEADQUARTERS, Building::Finished), bld->GetPos());
 
     for (const noBuildingSite* bld : aii.GetBuildingSites())
-        SetPos(Create(bld->GetBuildingType(), Building::UnderConstruction), bld->GetPos());
+        SetPoint(Create(bld->GetBuildingType(), Building::UnderConstruction), bld->GetPos());
 
     for (const nobMilitary* bld : aii.GetMilitaryBuildings())
-        SetPos(Create(bld->GetBuildingType(), Building::Finished), bld->GetPos());
+        SetPoint(Create(bld->GetBuildingType(), Building::Finished), bld->GetPos());
 
     for (unsigned i = FIRST_USUAL_BUILDING; i < NUM_BUILDING_TYPES; ++i)
         for (const nobUsual* bld : aii.GetBuildings(static_cast<BuildingType>(i)))
-            SetPos(Create(bld->GetBuildingType(), Building::Finished), bld->GetPos());
+            SetPoint(Create(bld->GetBuildingType(), Building::Finished), bld->GetPos());
 
     // Set existing roads.
-    RTTR_FOREACH_PT(MapPoint, aii.gwb.GetSize()) {
+    RTTR_FOREACH_PT(MapPoint, GetSize()) {
         Node& node = nodes_[pt];
         if (aii.gwb.GetSpecObj<noFlag>(pt))
             SetFlagState(pt, FlagFinished);
         for (unsigned rdir = 0; rdir < 3; ++rdir) {
             if (aii.gwb.GetRoad(pt, rdir)) {
                 if (aii.gwb.GetNO(pt)->GetType() != NOP_BUILDING &&
-                        aii.gwb.GetNO(aii.gwb.GetNeighbour(pt, OppositeDirection(Direction(rdir))))->GetType() != NOP_BUILDING)
+                        aii.gwb.GetNO(GetNeighbour(pt, OppositeDirection(Direction(rdir))))->GetType() != NOP_BUILDING)
                 {
                     node.roads[rdir] = RoadFinished;
                 }
@@ -69,19 +71,16 @@ Buildings::Buildings(AIInterface& aii)
         }
     }
 
-    roadNetworks_.Detect(*this);
-
-    bqc_.AddBlockingReason(this);
-    bqc_.AddRoadProvider(this);
+    roadNetworks_.Detect();
 }
 
-Buildings::~Buildings()
+World::~World()
 {
     for (Building* building : buildings_)
         delete building;
 }
 
-void Buildings::Construct(Building* building, const MapPoint& pt)
+void World::Construct(Building* building, const MapPoint& pt)
 {
     RTTR_Assert(building);
     RTTR_Assert(building->GetState() != Building::Finished);
@@ -93,12 +92,12 @@ void Buildings::Construct(Building* building, const MapPoint& pt)
     aii_.SetBuildingSite(pt, building->GetType());
 
     building->state_ = Building::ConstructionRequested;
-    SetPos(building, pt);
+    SetPoint(building, pt);
     if (!HasFlag(building->GetFlag()))
         SetFlagState(building->GetFlag(), FlagRequested);
 }
 
-void Buildings::ConstructFlag(const MapPoint& pt)
+void World::ConstructFlag(const MapPoint& pt)
 {
     ClearPlan();
 
@@ -109,7 +108,7 @@ void Buildings::ConstructFlag(const MapPoint& pt)
     }
 }
 
-void Buildings::ConstructRoad(const MapPoint& pt, const std::vector<Direction>& route)
+void World::ConstructRoad(const MapPoint& pt, const std::vector<Direction>& route)
 {
     ClearPlan();
 
@@ -117,11 +116,11 @@ void Buildings::ConstructRoad(const MapPoint& pt, const std::vector<Direction>& 
     aii_.BuildRoad(pt, false, route);
     SetRoadState(pt, route, RoadRequested);
 
-    // @performance: if constructing multiple segments one final DetectIslands() would suffice.
-    roadNetworks_.Detect(*this);
+    // @performance: if constructing multiple segments one final Detect() would suffice.
+    roadNetworks_.Detect();
 }
 
-void Buildings::Deconstruct(Building* building)
+void World::Deconstruct(Building* building)
 {
     RTTR_Assert(building);
     RTTR_Assert(building->GetState() != Building::PlanningRequest);
@@ -132,53 +131,49 @@ void Buildings::Deconstruct(Building* building)
     building->state_ = Building::DestructionRequested;
 }
 
-void Buildings::DeconstructFlag(const MapPoint& pos)
+void World::DeconstructFlag(const MapPoint& pt)
 {
     ClearPlan();
 
-    Node& node = nodes_[pos];
+    Node& node = nodes_[pt];
     RTTR_Assert(node.flag == FlagFinished);
 
-    const noFlag* nof = aii_.gwb.GetSpecObj<noFlag>(pos);
+    const noFlag* nof = aii_.gwb.GetSpecObj<noFlag>(pt);
     RTTR_Assert(nof);
     aii_.DestroyFlag(nof);
 
     // Mark all connected roads as deconstruction requested as well.
-    FloodFill(aii_.gwb, pos,
+    FloodFill(*this, pt,
     // condition
-    [&](const MapPoint& pos, Direction dir)
+    [&](const MapPoint& pt2, Direction dir)
     {
-        if (HasRoad(pos, dir)) {
-            SetRoadState(pos, dir, RoadDestructionRequested);
-            return !HasFlag(aii_.gwb.GetNeighbour(pos, dir));
-        } else {
+        if (HasRoad(pt2, dir)) {
+            SetRoadState(pt2, dir, RoadDestructionRequested);
+            return !HasFlag(GetNeighbour(pt2, dir));
+        } else
             return false;
-        }
     },
     // action
-    [&](const MapPoint& pos)
-    {
-        (void)pos;
-    });
+    [&](const MapPoint&) {});
 
-    SetFlagState(pos, FlagDestructionRequested);
+    SetFlagState(pt, FlagDestructionRequested);
 }
 
-void Buildings::DeconstructRoad(const MapPoint& pos, const std::vector<Direction>& route)
+void World::DeconstructRoad(const MapPoint& pt, const std::vector<Direction>& route)
 {
-    RTTR_Assert(nodes_[pos].flag == FlagRequested || nodes_[pos].flag == FlagFinished);
+    RTTR_Assert(nodes_[pt].flag == FlagRequested || nodes_[pt].flag == FlagFinished);
     RTTR_Assert(!route.empty());
-    RTTR_Assert(HasRoad(pos, route.front()));
+    RTTR_Assert(HasRoad(pt, route.front()));
 
     ClearPlan();
 
-    aii_.DestroyRoad(pos, route.front());
-    SetRoadState(pos, route, RoadDestructionRequested);
+    aii_.DestroyRoad(pt, route.front());
+    SetRoadState(pt, route, RoadDestructionRequested);
 
-    roadNetworks_.Detect(*this);
+    roadNetworks_.Detect();
 }
 
-void Buildings::Plan(Building* building, const MapPoint& pt)
+void World::Plan(Building* building, const MapPoint& pt)
 {
     Node& node = nodes_[pt];
     RTTR_Assert(node.building == nullptr);
@@ -188,12 +183,12 @@ void Buildings::Plan(Building* building, const MapPoint& pt)
     node.building = building;
     building->pt_ = pt;
 
-    PlanFlag(nodes_.GetNeighbour(pt, Direction::SOUTHEAST));
+    PlanFlag(GetNeighbour(pt, Direction::SOUTHEAST));
 
     activePlan_ = true;
 }
 
-void Buildings::PlanFlag(const MapPoint& pt)
+void World::PlanFlag(const MapPoint& pt)
 {
     Node& node = nodes_[pt];
 
@@ -204,30 +199,29 @@ void Buildings::PlanFlag(const MapPoint& pt)
 
     if (node.flagPlanCount == 1) {
         flags_.push_back(pt);
-        roadNetworks_.OnFlagStateChanged(*this, pt, FlagRequested);
+        roadNetworks_.OnFlagStateChanged(pt, FlagRequested);
     }
 
     activePlan_ = true;
 }
 
-void Buildings::PlanRoad(const MapPoint& pt, const std::vector<Direction>& route)
+void World::PlanRoad(
+        const MapPoint& pt,
+        const std::vector<Direction>& route)
 {
     MapPoint cur = pt;
     for (size_t i = 0; i < route.size(); ++i) {
         PlanSegment(cur, route[i]);
-//        if (i > 1 && i < route.size() - 2)
-//            if (GetBM(cur) == BlockingManner::None)
-//                possibleFlags_.push_back(cur);
-        cur = nodes_.GetNeighbour(cur, route[i]);
+        cur = GetNeighbour(cur, route[i]);
     }
 
     PlanFlag(cur);
-    roadNetworks_.Detect(*this);
+    roadNetworks_.Detect();
 
     activePlan_ = true;
 }
 
-void Buildings::ClearPlan()
+void World::ClearPlan()
 {
     if (!activePlan_)
         return;
@@ -237,15 +231,14 @@ void Buildings::ClearPlan()
         [&](const MapPoint& pt)
     {
         if (nodes_[pt].flagPlanCount > 0) {
-            roadNetworks_.OnFlagStateChanged(*this, pt, FlagDestructionRequested);
+            roadNetworks_.OnFlagStateChanged(pt, FlagDestructionRequested);
             return true;
         }
         return false;
     }), flags_.end());
 
     // Clear all nodes
-    // @performance: it is always faster to just iterate over the elements of the std::vector instead of searching for each node individually!
-    RTTR_FOREACH_PT(MapPoint, nodes_.GetSize())
+    RTTR_FOREACH_PT(MapPoint, GetSize())
     {
         Node& node = nodes_[pt];
 
@@ -258,22 +251,18 @@ void Buildings::ClearPlan()
         node.roadPlanCount[2] = 0;
     }
 
-    roadNetworks_.Detect(*this);
+    roadNetworks_.Detect();
 
     activePlan_ = false;
 }
 
-rnet_id_t Buildings::GetRoadNetwork(const MapPoint& pt) const
+rnet_id_t World::GetRoadNetwork(const MapPoint& pt) const
 {
     rnet_id_t ret = roadNetworks_.Get(pt);
-    if (activePlan_ && ret == InvalidRoadNetwork) {
-        if (nodes_[pt].flagPlanCount > 0)
-            ret = activePlanRoadNetwork_;
-    }
     return ret;
 }
 
-MapPoint Buildings::GetFlag(rnet_id_t rnet) const
+MapPoint World::GetFlag(rnet_id_t rnet) const
 {
     for (const MapPoint& flag : flags_)
         if (roadNetworks_.Get(flag) == rnet)
@@ -281,12 +270,7 @@ MapPoint Buildings::GetFlag(rnet_id_t rnet) const
     return MapPoint::Invalid();
 }
 
-const RoadNetworks& Buildings::GetRoadNetworks() const
-{
-    return roadNetworks_;
-}
-
-void Buildings::Remove(Building* building)
+void World::Remove(Building* building)
 {
     ClearPlan();
 
@@ -309,25 +293,26 @@ void Buildings::Remove(Building* building)
         nodes_[building->GetPt()].building = nullptr;
 
     buildings_.erase(std::remove(buildings_.begin(), buildings_.end(), building), buildings_.end());
-    //RemoveRoadUser(building);
 
     delete building;
 }
 
-void Buildings::RemoveFlag(const MapPoint& pt)
+void World::RemoveFlag(const MapPoint& pt)
 {
     ClearPlan();
     SetFlagState(pt, FlagDoesNotExist);
 }
 
-void Buildings::RemoveRoad(const MapPoint& pt, const std::vector<Direction>& route)
+void World::RemoveRoad(
+        const MapPoint& pt,
+        const std::vector<Direction>& route)
 {
     ClearPlan();
     SetRoadState(pt, route, RoadDoesNotExist);
-    roadNetworks_.Detect(*this);
+    roadNetworks_.Detect();
 }
 
-Building* Buildings::Create(
+Building* World::Create(
         BuildingType type,
         Building::State state,
         pgroup_id_t group,
@@ -414,63 +399,53 @@ Building* Buildings::Create(
     return building;
 }
 
-const std::vector<Building*>& Buildings::Get() const
+Building* World::Get(const MapPoint& pt) const
 {
-    return buildings_;
-}
-
-Building* Buildings::Get(const MapPoint& pos) const
-{
-    if (pos.isValid())
-        return nodes_[pos].building;
+    if (pt.isValid())
+        return nodes_[pt].building;
     return nullptr;
 }
 
-bool Buildings::HasBuilding(const MapPoint& pos) const
+bool World::HasBuilding(const MapPoint& pt) const
 {
-    return Get(pos) != nullptr;
+    return Get(pt) != nullptr;
 }
 
-void Buildings::SetState(Building* building, Building::State state)
+void World::SetState(Building* building, Building::State state)
 {
     building->state_ = state;
 }
 
-const std::vector<MapPoint>& Buildings::GetFlags() const
-{
-    return flags_;
-}
-
-bool Buildings::HasFlag(const MapPoint& pt) const
+bool World::HasFlag(const MapPoint& pt) const
 {
     const Node& node = nodes_[pt];
     return node.flag == FlagRequested || node.flag == FlagFinished || node.flagPlanCount > 0;
 }
 
-FlagState Buildings::GetFlagState(const MapPoint& pos) const
+FlagState World::GetFlagState(const MapPoint& pt) const
 {
-    return nodes_[pos].flag;
+    return nodes_[pt].flag;
 }
 
-void Buildings::SetFlagState(const MapPoint& pos, FlagState state)
+void World::SetFlagState(const MapPoint& pt, FlagState state)
 {
-    RTTR_Assert(nodes_[pos].flag != state);
+    RTTR_Assert(nodes_[pt].flag != state);
 
     // new flag?
-    if (!HasFlag(pos) && (state == FlagFinished || state == FlagRequested)) {
-        flags_.push_back(pos);
+    if (!HasFlag(pt) && (state == FlagFinished || state == FlagRequested)) {
+        flags_.push_back(pt);
     }
 
     // removed flag?
-    if (HasFlag(pos) && (state == FlagDestructionRequested || state == FlagDoesNotExist)) {
-        flags_.erase(std::find(flags_.begin(), flags_.end(), pos), flags_.end());
+    if (HasFlag(pt) && (state == FlagDestructionRequested || state == FlagDoesNotExist)) {
+        flags_.erase(std::find(flags_.begin(), flags_.end(), pt), flags_.end());
     }
 
-    nodes_[pos].flag = state;
-    roadNetworks_.OnFlagStateChanged(*this, pos, state);
+    nodes_[pt].flag = state;
+    roadNetworks_.OnFlagStateChanged(pt, state);
 }
 
-bool Buildings::IsPointConnected(const MapPoint& pt) const
+bool World::IsPointConnected(const MapPoint& pt) const
 {
     for (unsigned dir = 0; dir < Direction::COUNT; ++dir) {
         if (HasRoad(pt, Direction(dir)))
@@ -480,7 +455,7 @@ bool Buildings::IsPointConnected(const MapPoint& pt) const
     return false;
 }
 
-bool Buildings::HasRoad(const MapPoint& pt, Direction dir) const
+bool World::HasRoad(const MapPoint& pt, Direction dir) const
 {
     MapPoint nodePt;
     unsigned idx;
@@ -489,7 +464,7 @@ bool Buildings::HasRoad(const MapPoint& pt, Direction dir) const
         nodePt = pt;
         idx = OppositeDirection(dir).toUInt();
     } else {
-        nodePt = nodes_.GetNeighbour(pt, dir);
+        nodePt = GetNeighbour(pt, dir);
         idx = dir.toUInt();
     }
 
@@ -498,84 +473,59 @@ bool Buildings::HasRoad(const MapPoint& pt, Direction dir) const
     return state == RoadRequested || state == RoadFinished || node.roadPlanCount[idx] > 0;
 }
 
-RoadState Buildings::GetRoadState(const MapPoint& pt, Direction dir) const
+RoadState World::GetRoadState(const MapPoint& pt, Direction dir) const
 {
     Direction oppositeDir = OppositeDirection(dir);
     if (dir.toUInt() >= 3)
         return nodes_[pt].roads[oppositeDir.toUInt()];
     else
-        return nodes_[nodes_.GetNeighbour(pt, dir)].roads[dir.toUInt()];
+        return nodes_[GetNeighbour(pt, dir)].roads[dir.toUInt()];
 }
 
-void Buildings::SetRoadState(const MapPoint& pos, Direction dir, RoadState state)
+void World::SetRoadState(const MapPoint& pt, Direction dir, RoadState state)
 {
     Direction oppositeDir = OppositeDirection(dir);
     if (dir.toUInt() >= 3)
-        nodes_[pos].roads[oppositeDir.toUInt()] = state;
+        nodes_[pt].roads[oppositeDir.toUInt()] = state;
     else
-        nodes_[nodes_.GetNeighbour(pos, dir)].roads[dir.toUInt()] = state;
+        nodes_[GetNeighbour(pt, dir)].roads[dir.toUInt()] = state;
 }
 
-void Buildings::SetRoadState(const MapPoint& pos, const std::vector<Direction>& route, RoadState state)
+void World::SetRoadState(
+        const MapPoint& pt,
+        const std::vector<Direction>& route,
+        RoadState state)
 {
-    MapPoint cur = pos;
+    MapPoint cur = pt;
     for (size_t i = 0; i < route.size(); ++i) {
         SetRoadState(cur, route[i], state);
-        cur = nodes_.GetNeighbour(cur, route[i]);
+        cur = GetNeighbour(cur, route[i]);
     }
 }
 
-const BuildingQualityCalculator& Buildings::GetBQC() const
+BuildingQuality World::GetBQ(const MapPoint& pt) const
 {
-    return bqc_;
+    BuildingQuality bq = bqc_(pt, [this, pt](const MapPoint& pt2){
+        for (unsigned dir = 0; dir < Direction::COUNT; ++dir)
+            if (HasRoad(pt2, Direction(dir)))
+                return true;
+        return false;
+    });
+    return aii_.gwb.AdjustBQ(pt, aii_.GetPlayerId(), bq);
 }
 
-//void Buildings::AddRoadUser(Building* building, const std::vector<Direction>& route)
-//{
-//    MapPoint cur = building->GetFlag();
-//    for (unsigned i = 0; i < route.size(); ++i) {
-//        AddRoadUser(cur, route[i], building);
-//        cur = nodes_.GetNeighbour(cur, route[i]);
-//    }
-//}
-
-//void Buildings::RemoveRoadUser(Building* building)
-//{
-//    FloodFill(
-//    // World
-//    GetWorld(),
-//    // Start
-//    building->GetFlag(),
-//    // Condition
-//    [&](const MapPoint& pt, Direction dir)
-//    {
-//        if (HasRoadUser(pt, dir, building)) {
-//            RemoveRoadUser(pt, dir, building);
-//            return true;
-//        }
-//        return false;
-//    },
-//    // Action
-//    [&](const MapPoint& pt) { (void)(pt); });
-//}
-
-const GameWorldBase& Buildings::GetWorld() const
-{
-    return aii_.gwb;
-}
-
-bool Buildings::IsRoadPossible(
+bool World::IsRoadPossible(
         const MapPoint& pt,
         Direction dir) const
 {
-    MapPoint dest = aii_.gwb.GetNeighbour(pt, dir);
+    MapPoint dest = GetNeighbour(pt, dir);
 
     if (HasFlag(dest))
         return true;
 
     for (unsigned d = 0; d < Direction::COUNT; ++d) {
         if (HasRoad(dest, Direction(d))) {
-            return bqc_.GetBQ(dest) >= BQ_FLAG;
+            return GetBQ(dest) >= BQ_FLAG;
         }
     }
 
@@ -585,7 +535,7 @@ bool Buildings::IsRoadPossible(
     return makePathConditionRoad(aii_.gwb, false).IsNodeOk(dest);
 }
 
-std::pair<MapPoint, unsigned> Buildings::GetNearestBuilding(
+std::pair<MapPoint, unsigned> World::GetNearestBuilding(
         const MapPoint& pt,
         const std::vector<BuildingType>& types,
         rnet_id_t rnet) const
@@ -599,17 +549,17 @@ std::pair<MapPoint, unsigned> Buildings::GetNearestBuilding(
         query |= 1ul << static_cast<uint64_t>(type);
 
     for (const Building* building : Get()) {
-        // skip buildings of different type
+        // Skip buildings of different type.
         if (0 == (query & (1ul << static_cast<uint64_t>(building->GetType()))))
             continue;
-        // skip buildings that have no position yet.
+        // Skip buildings that have no position yet.
         if (!building->GetPt().isValid())
             continue;
-        // skip buildings on different islands.
+        // Skip buildings on different road networks.
         if (rnet != InvalidRoadNetwork && GetRoadNetwork(building->GetFlag()) != rnet)
             continue;
 
-        unsigned d = nodes_.CalcDistance(pt, building->GetPt());
+        unsigned d = CalcDistance(pt, building->GetPt());
         if (d < dist) {
             closest = building->GetPt();
             dist = d;
@@ -619,7 +569,7 @@ std::pair<MapPoint, unsigned> Buildings::GetNearestBuilding(
     return { closest, dist };
 }
 
-Building* Buildings::GetGoodsDest(
+Building* World::GetGoodsDest(
         const Building* building,
         rnet_id_t rnet,
         const MapPoint& pt) const
@@ -645,39 +595,7 @@ Building* Buildings::GetGoodsDest(
     return nearest.first.isValid() ? Get(nearest.first) : nullptr;
 }
 
-//void Buildings::AddRoadUser(const MapPoint& pos, Direction dir, Building* building)
-//{
-//    if (dir.toUInt() < 3) {
-//        AddRoadUser(aii_.gwb.GetNeighbour(pos, dir), OppositeDirection(dir), building);
-//        return;
-//    }
-
-//    std::vector<Building*>& users = nodes_[pos].users[dir.toUInt() - 3];
-//    if (std::find(users.begin(), users.end(), building) != users.end())
-//        users.push_back(building);
-//}
-
-//bool Buildings::HasRoadUser(const MapPoint& pos, Direction dir, Building* building)
-//{
-//    if (dir.toUInt() < 3)
-//        return HasRoadUser(aii_.gwb.GetNeighbour(pos, dir), OppositeDirection(dir), building);
-
-//    const std::vector<Building*>& users = nodes_[pos].users[dir.toUInt() - 3];
-//    return std::find(users.begin(), users.end(), building) != users.end();
-//}
-
-//void Buildings::RemoveRoadUser(const MapPoint& pos, Direction dir, Building* building)
-//{
-//    if (dir.toUInt() < 3) {
-//        AddRoadUser(aii_.gwb.GetNeighbour(pos, dir), OppositeDirection(dir), building);
-//        return;
-//    }
-
-//    std::vector<Building*>& users = nodes_[pos].users[dir.toUInt() - 3];
-//    users.erase(std::remove(users.begin(), users.end(), building), users.end());
-//}
-
-bool Buildings::InsertIntoExistingGroup(Building* building)
+bool World::InsertIntoExistingGroup(Building* building)
 {
     for (pgroup_id_t gidx = 0; gidx < groups_.size(); ++gidx) {
         Group& group = groups_[gidx];
@@ -693,15 +611,15 @@ bool Buildings::InsertIntoExistingGroup(Building* building)
     return false;
 }
 
-void Buildings::PlanSegment(const MapPoint& pt, Direction dir)
+void World::PlanSegment(const MapPoint& pt, Direction dir)
 {
     if (dir.toUInt() >= 3)
         nodes_[pt].roadPlanCount[OppositeDirection(dir).toUInt()]++;
     else
-        nodes_[nodes_.GetNeighbour(pt, dir)].roadPlanCount[dir.toUInt()]++;
+        nodes_[GetNeighbour(pt, dir)].roadPlanCount[dir.toUInt()]++;
 }
 
-void Buildings::SetPos(Building* building, const MapPoint& pt)
+void World::SetPoint(Building* building, const MapPoint& pt)
 {
     Node& node = nodes_[pt];
     RTTR_Assert(node.building == nullptr);
@@ -713,7 +631,7 @@ void Buildings::SetPos(Building* building, const MapPoint& pt)
     building->pt_ = pt;
 }
 
-BlockingManner Buildings::GetBM(const MapPoint& pt) const
+BlockingManner World::GetBM(const MapPoint& pt) const
 {
     const Node& node = nodes_[pt];
     if (node.building)
@@ -724,7 +642,7 @@ BlockingManner Buildings::GetBM(const MapPoint& pt) const
 
     // Check for castle extensions
     for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
-        Building* building = nodes_[nodes_.GetNeighbour(pt, Direction(dir))].building;
+        Building* building = nodes_[GetNeighbour(pt, Direction(dir))].building;
         if (building && building->GetQuality() == BQ_CASTLE) {
             return BlockingManner::Single;
         }
@@ -733,16 +651,8 @@ BlockingManner Buildings::GetBM(const MapPoint& pt) const
     return BlockingManner::None;
 }
 
-bool Buildings::IsOnRoad(const MapPoint& pt) const
-{
-    for (unsigned dir = 0; dir < Direction::COUNT; ++dir)
-        if (HasRoad(pt, Direction(dir)))
-            return true;
-    return false;
-}
-
 std::pair<MapPoint, unsigned>
-Buildings::GroupMemberDistance(
+World::GroupMemberDistance(
         const MapPoint& pt,
         pgroup_id_t group,
         const std::vector<BuildingType>& types) const
@@ -758,7 +668,7 @@ Buildings::GroupMemberDistance(
             if (!g.buildings[i]->GetPt().isValid())
                 continue;
 
-            unsigned dist = aii_.gwb.CalcDistance(g.buildings[i]->GetFlag(), pt);
+            unsigned dist = CalcDistance(g.buildings[i]->GetFlag(), pt);
             if (dist < ret.second) {
                 ret.second = dist;
                 ret.first = g.buildings[i]->GetFlag();
@@ -767,6 +677,14 @@ Buildings::GroupMemberDistance(
     }
 
     return ret;
+}
+
+BlockingManner World::BQCalculator2::GetBM(const MapPoint& pt) const
+{
+    BlockingManner bm = world2.GetBM(pt);
+    if (bm != BlockingManner::None)
+        return bm;
+    return world.GetNO(pt)->GetBM();
 }
 
 } // namespace beowulf

@@ -14,17 +14,17 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_BUILDINGS_H_INCLUDED
-#define BEOWULF_BUILDINGS_H_INCLUDED
+#ifndef BEOWULF_WORLD_H_INCLUDED
+#define BEOWULF_WORLD_H_INCLUDED
 
 #include "ai/beowulf/Types.h"
 #include "ai/beowulf/Building.h"
-#include "ai/beowulf/RoadIslands.h"
-#include "ai/beowulf/BuildingQualityCalculator.h"
+#include "ai/beowulf/RoadNetworks.h"
 
 #include "ai/AIInterface.h"
 #include "gameTypes/MapCoordinates.h"
 #include "world/NodeMapBase.h"
+#include "world/BQCalculator.h"
 
 #include <vector>
 #include <utility> /* pair */
@@ -32,16 +32,19 @@
 namespace beowulf {
 
 /**
- * @brief The Buildings class contains all buildings and roads the beowulf owns or plans.
+ * @brief Beowulfs world representation.
+ *
+ * This world representation supports planned buildings/flags/roads that have or have not
+ * yet been sent to the game engine.
  *
  * What makes Buildings especially complex is that while the planner is running, the world can change.
  * Therefore, every change of the world (building/flag/roadsegment added or removed) will clear the plan.
  */
-class Buildings : public IBlockingReason, public IRoadProvider
+class World : public MapBase
 {
 public:
-    Buildings(AIInterface& aii);
-    ~Buildings();
+    World(AIInterface& aii);
+    ~World();
 
 public:
     // Construct
@@ -68,9 +71,7 @@ public:
     // Road Networks
     /// Get the road network id the given point is connected to.
     rnet_id_t GetRoadNetwork(const MapPoint& pt) const;
-    /// Get any flag connected to given road network. (Note: not updated while planning.)
-    MapPoint GetFlag(rnet_id_t rnet) const;
-    const RoadNetworks& GetRoadNetworks() const;
+    const RoadNetworks& GetRoadNetworks() const { return roadNetworks_; }
 
     // Remove (remove the object from our data structure)
     void Remove(Building* building);
@@ -79,32 +80,30 @@ public:
 
     // Buildings
     Building* Create(BuildingType type, Building::State state, pgroup_id_t group = InvalidProductionGroup, const MapPoint& pt = MapPoint::Invalid());
-    const std::vector<Building*>& Get() const;
+    const std::vector<Building*>& Get() const { return buildings_; }
     Building* Get(const MapPoint& pt) const;
     bool HasBuilding(const MapPoint& pt) const;
     void SetState(Building* building, Building::State state);
-    void SetPos(Building* building, const MapPoint& pt);
+    void SetPoint(Building* building, const MapPoint& pt);
 
     // Flags
-    const std::vector<MapPoint>& GetFlags() const;
+    const std::vector<MapPoint>& GetFlags() const { return flags_; }
     bool HasFlag(const MapPoint& pt) const;
     FlagState GetFlagState(const MapPoint& pt) const;
     void SetFlagState(const MapPoint& pt, FlagState state);
     bool IsPointConnected(const MapPoint& pt) const;
+    /// Get any flag connected to given road network. (Note: not updated while planning.)
+    MapPoint GetFlag(rnet_id_t rnet) const;
 
     // Roads
     bool HasRoad(const MapPoint& pt, Direction dir) const;
     RoadState GetRoadState(const MapPoint& pt, Direction dir) const;
     void SetRoadState(const MapPoint& pt, const std::vector<Direction>& route, RoadState state);
-    //void AddRoadUser(Building* building, const std::vector<Direction>& route);
 
-    const BuildingQualityCalculator& GetBQC() const;
-    BlockingManner GetBM(const MapPoint& pt) const override;
-    bool IsOnRoad(const MapPoint& pt) const override;
+    BuildingQuality GetBQ(const MapPoint& pt) const;
 
     /// Get building of type 'types' in group 'group' with the shortest flag distance.
     std::pair<MapPoint, unsigned> GroupMemberDistance(const MapPoint& pt, pgroup_id_t group, const std::vector<BuildingType>& types) const;
-    const GameWorldBase& GetWorld() const;
 
     /// Check if we can build a segment from 'pt' in 'dir'. Assumes that we can start at 'pt'.
     bool IsRoadPossible(
@@ -122,44 +121,53 @@ public:
             const MapPoint& pt) const;
 
 private:
-    void SetRoadState(const MapPoint& pos, Direction dir, RoadState state);
-    //void AddRoadUser(const MapPoint& pos, Direction dir, Building* building);
-    //void RemoveRoadUser(Building* building);
-    //bool HasRoadUser(const MapPoint& pos, Direction dir, Building* building);
-    //void RemoveRoadUser(const MapPoint& pos, Direction dir, Building* building);
+    void SetRoadState(const MapPoint& pt, Direction dir, RoadState state);
     bool InsertIntoExistingGroup(Building* building);
+    void PlanSegment(const MapPoint& pt, Direction dir);
+    BlockingManner GetBM(const MapPoint& pt) const;
 
 private:
-    void PlanSegment(const MapPoint& pt, Direction dir);
+    AIInterface& aii_;
 
+    /*
+     * Additional Beowulf data on every map point.
+     */
     struct Node {
         Building* building          = nullptr;
         FlagState flag              = FlagDoesNotExist;
         unsigned flagPlanCount      = 0;
         RoadState roads[3]          = { RoadDoesNotExist, RoadDoesNotExist, RoadDoesNotExist };
         unsigned roadPlanCount[3]   = { 0, 0, 0 };
-        //std::vector<Building*> users[3];
     };
+    NodeMapBase<Node> nodes_;
 
+    /*
+     * Buildings producing goods are combined in groups.
+     */
     struct Group
     {
         std::vector<BuildingType> types;
         std::vector<Building*> buildings;
     };
-
-    AIInterface& aii_;
-    BuildingQualityCalculator bqc_;
-    NodeMapBase<Node> nodes_;
-    std::vector<MapPoint> flags_;
     std::vector<Group> groups_;
+
+    class BQCalculator2 : public BQCalculator
+    {
+    public:
+        BQCalculator2(World& w2, const GameWorldBase& gw) : BQCalculator(gw), world2(w2) {}
+    private:
+        BlockingManner GetBM(const MapPoint& pt) const override;
+        World& world2;
+    } bqc_;
+
+    std::vector<MapPoint> flags_;
     std::vector<Building*> ungrouped_;
     std::vector<Building*> buildings_;
     RoadNetworks roadNetworks_;
 
-    rnet_id_t activePlanRoadNetwork_;
     bool activePlan_ = false;
 };
 
 } // namespace beowulf
 
-#endif //! BEOWULF_BUILDINGS_H_INCLUDED
+#endif //! BEOWULF_WORLD_H_INCLUDED

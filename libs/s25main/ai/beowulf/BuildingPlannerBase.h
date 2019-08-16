@@ -29,16 +29,16 @@ class AIInterface;
 
 namespace beowulf {
 
-class Buildings;
-class ResourceMap;
+class World;
+class Resources;
 
 class BuildingPlannerBase
 {
 public:
     BuildingPlannerBase(
             AIInterface& aii,
-            Buildings& buildings,
-            ResourceMap& resources,
+            World& buildings,
+            Resources& resources,
             rnet_id_t rnet);
 
     virtual ~BuildingPlannerBase();
@@ -99,8 +99,8 @@ protected:
     bool FindBestRoute(const  MapPoint& start, const MapPoint& goodsDest, std::vector<Direction>& route);
 
     AIInterface& aii_;
-    Buildings& buildings_;
-    ResourceMap& resources_;
+    World& world_;
+    Resources& resources_;
     BuildLocations locations_;
     BuildingPositionCosts costs_;
     rnet_id_t rnet_;

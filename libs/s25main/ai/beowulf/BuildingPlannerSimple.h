@@ -26,8 +26,8 @@ class BuildingPlannerSimple : public BuildingPlannerBase
 public:
     BuildingPlannerSimple(
             AIInterface& aii,
-            Buildings& buildings,
-            ResourceMap& resources,
+            World& buildings,
+            Resources& resources,
             rnet_id_t rnet);
 
     ~BuildingPlannerSimple();

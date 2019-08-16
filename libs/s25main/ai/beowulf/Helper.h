@@ -29,7 +29,7 @@
 namespace beowulf {
 
 class ProductionGroups;
-class Buildings;
+class World;
 
 inline Direction OppositeDirection(Direction dir) {
     if (dir.toUInt() < 3)
@@ -69,78 +69,8 @@ void FloodFill(
     }
 }
 
-template<typename Condition>
-bool FindPath(
-        const MapPoint& start,
-        const MapPoint& dest,
-        const MapBase& world,
-        Condition condition,
-        std::vector<Direction>* route = nullptr)
-{
-    typedef unsigned pt_idx_t;
-    typedef unsigned distance_t;
-    typedef std::pair<MapPoint, distance_t> front_pos_t;
-
-    struct PosCompare
-    {
-        bool operator()(const front_pos_t& l, const front_pos_t& r) const
-        { return l.second > r.second; }
-    };
-    std::priority_queue<front_pos_t, std::vector<front_pos_t>, PosCompare> frontier;
-    std::map<pt_idx_t, Direction> came_from;
-    std::map<pt_idx_t, distance_t> cost_so_far;
-    cost_so_far[world.GetIdx(start)] = 0;
-
-    frontier.push({ start, 0 });
-
-    while (!frontier.empty()) {
-        MapPoint cur = frontier.top().first;
-        frontier.pop();
-
-        if (cur == dest)
-            break;
-
-        for (unsigned dir = 0; dir < Direction::COUNT; ++dir) {
-            if (!condition(cur, Direction(dir)))
-                continue;
-
-            distance_t new_cost = cost_so_far[world.GetIdx(cur)] + 1;
-            MapPoint next = world.GetNeighbour(cur, Direction(dir));
-            if (cost_so_far.find(world.GetIdx(next)) == cost_so_far.end() ||
-                    new_cost < cost_so_far[world.GetIdx(next)])
-            {
-                cost_so_far[world.GetIdx(next)] = new_cost;
-                frontier.push({ next, new_cost + world.CalcDistance(next, dest) });
-                came_from[world.GetIdx(next)] = Direction(dir);
-            }
-        }
-    }
-
-    if (came_from.find(world.GetIdx(dest)) == came_from.end())
-        return false;
-
-    if (route) {
-        std::vector<Direction> reverse;
-        MapPoint cur = dest;
-        while (cur != start) {
-            Direction dir = came_from[world.GetIdx(cur)];
-            reverse.push_back(dir);
-            cur = world.GetNeighbour(cur, OppositeDirection(dir));
-        }
-
-        route->clear();
-        route->reserve(reverse.size());
-        for (int i = reverse.size() - 1; i >= 0; --i)
-            route->push_back(reverse[i]);
-    }
-
-    return true;
-}
-
 /**
  * @brief Search route from 'start' to the first point that matches the 'end' condition.
- *
- *
  */
 template<typename Condition, typename End, typename Heuristic, typename Cost>
 bool FindPath(

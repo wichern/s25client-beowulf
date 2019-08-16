@@ -18,9 +18,9 @@
 #include "rttrDefines.h" // IWYU pragma: keep
 
 #include "ai/beowulf/BuildingPlannerSimple.h"
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 #include "ai/beowulf/Debug.h"
-#include "ai/beowulf/ResourceMap.h"
+#include "ai/beowulf/Resources.h"
 
 #include "gameData/BuildingConsts.h"
 
@@ -34,8 +34,8 @@ namespace beowulf {
 
 BuildingPlannerSimple::BuildingPlannerSimple(
         AIInterface& aii,
-        Buildings& buildings,
-        ResourceMap& resources,
+        World& buildings,
+        Resources& resources,
         rnet_id_t rnet)
     : BuildingPlannerBase(aii, buildings, resources, rnet)
 {

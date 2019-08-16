@@ -31,16 +31,16 @@ class AIInterface;
 namespace beowulf {
 
 class Building;
-class Buildings;
-class ResourceMap;
+class World;
+class Resources;
 
 // @todo: Rename to Score
 class BuildingPositionCosts
 {
 public:
     BuildingPositionCosts(const AIInterface& aii,
-                          ResourceMap& resourceMap,
-                          const Buildings& buildings);
+                          Resources& resources,
+                          const World& buildings);
 
     /*
      * Calculates a score vector for the given building at given point.
@@ -50,12 +50,12 @@ public:
             std::vector<double>& score,
             const Building* building,
             const MapPoint& pt,
-            rnet_id_t island);
+            rnet_id_t rnet);
 
 private:
     const AIInterface& aii_;
-    ResourceMap& resourceMap_;
-    const Buildings& buildings_;
+    Resources& resources_;
+    const World& buildings_;
 };
 
 } // namespace beowulf

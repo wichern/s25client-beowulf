@@ -52,7 +52,7 @@ Beowulf::Beowulf(const unsigned char playerId,
                  const AI::Level level)
     : AIPlayer(playerId, gwb, level),
       resources(aii, 100),
-      buildings(aii),
+      world(aii),
       productionPlanner(*this)
 {
     // Initialize event handling.
@@ -109,7 +109,7 @@ void Beowulf::RunGF(const unsigned /*gf*/, bool /*gfisnwf*/)
                         [rnet](const auto& x) { return x.second == rnet; }),
                     constructionRequests_.end());
 
-        buildingPlanner_ = new BuildingPlannerSimple(aii, buildings, resources, rnet);
+        buildingPlanner_ = new BuildingPlannerSimple(aii, world, resources, rnet);
         buildingPlanner_->Init(requests);
     }
 
@@ -127,7 +127,7 @@ void Beowulf::RunGF(const unsigned /*gf*/, bool /*gfisnwf*/)
     DecommissionUnusedRoads();
     ResolveGoodsJams();
     PlaceAdditionalFlags();
-    ConnectIslands();
+    ConnectRoadNetworks();
 
     // PlanProduction
     // PlanStorehouses
@@ -148,9 +148,9 @@ const AIInterface& Beowulf::GetAIInterface() const
     return aii;
 }
 
-void Beowulf::RequestConstruction(Building* building, rnet_id_t island)
+void Beowulf::RequestConstruction(Building* building, rnet_id_t rnet)
 {
-    constructionRequests_.push_back({ building, island });
+    constructionRequests_.push_back({ building, rnet });
 }
 
 bool Beowulf::CheckDefeat()
@@ -184,7 +184,7 @@ void Beowulf::PlaceAdditionalFlags()
 
 }
 
-void Beowulf::ConnectIslands()
+void Beowulf::ConnectRoadNetworks()
 {
 
 }
@@ -197,7 +197,7 @@ void Beowulf::Chat(const std::string& message)
 
 void Beowulf::OnBuildingNote(const BuildingNote& note)
 {
-    Building* bld = buildings.Get(note.pos);
+    Building* bld = world.Get(note.pos);
 
     RTTR_Assert(!bld || bld->GetType() == note.bld);
     RTTR_Assert(note.player == aii.GetPlayerId());
@@ -205,35 +205,35 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
     switch (note.type) {
     case BuildingNote::BuildingSiteAdded:
     {
-        buildings.SetState(bld, Building::UnderConstruction);
+        world.SetState(bld, Building::UnderConstruction);
     } break;
 
     case BuildingNote::SetBuildingSiteFailed:
     {
-        if (buildings.GetFlagState(bld->GetFlag()) == FlagRequested) {
-            buildings.RemoveFlag(bld->GetFlag());
+        if (world.GetFlagState(bld->GetFlag()) == FlagRequested) {
+            world.RemoveFlag(bld->GetFlag());
         }
-        buildings.Remove(bld); // @todo: reset building planner
+        world.Remove(bld); // @todo: reset building planner
     } break;
 
     case BuildingNote::DestructionFailed:
     {
         if (aii.gwb.GetNO(note.pos)->GetType() == NOP_BUILDINGSITE)
-            buildings.SetState(bld, Building::UnderConstruction);
+            world.SetState(bld, Building::UnderConstruction);
         else
-            buildings.SetState(bld, Building::Finished);
+            world.SetState(bld, Building::Finished);
     } break;
 
     // The construction of a building finished.
     case BuildingNote::Constructed:
     {
-        buildings.SetState(bld, Building::Finished);
+        world.SetState(bld, Building::Finished);
     } break;
 
     // A building was destroyed.
     case BuildingNote::Destroyed:
     {
-        buildings.Remove(bld); // @todo: reset building planner
+        world.Remove(bld); // @todo: reset building planner
     } break;
 
     // Military building was captured.
@@ -247,8 +247,8 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
 
         // We captured an enemy military building.
         else {
-            bld = buildings.Create(note.bld, Building::Finished);
-            buildings.SetPos(bld, note.pos);
+            bld = world.Create(note.bld, Building::Finished);
+            world.SetPoint(bld, note.pos);
 
 //            std::vector<Direction> route;
 //            BuildingQualityCalculator bqc(aii);
@@ -267,21 +267,21 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
     // A military building was captured by an enemy.
     case BuildingNote::Lost:
     {
-        buildings.Remove(bld);// @todo: reset building planner
+        world.Remove(bld);// @todo: reset building planner
     } break;
 
     // Building can't find any more resources.
     case BuildingNote::NoRessources:
     {
-        buildings.Deconstruct(bld);
+        world.Deconstruct(bld);
     } break;
 
     // Lua request to build this building
     case BuildingNote::LuaOrder:
     {
-        bld = buildings.Create(note.bld, Building::PlanningRequest, InvalidProductionGroup, note.pos);
-        rnet_id_t island = buildings.GetRoadNetwork(buildings.GetGoodsDest(bld, InvalidRoadNetwork, note.pos)->GetFlag()); // Use the goods dest as island.
-        RequestConstruction(bld, island);
+        bld = world.Create(note.bld, Building::PlanningRequest, InvalidProductionGroup, note.pos);
+        rnet_id_t rnet = world.GetRoadNetwork(world.GetGoodsDest(bld, InvalidRoadNetwork, note.pos)->GetFlag()); // Use the goods dest as road network.
+        RequestConstruction(bld, rnet);
     } break;
 
     // Land lost due to enemy building.
@@ -309,12 +309,12 @@ void Beowulf::OnRoadNote(const RoadNote& note)
     {
     case RoadNote::Constructed:
     {
-        buildings.SetRoadState(note.pos, note.route, RoadFinished);
+        world.SetRoadState(note.pos, note.route, RoadFinished);
     } break;
     case RoadNote::Destroyed:
     case RoadNote::ConstructionFailed:
     {
-        buildings.RemoveRoad(note.pos, note.route);
+        world.RemoveRoad(note.pos, note.route);
         // recalculate road users
     } break;
     }
@@ -341,19 +341,19 @@ void Beowulf::OnFlagNote(const FlagNote& note)
     {
     case FlagNote::Constructed:
     {
-        buildings.SetFlagState(note.pt, FlagFinished);
+        world.SetFlagState(note.pt, FlagFinished);
     } break;
 
     case FlagNote::DestructionFailed:
     {
-        buildings.SetFlagState(note.pt, FlagFinished);
+        world.SetFlagState(note.pt, FlagFinished);
     } break;
 
     case FlagNote::ConstructionFailed:
     case FlagNote::Captured:
     case FlagNote::Destroyed:
     {
-        buildings.RemoveFlag(note.pt);
+        world.RemoveFlag(note.pt);
     } break;
     }
 }

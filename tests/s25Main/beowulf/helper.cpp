@@ -41,7 +41,7 @@ bool ConstructBuilding(
         bool wait_for_site)
 {
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     beowulf::Building* bld = buildings.Create(
                 type,
@@ -74,7 +74,7 @@ bool CompareBuildingsWithWorld(
         GameWorldGame& world)
 {
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     /*
      * Check that all buildings of the world also exist in the buildings object.

@@ -22,7 +22,7 @@
 
 #include "factories/AIFactory.h"
 #include "ai/beowulf/Beowulf.h"
-#include "ai/beowulf/ResourceMap.h"
+#include "ai/beowulf/Resources.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -35,7 +35,7 @@ BOOST_FIXTURE_TEST_CASE(Insert, BiggerWorldWithGCExecution)
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
 
-    beowulf::ResourceMap rm(beowulf.GetAIInterface());
+    beowulf::Resources rm(beowulf.GetAIInterface());
     rm.Refresh();
 }
 

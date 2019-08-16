@@ -14,8 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_RESOURCE_MAP_H_INCLUDED
-#define BEOWULF_RESOURCE_MAP_H_INCLUDED
+#ifndef BEOWULF_RESOURCES_H_INCLUDED
+#define BEOWULF_RESOURCES_H_INCLUDED
 
 #include "ai/beowulf/Types.h"
 
@@ -25,21 +25,15 @@ class AIInterface;
 
 namespace beowulf {
 
-struct ResourceMapNode
-{
-    ResourceMapNode();
-
-    // Available resources in range.
-    // Range is based on the type of resource.
-    unsigned resources[BResourceCount];
-    unsigned lastUpdate[BResourceCount];
-};
-
-// @todo: rename to "Resources" and make nodes private.
-class ResourceMap : public NodeMapBase<ResourceMapNode>
+/**
+ * @brief Allow querys for resources available at a given point.
+ *
+ * The resources found will be buffered and kept for 'maxAge' game frames.
+ */
+class Resources
 {
 public:
-    ResourceMap(AIInterface& aii, unsigned maxAge = 100);
+    Resources(AIInterface& aii, unsigned maxAge = 100);
 
     /// Get resources available in range of point pt.
     /// The value will be updated once it is too many gf's old.
@@ -54,7 +48,21 @@ public:
 private:
     void Update(const MapPoint& pt, BResourceType type);
 
+private:
     AIInterface& aii_;
+
+    struct Node
+    {
+        Node();
+
+        // Available resources in range.
+        // Range is based on the type of resource.
+        unsigned resources[BResourceCount];
+        unsigned lastUpdate[BResourceCount];
+    };
+    NodeMapBase<Node> nodes_;
+
+    // Maximum GF before a resource needs recalculation.
     unsigned maxAge_;
 
     // Resources in territory
@@ -63,4 +71,4 @@ private:
 
 } // namespace beowulf
 
-#endif //! BEOWULF_RESOURCE_MAP_H_INCLUDED
+#endif //! BEOWULF_RESOURCES_H_INCLUDED

@@ -41,7 +41,7 @@ BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     beowulf::Building* bld = buildings.Create(BLD_BREWERY, beowulf::Building::PlanningRequest);
     beowulf.RequestConstruction(bld, buildings.GetRoadNetwork(buildings.Get(MapPoint(12, 11))->GetFlag()));
@@ -60,7 +60,7 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     std::vector<beowulf::Building*> requests;
     requests.push_back(buildings.Create(BLD_SAWMILL, beowulf::Building::PlanningRequest));
@@ -91,7 +91,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
     beowulf::BuildLocations buildLocations(world);
     beowulf::BuildLocations buildLocationsCheck(world);
     buildLocations.Calculate(buildings, MapPoint(13, 12));
@@ -167,14 +167,14 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
     buildings.ConstructRoad(MapPoint(14, 13),
     { Direction::WEST,
       Direction::NORTHWEST });
-    buildLocations.Update(buildings.GetBQC(), MapPoint(14, 13), 3);
+    buildLocations.Update(buildings, MapPoint(14, 13), 3);
     Proceed(ai, world, curPlayer, em);
 
     buildLocationsCheck.Calculate(buildings, MapPoint(13, 12));
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
@@ -184,7 +184,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         }
     }
 
-//    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+   beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
 //    map.draw(beowulf.buildings);
 //    map.draw(buildLocations);
 //    map.write();
@@ -200,16 +200,18 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
       Direction::NORTHEAST,
       Direction::EAST,
       Direction::EAST });
-    buildLocations.Update(buildings.GetBQC(), MapPoint(8, 18), 8);
+    buildLocations.Update(buildings, MapPoint(8, 18), 8);
     Proceed(ai, world, curPlayer, em);
 
     buildLocationsCheck.Calculate(buildings, MapPoint(13, 12));
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
-        BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
+        if (bq_BuildLocations1 != bq_BuildLocations2) {
+            BOOST_REQUIRE(false);
+        }
 
         // BuildingLocations ignores flags
         if (bq_Beowulf != BQ_FLAG) {
@@ -224,14 +226,14 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
 
     beowulf::Building* bakery = buildings.Create(BLD_BAKERY, beowulf::Building::PlanningRequest);
     buildings.Construct(bakery, MapPoint(8, 15));
-    buildLocations.Update(buildings.GetBQC(), MapPoint(8, 15));
+    buildLocations.Update(buildings, MapPoint(8, 15));
     Proceed(ai, world, curPlayer, em);
 
     buildLocationsCheck.Calculate(buildings, MapPoint(13, 12));
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
@@ -248,14 +250,14 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
 
     beowulf::Building* forester = buildings.Create(BLD_FORESTER, beowulf::Building::PlanningRequest);
     buildings.Construct(forester, MapPoint(9, 13));
-    buildLocations.Update(buildings.GetBQC(), MapPoint(9, 13));
+    buildLocations.Update(buildings, MapPoint(9, 13));
     Proceed(ai, world, curPlayer, em);
 
     buildLocationsCheck.Calculate(buildings, MapPoint(13, 12));
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
@@ -276,7 +278,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
     { Direction::NORTHEAST,
       Direction::NORTHEAST,
       Direction::NORTHEAST });
-    buildLocations.Update(buildings.GetBQC(), MapPoint(13, 16), 4);
+    buildLocations.Update(buildings, MapPoint(13, 16), 4);
     Proceed(ai, world, curPlayer, em);
 
 //    map.clear();
@@ -293,7 +295,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
         if (bq_BuildLocations1 != bq_BuildLocations2) {
             BOOST_REQUIRE(false);
@@ -311,14 +313,14 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
     { Direction::NORTHEAST,
       Direction::NORTHEAST,
       Direction::NORTHEAST });
-    buildLocations.Update(buildings.GetBQC(), MapPoint(11, 19), 4);
+    buildLocations.Update(buildings, MapPoint(11, 19), 4);
     Proceed(ai, world, curPlayer, em);
 
     buildLocationsCheck.Calculate(buildings, MapPoint(13, 12));
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
@@ -340,14 +342,14 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
       Direction::SOUTHEAST,
       Direction::EAST,
       Direction::EAST });
-    buildLocations.Update(buildings.GetBQC(), MapPoint(7, 12), 5);
+    buildLocations.Update(buildings, MapPoint(7, 12), 5);
     Proceed(ai, world, curPlayer, em);
 
     buildLocationsCheck.Calculate(buildings, MapPoint(13, 12));
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations1 = buildLocations.Get(pt);
         BuildingQuality bq_BuildLocations2 = buildLocationsCheck.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
 
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
@@ -368,7 +370,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     AI::Info ai_info(AI::BEOWULF, AI::HARD);
     std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
-    beowulf::Buildings& buildings = beowulf.buildings;
+    beowulf::World& buildings = beowulf.world;
 
     std::vector<beowulf::Building*> requests;
     requests.push_back(buildings.Create(BLD_WOODCUTTER, beowulf::Building::PlanningRequest));
@@ -394,11 +396,11 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     }
 
     beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
-    bl.Calculate(beowulf.buildings, MapPoint(13, 12)); // HQ flag
+    bl.Calculate(beowulf.world, MapPoint(13, 12)); // HQ flag
 
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations = bl.Get(pt);
-        BuildingQuality bq_Beowulf = beowulf.buildings.GetBQC().GetBQ(pt);
+        BuildingQuality bq_Beowulf = beowulf.world.GetBQ(pt);
         BuildingQuality bq_GWB = beowulf.GetAIInterface().gwb.GetBQ(pt, beowulf.GetPlayerId());
 
         BOOST_REQUIRE(bq_GWB == bq_Beowulf);
@@ -409,10 +411,10 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
         }
     }
 
-//    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
-//    map.draw(beowulf.buildings);
-//    map.draw(beowulf.buildings.GetRoadNetworks());
-//    map.write();
+    beowulf::AsciiMap map(beowulf.GetAIInterface(), 1);
+    map.draw(beowulf.world);
+    map.draw(beowulf.world.GetRoadNetworks());
+    map.write();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

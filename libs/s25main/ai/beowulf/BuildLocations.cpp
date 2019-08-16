@@ -18,8 +18,7 @@
 #include "rttrDefines.h" // IWYU pragma: keep
 
 #include "ai/beowulf/BuildLocations.h"
-#include "ai/beowulf/BuildingQualityCalculator.h"
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 #include "ai/beowulf/Helper.h"
 
 #include <utility> /* std::pair */
@@ -48,7 +47,7 @@ BuildLocations::~BuildLocations()
 }
 
 void BuildLocations::Calculate(
-        const Buildings& buildings,
+        const World& world,
         const MapPoint& start)
 {
     RTTR_Assert(start.isValid());
@@ -58,30 +57,33 @@ void BuildLocations::Calculate(
 
     FloodFill(map_, start,
     // condition
-    [&buildings](const MapPoint& pos, Direction dir)
+    [&world](const MapPoint& pos, Direction dir)
     {
-        return buildings.IsRoadPossible(pos, dir);
+        return world.IsRoadPossible(pos, dir);
     },
     // action
-    [this, &buildings](const MapPoint& pos)
+    [this, &world](const MapPoint& pos)
     {
-        BuildingQuality bq = buildings.GetBQC().GetBQ(pos);
+        BuildingQuality bq = world.GetBQ(pos);
         if (bq > BQ_FLAG)
             Add(pos, bq);
     });
 }
 
 void BuildLocations::Update(
-        const BuildingQualityCalculator& bqc,
+        const World& world,
         const MapPoint& pos,
         unsigned radius)
 {
+    // @todo: We need to check for every point whether it can still be connected
+    //        to the destination road network.
+
     // there is no point in updating a radius less than 2:
     radius = std::max(radius, unsigned(2));
 
     map_.VisitPointsInRadius(pos, radius, [&](const MapPoint& pt)
     {
-        BuildingQuality bq = bqc.GetBQ(pt);
+        BuildingQuality bq = world.GetBQ(pt);
         Node* node = map_[pt];
         if (node) {
             if (bq != node->bq) {
@@ -91,7 +93,6 @@ void BuildLocations::Update(
             }
         } else {
             if (bq > BQ_FLAG) {
-                // @todo: still needs to be able to find a connection to the island.
                 Add(pt, bq);
             }
         }

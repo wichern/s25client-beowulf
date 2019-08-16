@@ -44,7 +44,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
 
     MapPoint start(8, 3);
-    MapPoint dest = beowulf.buildings.Get(MapPoint(12, 11))->GetFlag();
+    MapPoint dest = beowulf.world.Get(MapPoint(12, 11))->GetFlag();
 
     std::vector<Direction> route;
     bool found = beowulf::FindPath(start, world, &route,
@@ -54,7 +54,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
         if (pt == start && dir == Direction::NORTHWEST)
             return false;
 
-        return beowulf.buildings.IsRoadPossible(pt, dir);
+        return beowulf.world.IsRoadPossible(pt, dir);
     },
     // End
     [dest](const MapPoint& pt)
@@ -77,8 +77,8 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
     BOOST_REQUIRE(found);
     BOOST_REQUIRE(!route.empty());
 
-    beowulf.buildings.ConstructFlag(start);
-    beowulf.buildings.ConstructRoad(start, route);
+    beowulf.world.ConstructFlag(start);
+    beowulf.world.ConstructRoad(start, route);
 
     for (int i = 0; i < 10; ++i)
         Proceed(ai, world, curPlayer, em);
@@ -87,9 +87,9 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
 //    map.draw(beowulf.buildings);
 //    map.write();
 
-    beowulf::FlagState state = beowulf.buildings.GetFlagState(start);
+    beowulf::FlagState state = beowulf.world.GetFlagState(start);
     BOOST_REQUIRE(state == beowulf::FlagFinished);
-    BOOST_REQUIRE(beowulf.buildings.GetRoadState(start, route[0]) == beowulf::RoadFinished);
+    BOOST_REQUIRE(beowulf.world.GetRoadState(start, route[0]) == beowulf::RoadFinished);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -17,7 +17,7 @@
 
 #include "rttrDefines.h" // IWYU pragma: keep
 
-#include "ai/beowulf/ResourceMap.h"
+#include "ai/beowulf/Resources.h"
 #include "ai/beowulf/ProductionConsts.h"
 #include "ai/AIInterface.h"
 #include "world/GameWorldBase.h"
@@ -31,23 +31,23 @@
 
 namespace beowulf {
 
-ResourceMapNode::ResourceMapNode()
+Resources::Node::Node()
 {
-    memset(resources, 0, sizeof(resources));
+    ::memset(resources, 0, sizeof(resources));
     for (unsigned i = 0; i < BResourceCount; ++i)
         lastUpdate[i] = std::numeric_limits<unsigned>::max();
 }
 
-ResourceMap::ResourceMap(AIInterface& aii, unsigned maxAge)
+Resources::Resources(AIInterface& aii, unsigned maxAge)
     : aii_(aii), maxAge_(maxAge)
 {
-    memset(resources_, 0, sizeof(resources_));
-    Resize(aii_.gwb.GetSize());
+    nodes_.Resize(aii.gwb.GetSize());
+    ::memset(resources_, 0, sizeof(resources_));
 }
 
-unsigned ResourceMap::Get(const MapPoint &pt, BResourceType type)
+unsigned Resources::Get(const MapPoint& pt, BResourceType type)
 {
-    const ResourceMapNode& node = (*this)[pt];
+    const Node& node = nodes_[pt];
     unsigned age = node.lastUpdate[type];
     unsigned gf = aii_.gwb.GetEvMgr().GetCurrentGF();
 
@@ -57,13 +57,13 @@ unsigned ResourceMap::Get(const MapPoint &pt, BResourceType type)
     return node.resources[type];
 }
 
-void ResourceMap::Refresh()
+void Resources::Refresh()
 {
     const GameWorldBase& world = aii_.gwb;
 
-    memset(resources_, 0, sizeof(resources_));
+    ::memset(resources_, 0, sizeof(resources_));
 
-    RTTR_FOREACH_PT(MapPoint, GetSize()) {
+    RTTR_FOREACH_PT(MapPoint, nodes_.GetSize()) {
         if (!aii_.IsOwnTerritory(pt))
             continue;
 
@@ -116,18 +116,18 @@ void ResourceMap::Refresh()
     }
 }
 
-unsigned ResourceMap::Get(BResourceType type) const
+unsigned Resources::Get(BResourceType type) const
 {
     return resources_[type];
 }
 
-void ResourceMap::Update(const MapPoint &pt, BResourceType type)
+void Resources::Update(const MapPoint& pt, BResourceType type)
 {
     RTTR_Assert(aii_.IsOwnTerritory(pt));
 
-    ResourceMapNode& node = (*this)[pt];
+    Node& node = nodes_[pt];
     const GameWorldBase& world = aii_.gwb;
-    unsigned gf = aii_.gwb.GetEvMgr().GetCurrentGF();
+    unsigned gf = world.GetEvMgr().GetCurrentGF();
 
     // We gather resource information for types with the same radius together.
     switch (type) {
@@ -200,7 +200,7 @@ void ResourceMap::Update(const MapPoint &pt, BResourceType type)
         node.resources[BResourceWood] = 0;
         node.resources[BResourcePlantSpace_6] = 0;
 
-        BOOST_FOREACH(const MapPoint& p, GetPointsInRadiusWithCenter(pt, 6))
+        BOOST_FOREACH(const MapPoint& p, nodes_.GetPointsInRadiusWithCenter(pt, 6))
         {
             DescIdx<TerrainDesc> t1 = world.GetNode(p).t1;
             if (world.GetDescription().get(t1).Is(ETerrain::Walkable)) {
@@ -225,7 +225,7 @@ void ResourceMap::Update(const MapPoint &pt, BResourceType type)
     {
         node.resources[BResourceFish] = 0;
 
-        BOOST_FOREACH(const MapPoint& p, GetPointsInRadiusWithCenter(pt, FISHER_RADIUS))
+        BOOST_FOREACH(const MapPoint& p, nodes_.GetPointsInRadiusWithCenter(pt, FISHER_RADIUS))
         {
             const Resource& res = world.GetNode(p).resources;
             if (res.getType() == Resource::Fish)
@@ -240,7 +240,7 @@ void ResourceMap::Update(const MapPoint &pt, BResourceType type)
     {
         node.resources[BResourceStone] = 0;
 
-        BOOST_FOREACH(const MapPoint& p, GetPointsInRadiusWithCenter(pt, STONEMASON_RADIUS))
+        BOOST_FOREACH(const MapPoint& p, nodes_.GetPointsInRadiusWithCenter(pt, STONEMASON_RADIUS))
         {
             NodalObjectType no = world.GetNO(p)->GetType();
             DescIdx<TerrainDesc> t1 = world.GetNode(p).t1;
@@ -259,7 +259,7 @@ void ResourceMap::Update(const MapPoint &pt, BResourceType type)
     {
         node.resources[BResourceHuntableAnimals] = 0;
 
-        BOOST_FOREACH(const MapPoint& p, GetPointsInRadiusWithCenter(pt, 20))
+        BOOST_FOREACH(const MapPoint& p, nodes_.GetPointsInRadiusWithCenter(pt, 20))
         {
             BOOST_FOREACH(const noBase* fig, world.GetFigures(p)) {
                 if(fig->GetType() == NOP_ANIMAL) {

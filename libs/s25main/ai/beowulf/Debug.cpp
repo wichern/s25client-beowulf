@@ -168,7 +168,7 @@ void AsciiMap::draw(const MapPoint& pt, unsigned dir, bool fat)
     }
 }
 
-void AsciiMap::draw(const Buildings& buildings)
+void AsciiMap::draw(const World& buildings)
 {
     static const char* c_short_building_names[NUM_BUILDING_TYPES] = {
         "HQ", "Bar", "Gua", "", "Wat", "", "", "", "", "Fort", "GrM", "CoM", "IrM", "GoM", "Loo",

@@ -22,7 +22,7 @@
 
 #include "factories/AIFactory.h"
 #include "ai/beowulf/Beowulf.h"
-#include "ai/beowulf/Buildings.h"
+#include "ai/beowulf/World.h"
 #include "ai/beowulf/Types.h"
 
 #include "nodeObjs/noFlag.h"
@@ -34,6 +34,9 @@
 #include "buildings/nobHQ.h"
 
 #include <memory> /* std::unique_ptr */
+
+static const MapPoint BiggerWorld_HQPoint(12, 11);
+static const MapPoint BiggerWorld_HQFlag(13, 12);
 
 void Proceed(
         std::unique_ptr<AIPlayer>& ai,

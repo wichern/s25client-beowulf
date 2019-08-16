@@ -14,8 +14,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_ROADISLANDS_H_INCLUDED
-#define BEOWULF_ROADISLANDS_H_INCLUDED
+#ifndef BEOWULF_ROADNETWORKS_H_INCLUDED
+#define BEOWULF_ROADNETWORKS_H_INCLUDED
 
 #include "ai/beowulf/Types.h"
 
@@ -23,23 +23,27 @@
 
 namespace beowulf {
 
-class Buildings;
+class World;
 
+/**
+ * @brief Detect connected flags.
+ */
 class RoadNetworks
 {
-private:
-    NodeMapBase<rnet_id_t> islands_;
-    const MapBase& world_;
-    rnet_id_t next_ = 0;
-
 public:
-    RoadNetworks(const MapBase& world); // @todo: make Buildings a member
-    rnet_id_t Get(const MapPoint& pos) const;
+    RoadNetworks(const World& world);
+    void Resize(const MapExtent& size);
 
-    void OnFlagStateChanged(const Buildings& buildings, const MapPoint& pos, FlagState state);
-    void Detect(const Buildings& buildings);
+    rnet_id_t Get(const MapPoint& pt) const;
+    void OnFlagStateChanged(const MapPoint& pt, FlagState state);
+    void Detect();
+
+private:
+    NodeMapBase<rnet_id_t> nodes_;
+    const World& world_;
+    rnet_id_t next_ = 0;
 };
 
 } // namespace beowulf
 
-#endif //! BEOWULF_ROADISLANDS_H_INCLUDED
+#endif //! BEOWULF_ROADNETWORKS_H_INCLUDED

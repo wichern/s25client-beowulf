@@ -22,8 +22,8 @@
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/Direction.h"
 
-#include "ai/beowulf/Buildings.h"
-#include "ai/beowulf/RoadIslands.h"
+#include "ai/beowulf/World.h"
+#include "ai/beowulf/RoadNetworks.h"
 #include "ai/beowulf/BuildLocations.h"
 
 #include <string>
@@ -73,7 +73,7 @@ public:
     void draw(const MapPoint& pt, char c);
     void draw(const MapPoint& pt, const std::string& str);
     void draw(const MapPoint& pt, unsigned dir, bool fat = false);
-    void draw(const Buildings& buildings);
+    void draw(const World& buildings);
     void draw(const RoadNetworks& roadNetworks);
     void draw(const BuildLocations& buildLocations);
     void drawResources(const GameWorldBase& world);
