@@ -34,10 +34,10 @@ namespace beowulf {
 
 BuildingPlannerSimple::BuildingPlannerSimple(
         AIInterface& aii,
-        World& buildings,
+        World& world,
         Resources& resources,
         rnet_id_t rnet)
-    : BuildingPlannerBase(aii, buildings, resources, rnet)
+    : BuildingPlannerBase(aii, world, resources, rnet)
 {
 
 }

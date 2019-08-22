@@ -14,35 +14,40 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_BUILDINGPLANNERSIMPLE_H_INCLUDED
-#define BEOWULF_BUILDINGPLANNERSIMPLE_H_INCLUDED
+#ifndef BEOWULF_EXPANSIONPLANNER_H_INCLUDED
+#define BEOWULF_EXPANSIONPLANNER_H_INCLUDED
 
-#include "ai/beowulf/BuildingPlannerBase.h"
+#include "ai/beowulf/Types.h"
+
+#include <vector>
+
+class AIInterface;
 
 namespace beowulf {
 
-class BuildingPlannerSimple : public BuildingPlannerBase
+class World;
+class Building;
+
+class ExpansionPlanner
 {
 public:
-    BuildingPlannerSimple(
-            AIInterface& aii,
-            World& world,
-            Resources& resources,
-            rnet_id_t rnet);
+    ExpansionPlanner(AIInterface& aii, World& world);
 
-    ~BuildingPlannerSimple();
-
-    void Init(const std::vector<Building*>& requests) override;
-    void Search() override;
-    void Execute() override;
-    unsigned GetSearches() const override;
-    unsigned GetMaxSearches() const override;
+    void Update(rnet_id_t rnet, std::vector<Building*>& requests);
 
 private:
-    std::vector<Building*> requests_;
-    unsigned searches_ = 0;
+    bool ShouldExpand() const;
+
+    AIInterface& aii_;
+    World& world_;
+
+    const unsigned checkInterval_ = 100;
+    const unsigned minSoldiers_ = 5;
+    const unsigned maxParallelSites_ = 3;
+
+    unsigned lastCheck_ = checkInterval_;
 };
 
 } // namespace beowulf
 
-#endif //! BEOWULF_BUILDINGPLANNERSIMPLE_H_INCLUDED
+#endif //! BEOWULF_EXPANSIONPLANNER_H_INCLUDED

@@ -53,7 +53,8 @@ Beowulf::Beowulf(const unsigned char playerId,
     : AIPlayer(playerId, gwb, level),
       resources(aii, 100),
       world(aii),
-      productionPlanner(*this)
+      productionPlanner(*this),
+      expansionPlanner_(aii, world)
 {
     // Initialize event handling.
     NotificationManager& notifications = gwb.GetNotifications();
@@ -132,20 +133,10 @@ void Beowulf::RunGF(const unsigned /*gf*/, bool /*gfisnwf*/)
     // PlanProduction
     // PlanStorehouses
     // DistributeGoods
-    // PlanExpansion
+    PlanExpansion();
     // PlanAttack
     // PlanTrading
     // PlanAlliances
-}
-
-AIInterface& Beowulf::GetAIInterface()
-{
-    return aii;
-}
-
-const AIInterface& Beowulf::GetAIInterface() const
-{
-    return aii;
 }
 
 void Beowulf::RequestConstruction(Building* building, rnet_id_t rnet)
@@ -187,6 +178,12 @@ void Beowulf::PlaceAdditionalFlags()
 void Beowulf::ConnectRoadNetworks()
 {
 
+}
+
+void Beowulf::PlanExpansion()
+{
+//    std::vector<Building*> requests;
+//    expansionPlanner_.Update(InvalidRoadNetwork, requests);
 }
 
 void Beowulf::Chat(const std::string& message)

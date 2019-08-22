@@ -33,10 +33,18 @@
 #include "buildings/nobBaseWarehouse.h"
 #include "buildings/nobHQ.h"
 
+#include "RttrConfig.h"
+#include "files.h"
+#include "ogl/glArchivItem_Map.h"
+#include "world/MapLoader.h"
+#include <boost/nowide/fstream.hpp>
+
 #include <memory> /* std::unique_ptr */
 
 static const MapPoint BiggerWorld_HQPoint(12, 11);
 static const MapPoint BiggerWorld_HQFlag(13, 12);
+
+#define BEOWULF_ENABLE_ALL
 
 void Proceed(
         std::unique_ptr<AIPlayer>& ai,
@@ -56,3 +64,39 @@ bool ConstructBuilding(
 bool CompareBuildingsWithWorld(
         std::unique_ptr<AIPlayer>& ai,
         GameWorldGame& world);
+
+//-----------------------------------------------------------------------
+
+struct MapTestFixture
+{
+    const std::string testMapPath;
+    MapTestFixture() : testMapPath(RTTRCONFIG.ExpandPath(std::string(FILE_PATHS[52]) + "/Bergschlumpf.swd")) {}
+};
+
+struct LoadWorldFromFileCreator : MapTestFixture
+{
+    glArchivItem_Map map;
+    std::vector<MapPoint> hqs;
+
+    explicit LoadWorldFromFileCreator(const MapExtent&) {}
+    bool operator()(GameWorldBase& world)
+    {
+        bnw::ifstream mapFile(testMapPath, std::ios::binary);
+        if(map.load(mapFile, false) != 0)
+            throw std::runtime_error("Could not load file " + testMapPath);
+        MapLoader loader(world);
+        if(!loader.Load(map, EXP_FOGOFWAR))
+            throw std::runtime_error("Could not load map");
+        if(!loader.PlaceHQs(world, false))
+            throw std::runtime_error("Could not place HQs");
+        world.InitAfterLoad();
+        for(unsigned i = 0; i < world.GetNumPlayers(); i++)
+            hqs.push_back(loader.GetHQPos(i));
+        return true;
+    }
+};
+
+struct WorldLoaded1PFixture : public WorldFixture<LoadWorldFromFileCreator, 1>
+{
+    using WorldFixture<LoadWorldFromFileCreator, 1>::world;
+};

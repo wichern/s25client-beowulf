@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#if 1
-
 #include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
@@ -33,6 +31,8 @@
 
 #include "helper.h"
 
+#ifdef BEOWULF_ENABLE_ALL
+
 BOOST_AUTO_TEST_SUITE(BeowulfBuildLocations)
 
 typedef WorldWithGCExecution<1, 24, 22> BiggerWorldWithGCExecution;
@@ -45,7 +45,7 @@ BOOST_FIXTURE_TEST_CASE(BuildLocationsEmptyMap, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf.GetAIInterface().gwb);
 
     {
-        bl.Calculate(beowulf.world, MapPoint(13, 12)); // HQ flag
+        bl.Calculate(beowulf.world, BiggerWorld_HQFlag);
 
         // no duplicates:
         std::set<unsigned> set;
@@ -63,7 +63,7 @@ BOOST_FIXTURE_TEST_CASE(BuildLocationsEmptyMap, BiggerWorldWithGCExecution)
 
     // Calling Calculate() a second time.
     {
-        bl.Calculate(beowulf.world, MapPoint(13, 12)); // HQ flag
+        bl.Calculate(beowulf.world, BiggerWorld_HQFlag);
 
         // no duplicates:
         std::set<unsigned> set;

@@ -31,17 +31,17 @@ namespace beowulf {
 
 BuildingPlannerBase::BuildingPlannerBase(
         AIInterface& aii,
-        World& buildings,
+        World& world,
         Resources& resources,
         rnet_id_t rnet)
     : aii_(aii),
-      world_(buildings),
+      world_(world),
       resources_(resources),
       locations_(aii.gwb),
       costs_(aii, resources_, world_),
       rnet_(rnet)
 {
-    locations_.Calculate(buildings, buildings.GetFlag(rnet));
+    locations_.Calculate(world, world.GetFlag(rnet));
 }
 
 BuildingPlannerBase::~BuildingPlannerBase()

@@ -25,6 +25,7 @@
 #include "ai/beowulf/World.h"
 #include "ai/beowulf/RoadNetworks.h"
 #include "ai/beowulf/BuildLocations.h"
+#include "ai/beowulf/Resources.h"
 
 #include <string>
 #include <vector>
@@ -40,7 +41,6 @@ std::string to_string(const std::vector<Direction>& route);
 
 /**
  * Create an ASCII representation of the map (for debugging).
-
  */
 class AsciiMap
 {
@@ -73,10 +73,13 @@ public:
     void draw(const MapPoint& pt, char c);
     void draw(const MapPoint& pt, const std::string& str);
     void draw(const MapPoint& pt, unsigned dir, bool fat = false);
-    void draw(const World& buildings);
+    void draw(const World& world);
     void draw(const RoadNetworks& roadNetworks);
     void draw(const BuildLocations& buildLocations);
-    void drawResources(const GameWorldBase& world);
+    void drawResources(const GameWorldBase& gwb);
+    void drawResourcesInReach(Resources& resources, BResourceType type);
+    void drawBuildLocations(const GameWorldBase& gwb, unsigned player);
+    void drawBuildLocations(const World& world);
 
     void clear();
     void write(std::ostream& out = std::cout) const;
@@ -91,6 +94,8 @@ private:
     void set(const AsciiPosition& pos, char c);
     void set(AsciiPosition pos, const std::string& str);
     bool onMap(const AsciiPosition& pos) const;
+
+    void drawBQ(const MapPoint& pt, BuildingQuality bq);
 
     const AIInterface& aii_;
     MapExtent map_size_;

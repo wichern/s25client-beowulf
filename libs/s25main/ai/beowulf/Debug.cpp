@@ -168,7 +168,7 @@ void AsciiMap::draw(const MapPoint& pt, unsigned dir, bool fat)
     }
 }
 
-void AsciiMap::draw(const World& buildings)
+void AsciiMap::draw(const World& world)
 {
     static const char* c_short_building_names[NUM_BUILDING_TYPES] = {
         "HQ", "Bar", "Gua", "", "Wat", "", "", "", "", "Fort", "GrM", "CoM", "IrM", "GoM", "Loo",
@@ -179,15 +179,15 @@ void AsciiMap::draw(const World& buildings)
 
     RTTR_FOREACH_PT(MapPoint, map_size_)
     {
-        if (buildings.HasFlag(pt))
+        if (world.HasFlag(pt))
             draw(pt, 'f');
 
         for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
-            if (buildings.HasRoad(pt, Direction(dir)))
+            if (world.HasRoad(pt, Direction(dir)))
                 draw(pt, dir);
         }
 
-        Building* building = buildings.Get(pt);
+        Building* building = world.Get(pt);
         if (building) {
             if (building->GetState() == Building::ConstructionRequested)
                 draw(pt, std::string("(") + c_short_building_names[building->GetType()] + ")");
@@ -211,37 +211,15 @@ void AsciiMap::draw(const BuildLocations& buildLocations)
 {
     RTTR_FOREACH_PT(MapPoint, map_size_)
     {
-        BuildingQuality bq = buildLocations.Get(pt);
-        switch (bq) {
-        case BQ_HUT:
-            draw(pt, 'h');
-            break;
-        case BQ_HOUSE:
-            draw(pt, 'H');
-            break;
-        case BQ_CASTLE:
-            draw(pt, 'C');
-            break;
-        case BQ_MINE:
-            draw(pt, 'm');
-            break;
-        case BQ_HARBOR:
-            draw(pt, 'H');
-            break;
-        case BQ_FLAG:
-        case BQ_NOTHING:
-        default:
-            // skip
-            break;
-        }
+        drawBQ(pt, buildLocations.Get(pt));
     }
 }
 
-void AsciiMap::drawResources(const GameWorldBase& world)
+void AsciiMap::drawResources(const GameWorldBase& gwb)
 {
     RTTR_FOREACH_PT(MapPoint, map_size_)
     {
-        const Resource& res = world.GetNode(pt).resources;
+        const Resource& res = gwb.GetNode(pt).resources;
         switch (res.getType()) {
         case Resource::Iron:
             draw(pt, "I" + std::to_string(res.getAmount()));
@@ -255,26 +233,50 @@ void AsciiMap::drawResources(const GameWorldBase& world)
         case Resource::Granite:
             draw(pt, "Gr" + std::to_string(res.getAmount()));
             break;
-        case Resource::Water:
-            draw(pt, "W" + std::to_string(res.getAmount()));
-            break;
         case Resource::Fish:
             draw(pt, "F" + std::to_string(res.getAmount()));
             break;
+        case Resource::Water:
         default: break;
         }
 
-        DescIdx<TerrainDesc> t1 = world.GetNode(pt).t1;
-        if (world.GetDescription().get(t1).Is(ETerrain::Walkable)) {
-            NodalObjectType no = world.GetNO(pt)->GetType();
+        DescIdx<TerrainDesc> t1 = gwb.GetNode(pt).t1;
+        if (gwb.GetDescription().get(t1).Is(ETerrain::Walkable)) {
+            NodalObjectType no = gwb.GetNO(pt)->GetType();
 
             if (no == NOP_TREE) {
-                if (world.GetSpecObj<noTree>(pt)->ProducesWood())
+                if (gwb.GetSpecObj<noTree>(pt)->ProducesWood())
                     draw(pt, "T");
             } else if (no == NOP_GRANITE) {
                 draw(pt, "S");
             }
         }
+    }
+}
+
+void AsciiMap::drawResourcesInReach(Resources& resources, BResourceType type)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        if (!aii_.IsOwnTerritory(pt))
+            continue;
+        draw(pt, std::to_string(resources.Get(pt, type)));
+    }
+}
+
+void AsciiMap::drawBuildLocations(const GameWorldBase& gwb, unsigned player)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        drawBQ(pt, gwb.GetBQ(pt, player));
+    }
+}
+
+void AsciiMap::drawBuildLocations(const World& world)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        drawBQ(pt, world.GetBQ(pt));
     }
 }
 
@@ -360,6 +362,32 @@ bool AsciiMap::onMap(const AsciiPosition& pos) const
 {
     return pos.x >= 0 && (pos.x + 1) < w_ &&
             pos.y >= 0 && pos.y < h_;
+}
+
+void AsciiMap::drawBQ(const MapPoint& pt, BuildingQuality bq)
+{
+    switch (bq) {
+    case BQ_HUT:
+        draw(pt, 'h');
+        break;
+    case BQ_HOUSE:
+        draw(pt, 'H');
+        break;
+    case BQ_CASTLE:
+        draw(pt, 'C');
+        break;
+    case BQ_MINE:
+        draw(pt, 'm');
+        break;
+    case BQ_HARBOR:
+        draw(pt, 'H');
+        break;
+    case BQ_FLAG:
+    case BQ_NOTHING:
+    default:
+        // skip
+        break;
+    }
 }
 
 } // namespace beowulf

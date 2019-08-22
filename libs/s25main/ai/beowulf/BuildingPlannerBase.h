@@ -37,7 +37,7 @@ class BuildingPlannerBase
 public:
     BuildingPlannerBase(
             AIInterface& aii,
-            World& buildings,
+            World& world,
             Resources& resources,
             rnet_id_t rnet);
 

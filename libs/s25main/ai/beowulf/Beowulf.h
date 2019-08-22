@@ -20,6 +20,7 @@
 #include "ai/beowulf/Resources.h"
 #include "ai/beowulf/ProductionPlanner.h"
 #include "ai/beowulf/World.h"
+#include "ai/beowulf/ExpansionPlanner.h"
 
 #include "ai/AIPlayer.h"
 
@@ -57,18 +58,21 @@ public:
 
     void RunGF(const unsigned gf, bool gfisnwf) override;
 
-    AIInterface& GetAIInterface();
-    const AIInterface& GetAIInterface() const;
+    AIInterface& GetAIInterface() { return aii; }
+    const AIInterface& GetAIInterface() const { return aii; }
 
     void RequestConstruction(Building* building, rnet_id_t rnet);
 
 private:
+    ExpansionPlanner expansionPlanner_;
+
     bool CheckDefeat();
     void StartBuildingPlanner();
     void DecommissionUnusedRoads();
     void ResolveGoodsJams();
     void PlaceAdditionalFlags();
     void ConnectRoadNetworks();
+    void PlanExpansion();
     void Chat(const std::string& message);
 
     void OnBuildingNote(const BuildingNote& note);
