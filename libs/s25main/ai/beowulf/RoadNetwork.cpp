@@ -14,36 +14,22 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_ROADNETWORKS_H_INCLUDED
-#define BEOWULF_ROADNETWORKS_H_INCLUDED
 
-#include "ai/beowulf/Types.h"
+#include "rttrDefines.h" // IWYU pragma: keep
 
-#include "world/NodeMapBase.h"
+#include "ai/beowulf/RoadNetwork.h"
 
 namespace beowulf {
 
-class World;
-
-/**
- * @brief Detect connected flags.
- */
-class RoadNetworks
+RoadNetwork::RoadNetwork(const MapPoint& startFlag, rnet_id_t rnet)
+    : flag_(startFlag), rnet_(rnet)
 {
-public:
-    RoadNetworks(const World& world);
-    void Resize(const MapExtent& size);
 
-    rnet_id_t Get(const MapPoint& pt) const;
-    void OnFlagStateChanged(const MapPoint& pt, FlagState state);
-    void Detect();
+}
 
-private:
-    NodeMapBase<rnet_id_t> nodes_;
-    const World& world_;
-    rnet_id_t next_ = 0;
-};
+void RoadNetwork::Merge(RoadNetwork* other)
+{
+    (void)other;
+}
 
 } // namespace beowulf
-
-#endif //! BEOWULF_ROADNETWORKS_H_INCLUDED

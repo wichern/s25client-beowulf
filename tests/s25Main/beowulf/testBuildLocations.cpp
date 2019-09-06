@@ -192,9 +192,9 @@ BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
 
     Proceed(ai, world, curPlayer, em);
 
-    BOOST_REQUIRE(beowulf.world.Get(farmPoint)->GetState() == beowulf::Building::UnderConstruction);
-    BOOST_REQUIRE(beowulf.world.Get(wellPoint)->GetState() == beowulf::Building::UnderConstruction);
-    BOOST_REQUIRE(beowulf.world.Get(millPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf.world.GetBuildings(farmPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf.world.GetBuildings(wellPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf.world.GetBuildings(millPoint)->GetState() == beowulf::Building::UnderConstruction);
 
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations = bl.Get(pt);

@@ -39,21 +39,19 @@ using beowulf::Building;
 using beowulf::rnet_id_t;
 using beowulf::BuildLocations;
 
-#ifdef BEOWULF_ENABLE_ALL
+//BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
+//{
+//    AI::Info ai_info(AI::BEOWULF, AI::HARD);
+//    std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
+//    Beowulf& beowulf = static_cast<Beowulf&>(*ai);
 
-BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
-{
-    AI::Info ai_info(AI::BEOWULF, AI::HARD);
-    std::unique_ptr<AIPlayer> ai(AIFactory::Create(ai_info, curPlayer, world));
-    Beowulf& beowulf = static_cast<Beowulf&>(*ai);
+//    Building* bld = beowulf.world.Create(BLD_BREWERY, Building::PlanningRequest);
+//    beowulf.RequestConstruction(bld, beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag));
 
-    Building* bld = beowulf.world.Create(BLD_BREWERY, Building::PlanningRequest);
-    beowulf.RequestConstruction(bld, beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag));
-
-    while (bld->GetState() != Building::UnderConstruction) {
-        Proceed(ai, world, curPlayer, em);
-    }
-}
+//    while (bld->GetState() != Building::UnderConstruction) {
+//        Proceed(ai, world, curPlayer, em);
+//    }
+//}
 
 BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
 {
@@ -67,7 +65,7 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
     requests.push_back(beowulf.world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
     requests.push_back(beowulf.world.Create(BLD_FORESTER, Building::PlanningRequest));
 
-    rnet_id_t rnet = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    rnet_id_t rnet = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     for (Building* building : requests)
         beowulf.RequestConstruction(building, rnet);
 
@@ -75,9 +73,14 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
         Proceed(ai, world, curPlayer, em);
     }
 
+    beowulf::AsciiMap map(beowulf.GetAIInterface());
+    map.draw(beowulf.world);
+    map.drawRoadNetworks(beowulf.world);
+    map.write();
+
     for (Building* building : requests) {
         BOOST_REQUIRE(building->GetState() == Building::UnderConstruction);
-        BOOST_REQUIRE(beowulf.world.GetRoadNetwork(building->GetFlag()) == rnet);
+        BOOST_REQUIRE(beowulf.world.GetRoadNetworkId(building->GetFlag()) == rnet);
     }
 
     // Can the building be finished?
@@ -86,6 +89,8 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
     }
     BOOST_REQUIRE(requests.front()->GetState() == Building::Finished);
 }
+
+#ifdef BEOWULF_ENABLE_ALL
 
 BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
 {
@@ -349,7 +354,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     requests.push_back(beowulf.world.Create(BLD_FARM, Building::PlanningRequest));
     //requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
 
-    rnet_id_t island = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    rnet_id_t island = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     for (Building* bld : requests)
         beowulf.RequestConstruction(bld, island);
 
@@ -396,7 +401,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsOnRealMap, WorldLoaded1PFixture)
     requests.push_back(beowulf.world.Create(BLD_BAKERY, Building::PlanningRequest));
     requests.push_back(beowulf.world.Create(BLD_FARM, Building::PlanningRequest));
 
-    rnet_id_t island = beowulf.world.GetRoadNetwork(beowulf.world.Get().front()->GetFlag());
+    rnet_id_t island = beowulf.world.GetRoadNetworkId(beowulf.world.GetBuildings().front()->GetFlag());
     BOOST_REQUIRE(island != beowulf::InvalidRoadNetwork);
     for (Building* bld : requests)
         beowulf.RequestConstruction(bld, island);
@@ -411,7 +416,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsOnRealMap, WorldLoaded1PFixture)
 //    map.write();
 
     BuildLocations bl(beowulf.GetAIInterface().gwb);
-    bl.Calculate(beowulf.world, beowulf.world.Get().front()->GetFlag());
+    bl.Calculate(beowulf.world, beowulf.world.GetBuildings().front()->GetFlag());
 
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations = bl.Get(pt);

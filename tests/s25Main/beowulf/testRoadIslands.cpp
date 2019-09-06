@@ -52,7 +52,7 @@ BOOST_FIXTURE_TEST_CASE(HQFlagOnly, BiggerWorldWithGCExecution)
 //    map.draw(beowulf.buildings.GetRoadNetworks());
 //    map.write();
 
-    BOOST_REQUIRE(beowulf.world.GetRoadNetwork(MapPoint(13, 12)) != beowulf::InvalidRoadNetwork);
+    BOOST_REQUIRE(beowulf.world.GetRoadNetworkId(MapPoint(13, 12)) != beowulf::InvalidRoadNetwork);
 }
 
 BOOST_FIXTURE_TEST_CASE(PlanAndUnplanFlag, BiggerWorldWithGCExecution)
@@ -63,8 +63,8 @@ BOOST_FIXTURE_TEST_CASE(PlanAndUnplanFlag, BiggerWorldWithGCExecution)
     MapPoint newFlagPt(10, 10);
     beowulf.world.PlanFlag(newFlagPt);
 
-    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
-    rnet_id_t new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
+    rnet_id_t new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
 
     BOOST_REQUIRE(hq_flag_id != InvalidRoadNetwork);
     BOOST_REQUIRE(new_flag_id != InvalidRoadNetwork);
@@ -72,7 +72,7 @@ BOOST_FIXTURE_TEST_CASE(PlanAndUnplanFlag, BiggerWorldWithGCExecution)
 
     beowulf.world.ClearPlan();
 
-    new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
     BOOST_REQUIRE(new_flag_id == InvalidRoadNetwork);
 }
 
@@ -87,23 +87,23 @@ BOOST_FIXTURE_TEST_CASE(PlanAndUnplanRoad, BiggerWorldWithGCExecution)
     beowulf.world.PlanFlag(newFlagPt);
     beowulf.world.PlanRoad(newFlagPt, route);
 
-    rnet_id_t new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    rnet_id_t new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
     BOOST_REQUIRE(new_flag_id != InvalidRoadNetwork);
 
     MapPoint cur = newFlagPt;
     for (Direction dir : route) {
-        BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetwork(cur));
+        BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetworkId(cur));
         cur = world.GetNeighbour(cur, dir);
     }
 
-    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(hq_flag_id == new_flag_id);
 
     beowulf.world.ClearPlan();
 
-    new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
     BOOST_REQUIRE(new_flag_id == InvalidRoadNetwork);
-    hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(hq_flag_id != InvalidRoadNetwork);
 }
 
@@ -122,16 +122,16 @@ BOOST_FIXTURE_TEST_CASE(ConstructAndRemoveRoad, BiggerWorldWithGCExecution)
         Proceed(ai, world, curPlayer, em);
     }
 
-    rnet_id_t new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    rnet_id_t new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
     BOOST_REQUIRE(new_flag_id != InvalidRoadNetwork);
 
     MapPoint cur = newFlagPt;
     for (Direction dir : route) {
-        BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetwork(cur));
+        BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetworkId(cur));
         cur = world.GetNeighbour(cur, dir);
     }
 
-    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(hq_flag_id == new_flag_id);
 
     beowulf.world.DeconstructFlag(newFlagPt);
@@ -140,9 +140,9 @@ BOOST_FIXTURE_TEST_CASE(ConstructAndRemoveRoad, BiggerWorldWithGCExecution)
         Proceed(ai, world, curPlayer, em);
     }
 
-    new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
     BOOST_REQUIRE(new_flag_id == beowulf::InvalidRoadNetwork);
-    hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(hq_flag_id != beowulf::InvalidRoadNetwork);
 }
 
@@ -161,16 +161,16 @@ BOOST_FIXTURE_TEST_CASE(ConnectAndSeparateTwoIslands, BiggerWorldWithGCExecution
         Proceed(ai, world, curPlayer, em);
     }
 
-    rnet_id_t new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
+    rnet_id_t new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
     BOOST_REQUIRE(new_flag_id != InvalidRoadNetwork);
 
     MapPoint cur = newFlagPt;
     for (Direction dir : route) {
-        BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetwork(cur));
+        BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetworkId(cur));
         cur = world.GetNeighbour(cur, dir);
     }
-    BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetwork(cur));
-    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    BOOST_REQUIRE(new_flag_id == beowulf.world.GetRoadNetworkId(cur));
+    rnet_id_t hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(hq_flag_id != new_flag_id);
 
     // Connect with HQ
@@ -181,8 +181,8 @@ BOOST_FIXTURE_TEST_CASE(ConnectAndSeparateTwoIslands, BiggerWorldWithGCExecution
         Proceed(ai, world, curPlayer, em);
     }
 
-    new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
-    hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
+    hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(new_flag_id == hq_flag_id);
 
     // Disconnect again
@@ -192,8 +192,8 @@ BOOST_FIXTURE_TEST_CASE(ConnectAndSeparateTwoIslands, BiggerWorldWithGCExecution
         Proceed(ai, world, curPlayer, em);
     }
 
-    new_flag_id = beowulf.world.GetRoadNetwork(newFlagPt);
-    hq_flag_id = beowulf.world.GetRoadNetwork(BiggerWorld_HQFlag);
+    new_flag_id = beowulf.world.GetRoadNetworkId(newFlagPt);
+    hq_flag_id = beowulf.world.GetRoadNetworkId(BiggerWorld_HQFlag);
     BOOST_REQUIRE(new_flag_id != hq_flag_id);
 }
 

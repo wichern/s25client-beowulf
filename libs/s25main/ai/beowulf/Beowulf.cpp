@@ -53,7 +53,6 @@ Beowulf::Beowulf(const unsigned char playerId,
     : AIPlayer(playerId, gwb, level),
       resources(aii, 100),
       world(aii),
-      productionPlanner(*this),
       expansionPlanner_(aii, world)
 {
     // Initialize event handling.
@@ -79,6 +78,7 @@ Beowulf::Beowulf(const unsigned char playerId,
     eventSubscriptions_.push_back(notifications.subscribe<FlagNote>(
         boost::lambda::if_(boost::lambda::bind(&FlagNote::type, boost::lambda::_1) == playerId)
                                       [boost::lambda::bind(&Beowulf::OnFlagNote, this, boost::lambda::_1)]));
+
 }
 
 Beowulf::~Beowulf()
@@ -146,7 +146,7 @@ void Beowulf::RequestConstruction(Building* building, rnet_id_t rnet)
 
 bool Beowulf::CheckDefeat()
 {
-    // Check for defeat.
+    // Check for defeat.st
     if (defeated_)
         return true;
 
@@ -194,7 +194,7 @@ void Beowulf::Chat(const std::string& message)
 
 void Beowulf::OnBuildingNote(const BuildingNote& note)
 {
-    Building* bld = world.Get(note.pos);
+    Building* bld = world.GetBuildings(note.pos);
 
     RTTR_Assert(!bld || bld->GetType() == note.bld);
     RTTR_Assert(note.player == aii.GetPlayerId());
@@ -277,7 +277,7 @@ void Beowulf::OnBuildingNote(const BuildingNote& note)
     case BuildingNote::LuaOrder:
     {
         bld = world.Create(note.bld, Building::PlanningRequest, InvalidProductionGroup, note.pos);
-        rnet_id_t rnet = world.GetRoadNetwork(world.GetGoodsDest(bld, InvalidRoadNetwork, note.pos)->GetFlag()); // Use the goods dest as road network.
+        rnet_id_t rnet = world.GetRoadNetworkId(world.GetGoodsDest(bld, InvalidRoadNetwork, note.pos)->GetFlag()); // Use the goods dest as road network.
         RequestConstruction(bld, rnet);
     } break;
 

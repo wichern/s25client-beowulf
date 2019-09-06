@@ -23,7 +23,6 @@
 #include "gameTypes/Direction.h"
 
 #include "ai/beowulf/World.h"
-#include "ai/beowulf/RoadNetworks.h"
 #include "ai/beowulf/BuildLocations.h"
 #include "ai/beowulf/Resources.h"
 
@@ -74,12 +73,12 @@ public:
     void draw(const MapPoint& pt, const std::string& str);
     void draw(const MapPoint& pt, unsigned dir, bool fat = false);
     void draw(const World& world);
-    void draw(const RoadNetworks& roadNetworks);
     void draw(const BuildLocations& buildLocations);
     void drawResources(const GameWorldBase& gwb);
     void drawResourcesInReach(Resources& resources, BResourceType type);
     void drawBuildLocations(const GameWorldBase& gwb, unsigned player);
     void drawBuildLocations(const World& world);
+    void drawRoadNetworks(const World& world);
 
     void clear();
     void write(std::ostream& out = std::cout) const;

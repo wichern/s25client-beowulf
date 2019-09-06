@@ -53,7 +53,7 @@ BOOST_FIXTURE_TEST_CASE(InitialState, BiggerWorldWithGCExecution)
     beowulf::World& buildings = beowulf.world;
 
     // Check that HQ has been added.
-    beowulf::Building* building = buildings.Get(MapPoint(12, 11));
+    beowulf::Building* building = buildings.GetBuildings(MapPoint(12, 11));
     BOOST_REQUIRE(building != nullptr);
     BOOST_REQUIRE(building->GetType() == BLD_HEADQUARTERS);
     BOOST_REQUIRE(buildings.HasFlag(MapPoint(13, 12)));
@@ -77,7 +77,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructValidBuilding, BiggerWorldWithGCExecution)
     // Connect the building and wait for it to complete.
     buildings.ConstructRoad(flagPos, { Direction::EAST, Direction::EAST });
 
-    beowulf::Building* bld = buildings.Get(buildPos);
+    beowulf::Building* bld = buildings.GetBuildings(buildPos);
     while (bld->GetState() != beowulf::Building::Finished) {
         Proceed(ai, world, curPlayer, em);
     }
@@ -101,7 +101,7 @@ BOOST_FIXTURE_TEST_CASE(ConstructBuildingOnInvalidPosition, BiggerWorldWithGCExe
     ConstructBuilding(ai, world, curPlayer, em, BLD_SAWMILL, buildPos, false);
     Proceed(ai, world, curPlayer, em);
 
-    BOOST_REQUIRE(buildings.Get(buildPos) == nullptr);
+    BOOST_REQUIRE(buildings.GetBuildings(buildPos) == nullptr);
     BOOST_REQUIRE(!buildings.HasFlag(flagPos));
 
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
@@ -118,11 +118,11 @@ BOOST_FIXTURE_TEST_CASE(DeconstructBuildingWhileStillRequested, BiggerWorldWithG
     MapPoint flagPos(11, 12);
 
     ConstructBuilding(ai, world, curPlayer, em, BLD_SAWMILL, buildPos, false);
-    buildings.Deconstruct(buildings.Get(buildPos));
+    buildings.Deconstruct(buildings.GetBuildings(buildPos));
 
     Proceed(ai, world, curPlayer, em);
 
-    BOOST_REQUIRE(buildings.Get(buildPos) == nullptr);
+    BOOST_REQUIRE(buildings.GetBuildings(buildPos) == nullptr);
     BOOST_REQUIRE(buildings.HasFlag(flagPos));
 
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
@@ -139,11 +139,11 @@ BOOST_FIXTURE_TEST_CASE(DeconstructConstructionSite, BiggerWorldWithGCExecution)
     MapPoint flagPos(11, 12);
 
     ConstructBuilding(ai, world, curPlayer, em, BLD_SAWMILL, buildPos, true);
-    buildings.Deconstruct(buildings.Get(buildPos));
+    buildings.Deconstruct(buildings.GetBuildings(buildPos));
 
     Proceed(ai, world, curPlayer, em);
 
-    BOOST_REQUIRE(buildings.Get(buildPos) == nullptr);
+    BOOST_REQUIRE(buildings.GetBuildings(buildPos) == nullptr);
     // BOOST_REQUIRE(!buildings.HasFlag(flagPos));
 
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
@@ -164,16 +164,16 @@ BOOST_FIXTURE_TEST_CASE(DeconstructFinishedBuilding, BiggerWorldWithGCExecution)
     // Connect the building and wait for it to complete.
     buildings.ConstructRoad(flagPos, { Direction::EAST, Direction::EAST });
 
-    beowulf::Building* bld = buildings.Get(buildPos);
+    beowulf::Building* bld = buildings.GetBuildings(buildPos);
     while (bld->GetState() != beowulf::Building::Finished) {
         Proceed(ai, world, curPlayer, em);
     }
 
-    buildings.Deconstruct(buildings.Get(buildPos));
+    buildings.Deconstruct(buildings.GetBuildings(buildPos));
 
     Proceed(ai, world, curPlayer, em);
 
-    BOOST_REQUIRE(buildings.Get(buildPos) == nullptr);
+    BOOST_REQUIRE(buildings.GetBuildings(buildPos) == nullptr);
 
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
 }
@@ -195,11 +195,11 @@ BOOST_FIXTURE_TEST_CASE(DeconstructConnectedBuilding, BiggerWorldWithGCExecution
 
     BOOST_REQUIRE(ConstructBuilding(ai, world, curPlayer, em, BLD_SAWMILL, buildPos, true));
 
-    buildings.Deconstruct(buildings.Get(buildPos));
+    buildings.Deconstruct(buildings.GetBuildings(buildPos));
 
     Proceed(ai, world, curPlayer, em);
 
-    BOOST_REQUIRE(buildings.Get(buildPos) == nullptr);
+    BOOST_REQUIRE(buildings.GetBuildings(buildPos) == nullptr);
     BOOST_REQUIRE(buildings.HasFlag(flagPos));
 
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
@@ -218,22 +218,22 @@ BOOST_FIXTURE_TEST_CASE(ConstructFlags, BiggerWorldWithGCExecution)
     buildings.ConstructFlag(MapPoint(9, 12));
     buildings.ConstructRoad(MapPoint(9, 12), { Direction::EAST, Direction::EAST, Direction::EAST, Direction::EAST });
 
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(9, 12)) == buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(9, 12)) == buildings.GetRoadNetworkId(MapPoint(13, 12)));
     BOOST_REQUIRE(buildings.GetFlags().size() == 2);
 
     /*
      * Place a flag on the road and check that it has the same island as the other flags.
      */
     buildings.ConstructFlag(MapPoint(11, 12));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) == buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) == buildings.GetRoadNetworkId(MapPoint(13, 12)));
     BOOST_REQUIRE(buildings.GetFlags().size() == 3);
 
     /*
      * Place a flag on a free spot and check that it has a new island.
      */
     buildings.ConstructFlag(MapPoint(10, 8));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(10, 8)) != buildings.GetRoadNetwork(MapPoint(13, 12)));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(10, 8)) != beowulf::InvalidRoadNetwork);
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(10, 8)) != buildings.GetRoadNetworkId(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(10, 8)) != beowulf::InvalidRoadNetwork);
     BOOST_REQUIRE(buildings.GetFlags().size() == 4);
 
     // check consistency
@@ -255,7 +255,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructFlags, BiggerWorldWithGCExecution)
     buildings.ConstructFlag(MapPoint(7, 12));
     buildings.ConstructRoad(MapPoint(7, 12), { Direction::EAST, Direction::EAST });
 
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(9, 12)) == buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(9, 12)) == buildings.GetRoadNetworkId(MapPoint(13, 12)));
     BOOST_REQUIRE_EQUAL(buildings.GetFlags().size(), 3);
 
     /*
@@ -274,7 +274,7 @@ BOOST_FIXTURE_TEST_CASE(DeconstructFlags, BiggerWorldWithGCExecution)
     BOOST_REQUIRE(buildings.GetRoadState(MapPoint(10, 12), Direction::WEST) == beowulf::RoadDestructionRequested);
     BOOST_REQUIRE(buildings.GetRoadState(MapPoint(9, 12), Direction::WEST) == beowulf::RoadFinished);
     BOOST_REQUIRE(buildings.GetRoadState(MapPoint(8, 12), Direction::WEST) == beowulf::RoadFinished);
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) == beowulf::InvalidRoadNetwork);
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) == beowulf::InvalidRoadNetwork);
 
     Proceed(ai, world, curPlayer, em);
     //beowulf::CreateSvg(beowulf.GetAIInterface(), buildings, "test.svg");
@@ -299,13 +299,13 @@ BOOST_FIXTURE_TEST_CASE(ConstructRoad, BiggerWorldWithGCExecution)
     buildings.ConstructRoad(MapPoint(9, 12), { Direction::EAST, Direction::EAST });
 
     // Flags have different islands at first:
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) != buildings.GetRoadNetwork(MapPoint(13, 12)));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(9, 12)) == buildings.GetRoadNetwork(MapPoint(11, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) != buildings.GetRoadNetworkId(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(9, 12)) == buildings.GetRoadNetworkId(MapPoint(11, 12)));
 
     // Constructing a road connects those islands
     buildings.ConstructRoad(MapPoint(11, 12), { Direction::EAST, Direction::EAST });
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) == buildings.GetRoadNetwork(MapPoint(13, 12)));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(9, 12)) == buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) == buildings.GetRoadNetworkId(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(9, 12)) == buildings.GetRoadNetworkId(MapPoint(13, 12)));
 
     // Compare state with world
     Proceed(ai, world, curPlayer, em);
@@ -313,8 +313,8 @@ BOOST_FIXTURE_TEST_CASE(ConstructRoad, BiggerWorldWithGCExecution)
 
     // Deconstruct road leaves both flags with different islands again.
     buildings.DeconstructRoad(MapPoint(11, 12), { Direction::EAST, Direction::EAST });
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) != buildings.GetRoadNetwork(MapPoint(13, 12)));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(9, 12)) == buildings.GetRoadNetwork(MapPoint(11, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) != buildings.GetRoadNetworkId(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(9, 12)) == buildings.GetRoadNetworkId(MapPoint(11, 12)));
 
     // Compare state with world
     Proceed(ai, world, curPlayer, em);
@@ -329,17 +329,17 @@ BOOST_FIXTURE_TEST_CASE(ConstructInvalidRoad, BiggerWorldWithGCExecution)
     beowulf::World& buildings = beowulf.world;
 
     buildings.ConstructFlag(MapPoint(11, 12));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) != buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) != buildings.GetRoadNetworkId(MapPoint(13, 12)));
 
     // Constructing a road connects those islands
     buildings.ConstructRoad(MapPoint(11, 12), { Direction::NORTHEAST, Direction::EAST, Direction::SOUTHEAST });
     BOOST_REQUIRE(buildings.HasRoad(MapPoint(11, 12), Direction::NORTHEAST ));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) == buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) == buildings.GetRoadNetworkId(MapPoint(13, 12)));
 
     Proceed(ai, world, curPlayer, em);
     BOOST_REQUIRE(CompareBuildingsWithWorld(ai, world));
     BOOST_REQUIRE(!buildings.HasRoad(MapPoint(11, 12), Direction::NORTHEAST ));
-    BOOST_REQUIRE(buildings.GetRoadNetwork(MapPoint(11, 12)) != buildings.GetRoadNetwork(MapPoint(13, 12)));
+    BOOST_REQUIRE(buildings.GetRoadNetworkId(MapPoint(11, 12)) != buildings.GetRoadNetworkId(MapPoint(13, 12)));
 }
 
 BOOST_FIXTURE_TEST_CASE(NewBuildingsAreAssignedToProductionGroups, BiggerWorldWithGCExecution)
@@ -357,9 +357,9 @@ BOOST_FIXTURE_TEST_CASE(NewBuildingsAreAssignedToProductionGroups, BiggerWorldWi
     BOOST_REQUIRE(ConstructBuilding(ai, world, curPlayer, em, BLD_WOODCUTTER, woodcutterPos, false));
     BOOST_REQUIRE(ConstructBuilding(ai, world, curPlayer, em, BLD_STOREHOUSE, storagePos, false));
 
-    BOOST_REQUIRE(buildings.Get(sawmillPos)->GetGroup() != beowulf::InvalidProductionGroup);
-    BOOST_REQUIRE(buildings.Get(sawmillPos)->GetGroup() == buildings.Get(woodcutterPos)->GetGroup());
-    BOOST_REQUIRE(buildings.Get(storagePos)->GetGroup() != buildings.Get(woodcutterPos)->GetGroup());
+    BOOST_REQUIRE(buildings.GetBuildings(sawmillPos)->GetGroup() != beowulf::InvalidProductionGroup);
+    BOOST_REQUIRE(buildings.GetBuildings(sawmillPos)->GetGroup() == buildings.GetBuildings(woodcutterPos)->GetGroup());
+    BOOST_REQUIRE(buildings.GetBuildings(storagePos)->GetGroup() != buildings.GetBuildings(woodcutterPos)->GetGroup());
 
     Proceed(ai, world, curPlayer, em);
     //beowulf::CreateSvg(beowulf.GetAIInterface(), buildings, "test.svg");

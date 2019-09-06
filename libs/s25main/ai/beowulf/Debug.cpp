@@ -187,23 +187,13 @@ void AsciiMap::draw(const World& world)
                 draw(pt, dir);
         }
 
-        Building* building = world.Get(pt);
+        Building* building = world.GetBuildings(pt);
         if (building) {
             if (building->GetState() == Building::ConstructionRequested)
                 draw(pt, std::string("(") + c_short_building_names[building->GetType()] + ")");
             else
                 draw(pt, c_short_building_names[building->GetType()]);
         }
-    }
-}
-
-void AsciiMap::draw(const RoadNetworks& roadNetworks)
-{
-    RTTR_FOREACH_PT(MapPoint, map_size_)
-    {
-        rnet_id_t id = roadNetworks.Get(pt);
-        if (id != InvalidRoadNetwork)
-            draw(pt, std::to_string(id));
     }
 }
 
@@ -277,6 +267,16 @@ void AsciiMap::drawBuildLocations(const World& world)
     RTTR_FOREACH_PT(MapPoint, map_size_)
     {
         drawBQ(pt, world.GetBQ(pt));
+    }
+}
+
+void AsciiMap::drawRoadNetworks(const World& world)
+{
+    RTTR_FOREACH_PT(MapPoint, map_size_)
+    {
+        rnet_id_t rnet = world.GetRoadNetworkId(pt);
+        if (rnet != InvalidRoadNetwork)
+            draw(pt, std::to_string(rnet));
     }
 }
 

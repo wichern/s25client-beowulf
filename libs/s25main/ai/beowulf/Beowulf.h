@@ -18,7 +18,6 @@
 #define BEOWULF_BEOWULF_H_INCLUDED
 
 #include "ai/beowulf/Resources.h"
-#include "ai/beowulf/ProductionPlanner.h"
 #include "ai/beowulf/World.h"
 #include "ai/beowulf/ExpansionPlanner.h"
 
@@ -33,6 +32,7 @@ class RoadNote;
 class ShipNote;
 class NodeNote;
 class FlagNote;
+class IslandManager;
 
 namespace beowulf {
 
@@ -44,11 +44,11 @@ class Beowulf : public AIPlayer
     std::vector<Subscribtion> eventSubscriptions_;
     std::vector<std::pair<Building*, rnet_id_t>> constructionRequests_;
     bool defeated_ = false;
+    std::vector<IslandManager*> islands_;
 
 public:
     Resources resources;
     World world;
-    ProductionPlanner productionPlanner;
 
 public:
     Beowulf(const unsigned char playerId,

@@ -52,7 +52,7 @@ bool ConstructBuilding(
     if (!bld->GetPt().isValid()) return false;
     if (bld->GetType() != type) return false;
     if (bld->GetState() != beowulf::Building::ConstructionRequested) return false;
-    if (buildings.GetRoadNetwork(bld->GetFlag()) == beowulf::InvalidRoadNetwork) return false;
+    if (buildings.GetRoadNetworkId(bld->GetFlag()) == beowulf::InvalidRoadNetwork) return false;
 
     if (!wait_for_site)
         return true;
@@ -64,7 +64,7 @@ bool ConstructBuilding(
     if (!bld->GetPt().isValid()) return false;
     if (bld->GetType() != type) return false;
     if (bld->GetState() != beowulf::Building::UnderConstruction) return false;
-    if (buildings.GetRoadNetwork(bld->GetFlag()) == beowulf::InvalidRoadNetwork) return false;
+    if (buildings.GetRoadNetworkId(bld->GetFlag()) == beowulf::InvalidRoadNetwork) return false;
 
     return true;
 }
@@ -96,7 +96,7 @@ bool CompareBuildingsWithWorld(
             to_check.push_back({ bld->GetPos(), bld->GetBuildingType()} );
 
     for (const std::pair<MapPoint, BuildingType>& existing : to_check) {
-        beowulf::Building* bld = buildings.Get(existing.first);
+        beowulf::Building* bld = buildings.GetBuildings(existing.first);
         if (bld == nullptr)
             return false;
         if (bld->GetType() != existing.second)
@@ -113,7 +113,7 @@ bool CompareBuildingsWithWorld(
     /*
      * Check that all buildings of the buildings object also exist in the world.
      */
-    for (beowulf::Building* bld : buildings.Get()) {
+    for (beowulf::Building* bld : buildings.GetBuildings()) {
         NodalObjectType type = world.GetNO(bld->GetPt())->GetType();
 
         if (bld->GetState() == beowulf::Building::UnderConstruction && type != NOP_BUILDINGSITE)

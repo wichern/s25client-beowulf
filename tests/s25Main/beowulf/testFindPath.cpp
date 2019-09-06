@@ -44,7 +44,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
 
     MapPoint start(8, 3);
-    MapPoint dest = beowulf.world.Get(MapPoint(12, 11))->GetFlag();
+    MapPoint dest = beowulf.world.GetBuildings(MapPoint(12, 11))->GetFlag();
 
     std::vector<Direction> route;
     bool found = beowulf::FindPath(start, world, &route,

@@ -19,7 +19,7 @@
 
 #include "ai/beowulf/Types.h"
 #include "ai/beowulf/Building.h"
-#include "ai/beowulf/RoadNetworks.h"
+#include "ai/beowulf/RoadNetwork.h"
 
 #include "ai/AIInterface.h"
 #include "gameTypes/MapCoordinates.h"
@@ -70,8 +70,8 @@ public:
 
     // Road Networks
     /// Get the road network id the given point is connected to.
-    rnet_id_t GetRoadNetwork(const MapPoint& pt) const;
-    const RoadNetworks& GetRoadNetworks() const { return roadNetworks_; }
+    rnet_id_t GetRoadNetworkId(const MapPoint& pt) const { return nodes_[pt].roadNetworkId; }
+    RoadNetwork* GetRoadNetwork(rnet_id_t rnet) const;
 
     // Remove (remove the object from our data structure)
     void Remove(Building* building);
@@ -80,8 +80,9 @@ public:
 
     // Buildings
     Building* Create(BuildingType type, Building::State state, pgroup_id_t group = InvalidProductionGroup, const MapPoint& pt = MapPoint::Invalid());
-    const std::vector<Building*>& Get() const { return buildings_; }
-    Building* Get(const MapPoint& pt) const;
+    const std::vector<Building*>& GetBuildings() const { return buildings_; }
+    std::vector<Building*> GetBuildings(BuildingType type) const;
+    Building* GetBuildings(const MapPoint& pt) const;
     bool HasBuilding(const MapPoint& pt) const;
     void SetState(Building* building, Building::State state);
     void SetPoint(Building* building, const MapPoint& pt);
@@ -138,6 +139,7 @@ private:
         unsigned flagPlanCount      = 0;
         RoadState roads[3]          = { RoadDoesNotExist, RoadDoesNotExist, RoadDoesNotExist };
         unsigned roadPlanCount[3]   = { 0, 0, 0 };
+        rnet_id_t roadNetworkId     = InvalidRoadNetwork;
     };
     NodeMapBase<Node> nodes_;
 
@@ -163,9 +165,20 @@ private:
     std::vector<MapPoint> flags_;
     std::vector<Building*> ungrouped_;
     std::vector<Building*> buildings_;
-    RoadNetworks roadNetworks_;
 
     bool activePlan_ = false;
+
+    /*
+     * Road networks
+     */
+    std::vector<RoadNetwork*> roadNetworks_;
+    rnet_id_t nextRoadNetworkId_ = 0;
+    void RoadNetworkOnFlagAdded(const MapPoint& pt);
+    void RoadNetworkOnFlagRemoved(const MapPoint& pt);
+    void RoadNetworkOnRoadAdded(const MapPoint& start, const std::vector<Direction>& route);
+    void RoadNetworkOnRoadRemoved(const MapPoint& start, const std::vector<Direction>& route);
+    void DetectRoadNetworks();
+    void MergeRoadNetworks(rnet_id_t a, rnet_id_t b);
 };
 
 } // namespace beowulf

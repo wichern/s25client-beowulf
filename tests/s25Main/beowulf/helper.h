@@ -44,7 +44,7 @@
 static const MapPoint BiggerWorld_HQPoint(12, 11);
 static const MapPoint BiggerWorld_HQFlag(13, 12);
 
-#define BEOWULF_ENABLE_ALL
+//#define BEOWULF_ENABLE_ALL
 
 void Proceed(
         std::unique_ptr<AIPlayer>& ai,
