@@ -15,12 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/Debug.h"
 #include "ai/beowulf/Helper.h"
 
 #include "ai/AIPlayer.h"
+#include "RttrForeachPt.h"
 #include "gameData/BuildingConsts.h"
 #include "nodeObjs/noTree.h"
 #include "nodeObjs/noFlag.h"
@@ -87,7 +86,7 @@ std::string to_string(const unsigned* intvec, unsigned len)
 
 std::string to_string(Direction dir)
 {
-    switch (dir.toUInt())
+    switch (dir.native_value())
     {
     case Direction::SOUTHEAST:
         return "SE";
@@ -163,7 +162,7 @@ void AsciiMap::draw(const MapPoint& pt, const std::string& str)
     set(getPos(ptS), str);
 }
 
-void AsciiMap::draw(const MapPoint& pt, unsigned char dir, bool fat)
+void AsciiMap::drawRoad(const MapPoint& pt, unsigned char dir, bool fat)
 {
     if (pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
@@ -263,9 +262,9 @@ void AsciiMap::draw(const AIPlayer* player)
         if (flagObj && flagObj->GetPlayer() == player->GetPlayerId())
             draw(pt, 'f');
 
-        for (unsigned char rdir = 0; rdir < 3; ++rdir) {
-            if (player->gwb.GetRoad(pt, rdir)) {
-                draw(pt, static_cast<unsigned char>(rdir + 3));
+        for (const auto roadDir : helpers::EnumRange<RoadDir>{}) {
+            if (PointRoad::Normal == player->gwb.GetRoad(pt, roadDir)) {
+                drawRoad(pt, static_cast<unsigned char>(roadDir) + static_cast<unsigned char>(3));
             }
         }
     }
@@ -357,7 +356,7 @@ void AsciiMap::drawBorder(unsigned char player)
 {
     RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
     {
-        if (aii_.gwb.GetNode(pt).boundary_stones[0] == (player + 1)) {
+        if (aii_.gwb.GetNode(pt).boundary_stones[BorderStonePos::OnPoint] == (player + 1)) {
             draw(pt, '!');
         }
     }

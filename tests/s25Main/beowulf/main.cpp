@@ -17,7 +17,6 @@
 
 #define BOOST_TEST_MODULE RTTR_Beowulf
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include <boost/test/unit_test.hpp>
 #include <rttr/test/Fixture.hpp>
 

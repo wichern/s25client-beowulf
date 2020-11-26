@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/Heuristics.h"
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/World.h"
@@ -97,6 +95,7 @@ BuildingPositionCosts::BuildingPositionCosts(const AIInterface& aii,
 }
 
 // High is better
+double RateHigh(unsigned val, const std::vector<unsigned>& groups);
 double RateHigh(unsigned val, const std::vector<unsigned>& groups)
 {
     unsigned count = 0;
@@ -105,6 +104,7 @@ double RateHigh(unsigned val, const std::vector<unsigned>& groups)
 }
 
 // Smaller is better
+double RateSmall(unsigned val, const std::vector<unsigned>& groups);
 double RateSmall(unsigned val, const std::vector<unsigned>& groups)
 {
     return 1.0 - RateHigh(val, groups);

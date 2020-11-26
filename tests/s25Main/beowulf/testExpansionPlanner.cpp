@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "factories/AIFactory.h"
@@ -45,36 +44,38 @@ BOOST_AUTO_TEST_SUITE(BeowulfExpansionPlanner)
 typedef WorldWithGCExecution<1, 24, 22> BiggerWorldWithGCExecution;
 
 using beowulf::Building;
+using beowulf::Beowulf;
 using beowulf::InvalidProductionGroup;
 
 #ifndef DISABLE_ALL_BEOWULF_TESTS
 
 BOOST_FIXTURE_TEST_CASE(Simple, WorldLoaded1PFixture)
 {
-    std::unique_ptr<beowulf::Beowulf> beowulf(static_cast<beowulf::Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
-    beowulf->build.Enable();
-    beowulf->expand.Enable();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
+    beowulf_raw->build.Enable();
+    beowulf_raw->expand.Enable();
 
     // Wait for the expansion planner to request a new military building.
-    Proceed([&]() { return !beowulf->world.GetBuildings(BLD_GUARDHOUSE).empty(); }, { beowulf.get() }, em, world);
+    Proceed([&]() { return !beowulf_raw->world.GetBuildings(BLD_GUARDHOUSE).empty(); }, { beowulf.get() }, em, world);
 
-    std::vector<Building*> guardhouses = beowulf->world.GetBuildings(BLD_GUARDHOUSE);
+    std::vector<Building*> guardhouses = beowulf_raw->world.GetBuildings(BLD_GUARDHOUSE);
     BOOST_REQUIRE_EQUAL(guardhouses.size(), 1);
 
     Building* guardhouse = guardhouses.front();
     Proceed([&]() { return guardhouse->GetState() == beowulf::Building::UnderConstruction; }, { beowulf.get() }, em, world);
 
-    bool success = beowulf->roads.Connect(guardhouse);
+    bool success = beowulf_raw->roads.Connect(guardhouse);
     BOOST_REQUIRE(success);
 
     Proceed([&]() { return guardhouse->GetState() == beowulf::Building::Finished; }, { beowulf.get() }, em, world);
 
     // Wait for at least three additional expansion buildings.
-    Proceed([&]() { return beowulf->world.GetBuildings(BLD_GUARDHOUSE).size() > 3; }, { beowulf.get() }, em, world);
+    Proceed([&]() { return beowulf_raw->world.GetBuildings(BLD_GUARDHOUSE).size() > 3; }, { beowulf.get() }, em, world);
 
 //    {
-//        beowulf::AsciiMap map(beowulf->GetAIInterface(), beowulf->world.GetHQFlag(), 20);
+//        beowulf::AsciiMap map(beowulf->GetAIInterface(), beowulf_raw->world.GetHQFlag(), 20);
 //        map.draw(beowulf->world);
 //        map.drawResources(world);
 //        map.write();

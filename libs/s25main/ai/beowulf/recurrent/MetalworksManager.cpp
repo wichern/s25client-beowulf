@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/recurrent/MetalworksManager.h"
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/Building.h"
@@ -51,12 +49,15 @@ bool MetalworksManager::JobOrToolOrQueueSpace(Job job, bool addMetalworksRequest
             continue;
         if (building->GetJobs(job) > 0)
             return true;
-        if (building->GetGoods(JOB_CONSTS[job].tool) > 0)
+
+        const boost::optional<GoodType> tool = JOB_CONSTS[job].tool;
+        if (tool && building->GetGoods(*tool) > 0)
             return true;
     }
 
-    if (metalworksPt_.isValid() && addMetalworksRequest && requests_.size() < maxQueueLength) {
-        Request(JOB_CONSTS[job].tool);
+    const boost::optional<GoodType> tool = JOB_CONSTS[job].tool;
+    if (tool && metalworksPt_.isValid() && addMetalworksRequest && requests_.size() < maxQueueLength) {
+        Request(*tool);
         return true;
     }
 

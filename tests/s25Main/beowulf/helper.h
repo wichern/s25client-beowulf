@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "factories/AIFactory.h"
@@ -40,7 +39,6 @@
 #include "world/MapLoader.h"
 #include "Replay.h"
 #include "gameTypes/MapInfo.h"
-#include "libutil/ucString.h"
 #include "network/PlayerGameCommands.h"
 
 #include <boost/nowide/fstream.hpp>
@@ -48,8 +46,8 @@
 
 #include <memory> /* std::unique_ptr */
 
-#define DISABLE_ALL_BEOWULF_TESTS
-#define ENABLE_BEOWULF_FIGHTS
+//#define DISABLE_ALL_BEOWULF_TESTS
+//#define ENABLE_BEOWULF_FIGHTS
 
 template<class Condition>
 bool Proceed(
@@ -134,8 +132,8 @@ bool IsConnected(
 
 struct MapTestFixture
 {
-    const std::string testMapPath;
-    MapTestFixture() : testMapPath(RTTRCONFIG.ExpandPath(std::string(FILE_PATHS[52]) + "/Bergschlumpf.swd")) {}
+    const boost::filesystem::path testMapPath;
+    MapTestFixture() : testMapPath(RTTRCONFIG.ExpandPath(s25::folders::mapsRttr) / "Bergschlumpf.swd") {}
 };
 
 struct LoadWorldFromFileCreator : MapTestFixture
@@ -148,7 +146,7 @@ struct LoadWorldFromFileCreator : MapTestFixture
     {
         bnw::ifstream mapFile(testMapPath, std::ios::binary);
         if(map.load(mapFile, false) != 0)
-            throw std::runtime_error("Could not load file " + testMapPath);
+            throw std::runtime_error("Could not load file " + testMapPath.string());
         MapLoader loader(world);
         if(!loader.Load(map, EXP_FOGOFWAR))
             throw std::runtime_error("Could not load map");
@@ -174,7 +172,7 @@ struct WorldLoaded2PFixture : public WorldFixture<LoadWorldFromFileCreator, 2>
 template<const char* T_map>
 struct WorldCreatorAIBattle
 {
-    const std::string mapPath = RTTRCONFIG.ExpandPath(std::string(FILE_PATHS[52]) + "/" + T_map);
+    const boost::filesystem::path mapPath = RTTRCONFIG.ExpandPath(s25::folders::mapsRttr) / T_map;
     glArchivItem_Map map;
 
     explicit WorldCreatorAIBattle(const MapExtent&) {
@@ -184,7 +182,7 @@ struct WorldCreatorAIBattle
     {
         bnw::ifstream mapFile(mapPath, std::ios::binary);
         if (map.load(mapFile, false) != 0)
-            throw std::runtime_error("Could not load file " + mapPath);
+            throw std::runtime_error("Could not load file " + mapPath.string());
 
         MapLoader loader(world);
         if (!loader.Load(map, EXP_FOGOFWAR))
@@ -209,7 +207,7 @@ struct WorldAIBattle : public WorldFixture<WorldCreatorAIBattle<T_map>, T_numPla
     MapInfo mapInfo;
     std::shared_ptr<Replay> replay;
 
-    std::vector<std::shared_ptr<AIPlayer>> players;
+    std::vector<AIPlayer*> players;
 
     WorldAIBattle()
     {
@@ -234,10 +232,10 @@ struct WorldAIBattle : public WorldFixture<WorldCreatorAIBattle<T_map>, T_numPla
     }
 
     template<class AIType>
-    std::shared_ptr<AIType> CreatePlayer(AI::Type type, AI::Level level = AI::HARD)
+    std::unique_ptr<AIPlayer> CreatePlayer(AI::Type type, AI::Level level = AI::HARD)
     {
-        std::shared_ptr<AIType> player(static_cast<AIType*>(AIFactory::Create(AI::Info(type, level), players.size(), world)));
-        players.push_back(player);
+        std::unique_ptr<AIPlayer> player(AIFactory::Create(AI::Info(type, level), players.size(), world));
+        players.push_back(player.get());
         return player;
     }
 
@@ -259,7 +257,7 @@ struct WorldAIBattle : public WorldFixture<WorldCreatorAIBattle<T_map>, T_numPla
 
             if (isnfw) {
                 for (unsigned i = 0; i < world.GetNumPlayers(); ++i) {
-                    std::shared_ptr<AIPlayer>& player = players[i];
+                    AIPlayer* player = players[i];
 
                     PlayerGameCommands cmds;
                     cmds.gcs = player->FetchGameCommands();
@@ -274,7 +272,7 @@ struct WorldAIBattle : public WorldFixture<WorldCreatorAIBattle<T_map>, T_numPla
                 }
             }
 
-            for (std::shared_ptr<AIPlayer>& p : players)
+            for (AIPlayer* p : players)
                 p->RunGF(em.GetCurrentGF(), isnfw);
 
             em.ExecuteNextEvent(em.GetCurrentGF() + 1);
@@ -293,10 +291,10 @@ struct WorldAIBattle : public WorldFixture<WorldCreatorAIBattle<T_map>, T_numPla
     {
         beowulf::AsciiMap map(players.front()->getAIInterface(), { 105, 26}, 20);
         map.drawResources();
-        for (const std::shared_ptr<AIPlayer>& p : players) {
-            map.draw(p.get());
+        for (const AIPlayer* p : players) {
+            map.draw(p);
             map.drawBorder(p->GetPlayerId());
-            map.drawSoldiers(p.get());
+            map.drawSoldiers(p);
         }
         map.write(out);
     }
@@ -311,7 +309,7 @@ struct WorldAIBattle : public WorldFixture<WorldCreatorAIBattle<T_map>, T_numPla
         for (size_t i = 0; i < players.size(); ++i) {
             row.clear();
 
-            const std::shared_ptr<AIPlayer>& p = players[i];
+            const AIPlayer* p = players[i];
             const GamePlayer::Statistic& statistic = world.GetPlayer(p->GetPlayerId()).GetStatistic(STAT_15M);
 
             row.push_back("Player " + std::to_string(p->GetPlayerId()));

@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "factories/AIFactory.h"
@@ -41,14 +40,15 @@ typedef WorldWithGCExecution<1, 24, 22> BiggerWorldWithGCExecution;
 
 BOOST_FIXTURE_TEST_CASE(PlanBuilding, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    beowulf::BuildLocations bl(beowulf->world, true);
-    bl.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl(beowulf_raw->world, true);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-    beowulf::Building* bld = beowulf->world.Create(BLD_CATAPULT, beowulf::Building::PlanningRequest);
-    beowulf->world.Plan(bld, MapPoint(16,13));
+    beowulf::Building* bld = beowulf_raw->world.Create(BLD_CATAPULT, beowulf::Building::PlanningRequest);
+    beowulf_raw->world.Plan(bld, MapPoint(16,13));
     bl.Update(MapPoint(16,13), 2);
 
     // Sampling some effects
@@ -61,25 +61,27 @@ BOOST_FIXTURE_TEST_CASE(PlanBuilding, BiggerWorldWithGCExecution)
 
 BOOST_FIXTURE_TEST_CASE(PlanRoadSouthEast, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    beowulf::BuildLocations bl(beowulf->world, true);
-    bl.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl(beowulf_raw->world, true);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-    beowulf->world.PlanRoad(MapPoint(13,12), {Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST});
+    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST});
     bl.Update(MapPoint(13,12), 4);
 }
 
 BOOST_FIXTURE_TEST_CASE(PlanRoadWest, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    beowulf::BuildLocations bl(beowulf->world, true);
-    bl.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl(beowulf_raw->world, true);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-    beowulf->world.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
+    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
     bl.Update(MapPoint(13,12), 5);
 
     // BQ northwest of flag should be buildable.
@@ -89,28 +91,29 @@ BOOST_FIXTURE_TEST_CASE(PlanRoadWest, BiggerWorldWithGCExecution)
 
 BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(MapPoint(13, 12), Direction::SOUTHEAST, true));
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(world.GetNeighbour(MapPoint(13, 12), Direction::SOUTHEAST), Direction::NORTHWEST, true));
-    BOOST_REQUIRE(!beowulf->world.IsRoadPossible(MapPoint(13, 12), Direction::NORTHWEST, true));
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(MapPoint(13, 12), Direction::WEST, true));
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(MapPoint(15, 15), Direction::WEST, true));
-    BOOST_REQUIRE(!beowulf->world.IsRoadPossible(MapPoint(11, 11), Direction::EAST, true));
-    BOOST_REQUIRE(!beowulf->world.IsRoadPossible(MapPoint(21, 10), Direction::EAST, true));
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::SOUTHEAST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(world.GetNeighbour(MapPoint(13, 12), Direction::SOUTHEAST), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::WEST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(15, 15), Direction::WEST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(11, 11), Direction::EAST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(21, 10), Direction::EAST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST, true));
 
-    beowulf->world.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
+    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
 
     // there is currently no flag at 10,12 but we could add one.
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST, true));
 
     // there is currently no flag at 9,12 and we could NOT add one.
-    BOOST_REQUIRE(!beowulf->world.IsRoadPossible(MapPoint(9, 13), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(9, 13), Direction::NORTHWEST, true));
 
-    BOOST_REQUIRE(!beowulf->world.IsRoadPossible(MapPoint(11, 12), Direction::EAST, true));
-    BOOST_REQUIRE(beowulf->world.IsRoadPossible(MapPoint(9, 11), Direction::EAST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(11, 12), Direction::EAST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(9, 11), Direction::EAST, true));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

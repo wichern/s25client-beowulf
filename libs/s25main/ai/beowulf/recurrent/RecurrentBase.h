@@ -17,7 +17,7 @@
 #ifndef BEOWULF_RECURRENT_RECURRENTBASE_H_INCLUDED
 #define BEOWULF_RECURRENT_RECURRENTBASE_H_INCLUDED
 
-#include "notifications/Subscribtion.h"
+#include "notifications/Subscription.h"
 
 #include <vector>
 #include <limits>
@@ -62,7 +62,7 @@ protected:
     bool enabled_ = true;
 
 private:
-    std::vector<Subscribtion> events_;
+    std::vector<Subscription> events_;
 
     unsigned interval_;
     unsigned intervalCounter_;

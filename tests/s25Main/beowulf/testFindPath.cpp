@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "factories/AIFactory.h"
@@ -42,11 +41,12 @@ typedef WorldWithGCExecution<1, 24, 22> BiggerWorldWithGCExecution;
 
 BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
     MapPoint start(8, 3);
-    MapPoint dest = beowulf->world.GetBuilding(MapPoint(12, 11))->GetFlag();
+    MapPoint dest = beowulf_raw->world.GetBuilding(MapPoint(12, 11))->GetFlag();
 
     std::vector<Direction> route;
     bool found = beowulf::FindPath(start, world, &route,
@@ -56,7 +56,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
         if (pt == start && dir == Direction::NORTHWEST)
             return false;
 
-        return beowulf->world.IsRoadPossible(pt, dir, false);
+        return beowulf_raw->world.IsRoadPossible(pt, dir, false);
     },
     // End
     [dest](const MapPoint& pt)
@@ -79,15 +79,15 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
     BOOST_REQUIRE(found);
     BOOST_REQUIRE(!route.empty());
 
-    beowulf->world.ConstructFlag(start);
-    beowulf->world.ConstructRoad(start, route);
+    beowulf_raw->world.ConstructFlag(start);
+    beowulf_raw->world.ConstructRoad(start, route);
 
     Proceed({ beowulf.get() }, em, world);
 
 
-    beowulf::FlagState state = beowulf->world.GetFlagState(start);
+    beowulf::FlagState state = beowulf_raw->world.GetFlagState(start);
     BOOST_REQUIRE(state == beowulf::FlagFinished);
-    BOOST_REQUIRE(beowulf->world.GetRoadState(start, route[0]) == beowulf::RoadFinished);
+    BOOST_REQUIRE(beowulf_raw->world.GetRoadState(start, route[0]) == beowulf::RoadFinished);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

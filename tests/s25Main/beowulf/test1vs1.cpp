@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "ai/beowulf/Beowulf.h"
@@ -46,9 +45,11 @@ typedef WorldAIBattle<MapName, 3, ReplayName> WorldBergschlumpf2PL;
 
 BOOST_FIXTURE_TEST_CASE(Bergschlumpf_1vs1, WorldBergschlumpf2PL)
 {
-    std::shared_ptr<DummyAI> dummy = CreatePlayer<DummyAI>(AI::DUMMY);
-    std::shared_ptr<Beowulf> beowulf = CreatePlayer<Beowulf>(AI::BEOWULF);
-    std::shared_ptr<AIPlayerJH> aijh = CreatePlayer<AIPlayerJH>(AI::DEFAULT);
+    std::unique_ptr<AIPlayer> dummy = CreatePlayer<DummyAI>(AI::DUMMY);
+    std::unique_ptr<AIPlayer> beowulf = CreatePlayer<Beowulf>(AI::BEOWULF);
+    std::unique_ptr<AIPlayer> aijh = CreatePlayer<AIPlayerJH>(AI::DEFAULT);
+
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
 
     beowulf::AsciiTable table(8);
     table.addRow({ "GF", "build", "roads", "expand", "produce", "metalworks", "attack", "coins" });
@@ -64,14 +65,14 @@ BOOST_FIXTURE_TEST_CASE(Bergschlumpf_1vs1, WorldBergschlumpf2PL)
 
         std::vector<std::string> row;
         row.push_back(std::to_string(em.GetCurrentGF()));
-        for (std::clock_t clocks : beowulf->GetWorstRuntime()) {
+        for (std::clock_t clocks : beowulf_raw->GetWorstRuntime()) {
             double ms = static_cast<double>(clocks) * 1000.0 / static_cast<double>(CLOCKS_PER_SEC);
             row.push_back(std::to_string(ms));
         }
         table.addRow(row);
         std::cout << "Performance" << std::endl;
         table.write();
-        beowulf->ClearWorstRuntime();
+        beowulf_raw->ClearWorstRuntime();
 
         std::cout << "Stats" << std::endl;
         DrawAllPlayerStatistics();

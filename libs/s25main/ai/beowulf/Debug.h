@@ -75,7 +75,7 @@ public:
 
     void draw(const MapPoint& pt, char c);
     void draw(const MapPoint& pt, const std::string& str);
-    void draw(const MapPoint& pt, unsigned char dir, bool fat = false);
+    void drawRoad(const MapPoint& pt, unsigned char dir, bool fat = false);
     void draw(const World& world, bool includeAnticipated);
     void draw(const AIPlayer* player);
     void draw(const BuildLocations& buildLocations);

@@ -13,9 +13,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-
-#include "rttrDefines.h" // IWYU pragma: keep
+// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>
 
 #include "ai/beowulf/recurrent/RoadManager.h"
 #include "ai/beowulf/Beowulf.h"
@@ -193,7 +191,7 @@ void RoadManager::OnBuildingNote(const BuildingNote& note)
          */
         MapPoint flag = nodes_.GetNeighbour(note.pos, Direction::SOUTHEAST);
         std::map<const Building*, unsigned> users_counts;
-        for (Direction dir : Direction()) {
+        for (const auto dir : helpers::EnumRange<Direction>{}) {
             for (const Building* user : GetUsers(flag, dir)) {
                 if (users_counts.find(user) == users_counts.end())
                     users_counts[user] = 1;
@@ -283,16 +281,16 @@ void RoadManager::SetUsage(const Building* building, const MapPoint& pt, Directi
 {
     Direction oppositeDir = OppositeDirection(dir);
     const Building::TrafficExpected& traffic = building->GetTraffic();
-    if (dir.toUInt() >= 3) {
+    if (dir.native_value() >= 3) {
         Node& node = nodes_[pt];
-        node.users[oppositeDir.toUInt()].push_back(building);
-        node.usage[oppositeDir.toUInt()][0] += traffic.produced;
-        node.usage[oppositeDir.toUInt()][1] += traffic.consumed;
+        node.users[oppositeDir.native_value()].push_back(building);
+        node.usage[oppositeDir.native_value()][0] += traffic.produced;
+        node.usage[oppositeDir.native_value()][1] += traffic.consumed;
     } else {
         Node& node = nodes_[nodes_.GetNeighbour(pt, dir)];
-        node.users[dir.toUInt()].push_back(building);
-        node.usage[dir.toUInt()][1] += traffic.produced;
-        node.usage[dir.toUInt()][0] += traffic.consumed;
+        node.users[dir.native_value()].push_back(building);
+        node.usage[dir.native_value()][1] += traffic.produced;
+        node.usage[dir.native_value()][0] += traffic.consumed;
     }
 }
 
@@ -302,7 +300,7 @@ void RoadManager::UnsetUsage(const Building* building)
     bool found = true;
     while (found) {
         found = false;
-        for (Direction dir : Direction()) {
+        for (const auto dir : helpers::EnumRange<Direction>{}) {
             std::vector<const Building*>& users = GetUsers(cur, dir);
             if (helpers::contains(users, building)) {
                 users.erase(std::remove(users.begin(), users.end(), building), users.end());
@@ -316,18 +314,18 @@ void RoadManager::UnsetUsage(const Building* building)
 
 std::vector<const Building*>& RoadManager::GetUsers(const MapPoint& pt, Direction dir)
 {
-    if (dir.toUInt() >= 3)
-        return nodes_[pt].users[OppositeDirection(dir).toUInt()];
+    if (dir.native_value() >= 3)
+        return nodes_[pt].users[OppositeDirection(dir).native_value()];
     else
-        return nodes_[nodes_.GetNeighbour(pt, dir)].users[dir.toUInt()];
+        return nodes_[nodes_.GetNeighbour(pt, dir)].users[dir.native_value()];
 }
 
 unsigned RoadManager::GetTraffic(const MapPoint& pt, Direction dir, unsigned char d) const
 {
-    if (dir.toUInt() >= 3)
-        return nodes_[pt].usage[OppositeDirection(dir).toUInt()][d];
+    if (dir.native_value() >= 3)
+        return nodes_[pt].usage[OppositeDirection(dir).native_value()][d];
     else
-        return nodes_[nodes_.GetNeighbour(pt, dir)].usage[dir.toUInt()][d];
+        return nodes_[nodes_.GetNeighbour(pt, dir)].usage[dir.native_value()][d];
 }
 
 } // namespace beowulf

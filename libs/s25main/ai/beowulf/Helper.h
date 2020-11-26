@@ -40,10 +40,10 @@ struct MapPointComp
 };
 
 inline Direction OppositeDirection(Direction dir) {
-    if (dir.toUInt() < 3)
-        return Direction(dir.toUInt() + 3);
+    if (dir.native_value() < 3)
+        return Direction(dir + 3);
     else
-        return Direction(dir.toUInt() - 3);
+        return Direction(dir - 3);
 }
 
 inline unsigned GetMilitaryRadius(BuildingType type) {
@@ -78,7 +78,7 @@ void FloodFill(
 
         action(cur);
 
-        for (Direction dir : Direction()) {
+        for (const auto dir : helpers::EnumRange<Direction>{}) {
             MapPoint next = world.GetNeighbour(cur, dir);
             unsigned next_idx = world.GetIdx(next);
             if (!visited[next_idx] && condition(cur, dir)) {
@@ -127,7 +127,7 @@ bool FindPath(
             break;
         }
 
-        for (Direction dir : Direction()) {
+        for (const auto dir : helpers::EnumRange<Direction>{}) {
             if (!condition(cur, dir))
                 continue;
 

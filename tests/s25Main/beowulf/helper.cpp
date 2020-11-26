@@ -17,6 +17,7 @@
 
 #include "helper.h"
 #include "ai/beowulf/Helper.h"
+#include "RttrForeachPt.h"
 
 bool ConstructBuilding(
         AIPlayer* ai,
@@ -112,7 +113,7 @@ bool CompareBuildingsWithWorld(
             return false;
 
         for (unsigned dir = 3; dir < Direction::COUNT; ++dir) {
-            bool road_exist = world.GetRoad(pt, dir - 3);
+            bool road_exist = world.GetRoad(pt, RoadDir(dir - 3)) != PointRoad::None;
             bool road_known = buildings.GetRoadState(pt, Direction(dir)) == beowulf::RoadFinished;
             if (road_exist != road_known) {
                 if (world.GetNO(pt)->GetType() == NOP_BUILDING)

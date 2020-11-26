@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/recurrent/ExpansionPlanner.h"
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/World.h"
@@ -139,7 +137,7 @@ void ExpansionPlanner::Expand(const MapPoint& pt)
 
     unsigned bestRating = 0;
     MapPoint bestPoint = MapPoint::Invalid();
-    BuildingType bestType = BLD_NOTHING;
+    BuildingType bestType = BLD_NOTHING2;
 
     std::vector<MapPoint> additionalTerritory;
     std::vector<const noBaseBuilding*> destroyed;

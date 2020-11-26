@@ -22,7 +22,7 @@
 
 #include "world/NodeMapBase.h"
 #include "gameTypes/Resource.h"
-#include "notifications/Subscribtion.h"
+#include "notifications/Subscription.h"
 
 #include <map>
 #include <bitset>
@@ -115,7 +115,7 @@ private:
     void AddResource(Node& node, const MapPoint& dst, const MapPoint& pt, unsigned radius, BResourceType type, unsigned amount);
     unsigned GuessOre(const MapPoint& pt, Resource::Type type) const;
 
-    std::vector<Subscribtion> eventSubscriptions_;
+    std::vector<Subscription> eventSubscriptions_;
     void OnBuildingNote(const BuildingNote& note);
     void OnResourceNote(const ResourceNote& note);
 };

@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "factories/AIFactory.h"
@@ -43,41 +42,42 @@ typedef WorldWithGCExecution<1, 24, 22> BiggerWorldWithGCExecution;
 
 BOOST_FIXTURE_TEST_CASE(Simple, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
-    beowulf->metalworks.Enable();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
+    beowulf_raw->metalworks.Enable();
 
     // Check that we could get a forester because of the available resources.
-    BOOST_REQUIRE(beowulf->metalworks.JobOrToolOrQueueSpace(JOB_FORESTER, false));
+    BOOST_REQUIRE(beowulf_raw->metalworks.JobOrToolOrQueueSpace(JOB_FORESTER, false));
 
     // Build Metalworks
-    beowulf::Building* building = beowulf->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
+    beowulf::Building* building = beowulf_raw->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
     MapPoint metalworksPt(15, 13);
-    beowulf->world.Construct(building, metalworksPt);
-    beowulf->roads.Connect(building);
-    Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf.get() }, em, world);
+    beowulf_raw->world.Construct(building, metalworksPt);
+    beowulf_raw->roads.Connect(building);
+    Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf_raw }, em, world);
 
     // Add iron and boards to the inventory so that the metalworks can create tools.
     Inventory inventory;
     inventory.Add(GD_IRON, 100);
     inventory.Add(GD_BOARDS, 100);
-    beowulf->GetAII().GetStorehouses().front()->AddGoods(inventory, true);
+    beowulf_raw->GetAII().GetStorehouses().front()->AddGoods(inventory, true);
 
     // Check that a requested scythe is being built.
     {
-        unsigned count = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods[GD_SCYTHE];
-        beowulf->metalworks.Request(GD_SCYTHE);
-        Proceed([&]() { return beowulf->GetAII().GetStorehouses().front()->GetInventory().goods[GD_SCYTHE] > count; }, { beowulf.get() }, em, world, 100000);
-        unsigned new_count = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods[GD_SCYTHE];
+        unsigned count = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods[GD_SCYTHE];
+        beowulf_raw->metalworks.Request(GD_SCYTHE);
+        Proceed([&]() { return beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods[GD_SCYTHE] > count; }, { beowulf.get() }, em, world, 100000);
+        unsigned new_count = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods[GD_SCYTHE];
         BOOST_REQUIRE(new_count == count + 1);
     }
 
     // Check that nothing else is beeing built.
     {
-        std::array<unsigned, NUM_WARE_TYPES> goods = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+        std::array<unsigned, NUM_WARE_TYPES> goods = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
         for (int i = 0; i < 10000; ++i)
             Proceed({ beowulf.get() }, em, world);
-        std::array<unsigned, NUM_WARE_TYPES> new_goods = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+        std::array<unsigned, NUM_WARE_TYPES> new_goods = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
 
         for (GoodType tool : { GD_TONGS, GD_HAMMER, GD_AXE, GD_SAW, GD_PICKAXE, GD_SHOVEL, GD_CRUCIBLE, GD_RODANDLINE, GD_SCYTHE, GD_CLEAVER, GD_ROLLINGPIN, GD_BOW }) {
             BOOST_REQUIRE(goods[tool] == new_goods[tool]);
@@ -86,13 +86,13 @@ BOOST_FIXTURE_TEST_CASE(Simple, BiggerWorldWithGCExecution)
 
     // Check that three requested tools are beeing built.
     {
-        std::array<unsigned, NUM_WARE_TYPES> goods_before = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
-        beowulf->metalworks.Request(GD_AXE);
-        beowulf->metalworks.Request(GD_HAMMER);
-        beowulf->metalworks.Request(GD_ROLLINGPIN);
-        Proceed([&]() { return beowulf->GetAII().GetStorehouses().front()->GetInventory().goods[GD_ROLLINGPIN] > goods_before[GD_ROLLINGPIN]; }, { beowulf.get() }, em, world, 100000);
+        std::array<unsigned, NUM_WARE_TYPES> goods_before = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
+        beowulf_raw->metalworks.Request(GD_AXE);
+        beowulf_raw->metalworks.Request(GD_HAMMER);
+        beowulf_raw->metalworks.Request(GD_ROLLINGPIN);
+        Proceed([&]() { return beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods[GD_ROLLINGPIN] > goods_before[GD_ROLLINGPIN]; }, { beowulf_raw }, em, world, 100000);
 
-        std::array<unsigned, NUM_WARE_TYPES> goods_after = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+        std::array<unsigned, NUM_WARE_TYPES> goods_after = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
 
         for (unsigned i = 0; i < NUM_WARE_TYPES; ++i) {
             if (i == GD_AXE || i == GD_HAMMER || i == GD_ROLLINGPIN) {
@@ -105,10 +105,10 @@ BOOST_FIXTURE_TEST_CASE(Simple, BiggerWorldWithGCExecution)
 
     // Check that nothing else is beeing built.
     {
-        std::array<unsigned, NUM_WARE_TYPES> goods = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+        std::array<unsigned, NUM_WARE_TYPES> goods = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
         for (int i = 0; i < 10000; ++i)
             Proceed({ beowulf.get() }, em, world);
-        std::array<unsigned, NUM_WARE_TYPES> new_goods = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+        std::array<unsigned, NUM_WARE_TYPES> new_goods = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
 
         for (GoodType tool : { GD_TONGS, GD_HAMMER, GD_AXE, GD_SAW, GD_PICKAXE, GD_SHOVEL, GD_CRUCIBLE, GD_RODANDLINE, GD_SCYTHE, GD_CLEAVER, GD_ROLLINGPIN, GD_BOW }) {
             BOOST_REQUIRE(goods[tool] == new_goods[tool]);
@@ -117,15 +117,15 @@ BOOST_FIXTURE_TEST_CASE(Simple, BiggerWorldWithGCExecution)
 
     // Test that we don't crash when the metalsworks is beeing destroyed.
     {
-        beowulf->world.Deconstruct(beowulf->world.GetBuilding(metalworksPt));
+        beowulf_raw->world.Deconstruct(beowulf_raw->world.GetBuilding(metalworksPt));
         Proceed({ beowulf.get() }, em, world);
 
         // Check that a requested hammer is not beeing built.
-        std::array<unsigned, NUM_WARE_TYPES> goods = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
-        beowulf->metalworks.Request(GD_HAMMER);
+        std::array<unsigned, NUM_WARE_TYPES> goods = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
+        beowulf_raw->metalworks.Request(GD_HAMMER);
         for (int i = 0; i < 10000; ++i)
             Proceed({ beowulf.get() }, em, world);
-        std::array<unsigned, NUM_WARE_TYPES> new_goods = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+        std::array<unsigned, NUM_WARE_TYPES> new_goods = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
         for (GoodType tool : { GD_TONGS, GD_HAMMER, GD_AXE, GD_SAW, GD_PICKAXE, GD_SHOVEL, GD_CRUCIBLE, GD_RODANDLINE, GD_SCYTHE, GD_CLEAVER, GD_ROLLINGPIN, GD_BOW }) {
             BOOST_REQUIRE(goods[tool] == new_goods[tool]);
         }
@@ -134,51 +134,52 @@ BOOST_FIXTURE_TEST_CASE(Simple, BiggerWorldWithGCExecution)
 
 BOOST_FIXTURE_TEST_CASE(ContinueQueueAfterReconstruction, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
-    beowulf->metalworks.Enable();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
+    beowulf_raw->metalworks.Enable();
 
     // Check that we could get a forester because of the available resources.
-    BOOST_REQUIRE(beowulf->metalworks.JobOrToolOrQueueSpace(JOB_FORESTER, false));
+    BOOST_REQUIRE(beowulf_raw->metalworks.JobOrToolOrQueueSpace(JOB_FORESTER, false));
 
     // Build Metalworks
     MapPoint metalworksPt(15, 13);
     {
-        beowulf::Building* building = beowulf->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
-        beowulf->world.Construct(building, metalworksPt);
-        beowulf->roads.Connect(building);
-        Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf.get() }, em, world);
+        beowulf::Building* building = beowulf_raw->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
+        beowulf_raw->world.Construct(building, metalworksPt);
+        beowulf_raw->roads.Connect(building);
+        Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf_raw }, em, world);
     }
 
     // Add iron and boards to the inventory so that the metalworks can create tools.
     Inventory inventory;
     inventory.Add(GD_IRON, 100);
     inventory.Add(GD_BOARDS, 100);
-    beowulf->GetAII().GetStorehouses().front()->AddGoods(inventory, true);
+    beowulf_raw->GetAII().GetStorehouses().front()->AddGoods(inventory, true);
 
-    std::array<unsigned, NUM_WARE_TYPES> goods_before = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
-    beowulf->metalworks.Request(GD_AXE);
-    beowulf->metalworks.Request(GD_HAMMER);
-    beowulf->metalworks.Request(GD_ROLLINGPIN);
+    std::array<unsigned, NUM_WARE_TYPES> goods_before = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
+    beowulf_raw->metalworks.Request(GD_AXE);
+    beowulf_raw->metalworks.Request(GD_HAMMER);
+    beowulf_raw->metalworks.Request(GD_ROLLINGPIN);
 
-    Proceed([&]() { return beowulf->GetAII().GetStorehouses().front()->GetInventory().goods[GD_AXE] > goods_before[GD_AXE]; }, { beowulf.get() }, em, world, 100000);
+    Proceed([&]() { return beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods[GD_AXE] > goods_before[GD_AXE]; }, { beowulf_raw }, em, world, 100000);
 
     // Destroy metalworks
-    beowulf->world.Deconstruct(beowulf->world.GetBuilding(metalworksPt));
+    beowulf_raw->world.Deconstruct(beowulf_raw->world.GetBuilding(metalworksPt));
     Proceed({ beowulf.get() }, em, world);
 
     // Rebuild on new position
     {
-        beowulf::Building* building = beowulf->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
+        beowulf::Building* building = beowulf_raw->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
         MapPoint metalworksPt(14, 5);
-        beowulf->world.Construct(building, metalworksPt);
-        beowulf->roads.Connect(building);
-        Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf.get() }, em, world);
+        beowulf_raw->world.Construct(building, metalworksPt);
+        beowulf_raw->roads.Connect(building);
+        Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf_raw }, em, world);
     }
 
     // Check that three requested tools are beeing built.
-    Proceed([&]() { return beowulf->GetAII().GetStorehouses().front()->GetInventory().goods[GD_ROLLINGPIN] > goods_before[GD_ROLLINGPIN]; }, { beowulf.get() }, em, world, 1000000);
-    std::array<unsigned, NUM_WARE_TYPES> goods_after = beowulf->GetAII().GetStorehouses().front()->GetInventory().goods;
+    Proceed([&]() { return beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods[GD_ROLLINGPIN] > goods_before[GD_ROLLINGPIN]; }, { beowulf.get() }, em, world, 1000000);
+    std::array<unsigned, NUM_WARE_TYPES> goods_after = beowulf_raw->GetAII().GetStorehouses().front()->GetInventory().goods;
 
     for (unsigned i = 0; i < NUM_WARE_TYPES; ++i) {
         if (i == GD_AXE || i == GD_HAMMER || i == GD_ROLLINGPIN) {

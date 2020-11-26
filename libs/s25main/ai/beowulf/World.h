@@ -25,7 +25,7 @@
 #include "gameTypes/MapCoordinates.h"
 #include "world/NodeMapBase.h"
 #include "world/BQCalculator.h"
-#include "notifications/Subscribtion.h"
+#include "notifications/Subscription.h"
 
 #include <vector>
 #include <utility> /* pair */
@@ -178,7 +178,7 @@ private:
     Beowulf* beowulf_;
     AIInterface& aii_;
     bool fow_;
-    std::vector<Subscribtion> eventSubscriptions_;
+    std::vector<Subscription> eventSubscriptions_;
 
     /*
      * Additional Beowulf data on every map point.

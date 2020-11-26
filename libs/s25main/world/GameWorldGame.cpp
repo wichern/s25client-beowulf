@@ -221,7 +221,7 @@ void GameWorldGame::DestroyBuilding(const MapPoint pt, const unsigned char playe
         // Bauplätze drumrum neu berechnen
         RecalcBQAroundPointBig(pt);
     } else {
-        GetNotifications().publish(BuildingNote(BuildingNote::DestructionFailed, player, pt, BLD_NOTHING));
+        GetNotifications().publish(BuildingNote(BuildingNote::DestructionFailed, player, pt, BLD_NOTHING2));
     }
 }
 

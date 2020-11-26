@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/recurrent/ProductionPlanner.h"
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/Heuristics.h"
@@ -240,8 +238,9 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
         if (0 == beowulf_->build.GetRequestCount({ BLD_BAKERY, BLD_SLAUGHTERHOUSE }, regionPt)) {
             // Make only mills until we are out of bakers and then make only pigfarms until we are out of butchers.
             // Then continue with mills.
-            unsigned possibleBakers = region.GetTotalJobs(JOB_BAKER) + region.GetTotalGoods(JOB_CONSTS[JOB_BAKER].tool);
-            unsigned possibleButchers = region.GetTotalJobs(JOB_BUTCHER) + region.GetTotalGoods(JOB_CONSTS[JOB_BUTCHER].tool);
+
+            unsigned possibleBakers = region.GetTotalJobs(JOB_BAKER) + region.GetTotalGoods(*JOB_CONSTS[JOB_BAKER].tool);
+            unsigned possibleButchers = region.GetTotalJobs(JOB_BUTCHER) + region.GetTotalGoods(*JOB_CONSTS[JOB_BUTCHER].tool);
             if (possibleBakers > 0 || 0 == possibleButchers) {
                 World::ProductionGroup& group = beowulf_->world.CreateGroup({ BLD_MILL, BLD_BAKERY }, regionPt);
                 RequestBuilding(regionPt, BLD_MILL, group.id);
@@ -306,7 +305,7 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
             continue;
 
         // Check whether we can create a worker for this building.
-        if (!beowulf_->metalworks.JobOrToolOrQueueSpace(BLD_WORK_DESC[type].job))
+        if (!beowulf_->metalworks.JobOrToolOrQueueSpace(*BLD_WORK_DESC[type].job))
             continue;
 
         // Already requested?
@@ -368,7 +367,7 @@ void ProductionPlanner::RequestBuilding(
         BuildingType type,
         unsigned group)
 {
-    if (beowulf_->metalworks.JobOrToolOrQueueSpace(BLD_WORK_DESC[type].job, true)) {
+    if (beowulf_->metalworks.JobOrToolOrQueueSpace(*BLD_WORK_DESC[type].job, true)) {
         Building* bld = beowulf_->world.Create(type, Building::PlanningRequest, group);
         beowulf_->build.Request(bld, regionPt);
     } else {

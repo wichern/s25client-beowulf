@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "ai/beowulf/Beowulf.h"
@@ -41,11 +40,12 @@ using beowulf::Beowulf;
 
 BOOST_FIXTURE_TEST_CASE(Bergschlumpf, WorldLoaded1PFixture)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
 
     unsigned totalGf;
     bool ret = Proceed([&]() {
-        auto metalworks = beowulf->world.GetBuildings(BLD_METALWORKS);
+        auto metalworks = beowulf_raw->world.GetBuildings(BLD_METALWORKS);
 
         if (metalworks.empty())
             return false;
@@ -53,7 +53,7 @@ BOOST_FIXTURE_TEST_CASE(Bergschlumpf, WorldLoaded1PFixture)
         return metalworks.front()->GetState() == beowulf::Building::Finished;
     }, { beowulf.get() }, em, world, 30000, &totalGf);
 
-//    beowulf::AsciiMap map(beowulf->GetAII());
+//    beowulf::AsciiMap map(beowulf_raw->GetAII());
 //    map.drawResources();
 //    map.draw(beowulf.get());
 //    map.drawBorder(beowulf->world, false);

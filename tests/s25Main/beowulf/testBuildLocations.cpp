@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
 #include "worldFixtures/WorldWithGCExecution.h"
 
 #include "factories/AIFactory.h"
@@ -25,6 +24,8 @@
 
 #include "nodeObjs/noTree.h"
 #include "nodeObjs/noGranite.h"
+
+#include "RttrForeachPt.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -42,13 +43,14 @@ using beowulf::Beowulf;
 
 BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
-    beowulf::BuildLocations bl(beowulf->world, false);
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
+    beowulf::BuildLocations bl(beowulf_raw->world, false);
 
     // Counting found locations on an empty map.
     {
-        bl.Calculate(beowulf->world.GetHQFlag());
+        bl.Calculate(beowulf_raw->world.GetHQFlag());
 
         // Check for duplicates
         std::set<unsigned> set;
@@ -66,7 +68,7 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 
     // Calling Calculate() a second time should lead to the same results.
     {
-        bl.Calculate(beowulf->world.GetHQFlag());
+        bl.Calculate(beowulf_raw->world.GetHQFlag());
 
         // no duplicates:
         std::set<unsigned> set;
@@ -111,7 +113,7 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
             set.insert(idx);
         }
 
-//        beowulf::AsciiMap map(beowulf->GetAII());
+//        beowulf::AsciiMap map(beowulf_raw->GetAII());
 //        map.draw(beowulf->world, true);
 //        map.draw(bl);
 //        map.write();
@@ -125,29 +127,30 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 
 BOOST_FIXTURE_TEST_CASE(PlaceFarmsClosely, BiggerWorldWithGCExecution)
 {
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
     MapPoint farm1Point(9, 11);
     MapPoint farm2Point(7, 11);
     MapPoint farm3Point(6, 11);
 
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm1Point, false) >= BQ_CASTLE);
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm2Point, false) >= BQ_CASTLE);
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
 
-    beowulf::BuildLocations bl(beowulf->world, false);
-    bl.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl(beowulf_raw->world, false);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
     BOOST_REQUIRE(bl.Get(farm1Point) >= BQ_CASTLE);
     BOOST_REQUIRE(bl.Get(farm2Point) >= BQ_CASTLE);
     BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
 
-    beowulf::Building* farm1 = beowulf->world.Create(BLD_FARM, beowulf::Building::PlanningRequest);
-    beowulf->world.Construct(farm1, farm1Point);
+    beowulf::Building* farm1 = beowulf_raw->world.Create(BLD_FARM, beowulf::Building::PlanningRequest);
+    beowulf_raw->world.Construct(farm1, farm1Point);
 
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm1Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm2Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
     bl.Update(farm1Point);
     BOOST_REQUIRE(bl.Get(farm1Point) < BQ_CASTLE);
     BOOST_REQUIRE(bl.Get(farm2Point) < BQ_CASTLE);
@@ -155,9 +158,9 @@ BOOST_FIXTURE_TEST_CASE(PlaceFarmsClosely, BiggerWorldWithGCExecution)
 
     Proceed({ beowulf.get() }, em, world);
 
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm1Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm2Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) < BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
     bl.Update(farm1Point);
     BOOST_REQUIRE(bl.Get(farm1Point) < BQ_CASTLE);
     BOOST_REQUIRE(bl.Get(farm2Point) < BQ_CASTLE);
@@ -168,7 +171,12 @@ void ValidateBuildLocations(
         const GameWorldGame& world,
         const Beowulf* beowulf,
         const beowulf::BuildLocations& bl,
-        bool hasPlanned = false)
+        bool hasPlanned = false);
+void ValidateBuildLocations(
+        const GameWorldGame& world,
+        const Beowulf* beowulf,
+        const beowulf::BuildLocations& bl,
+        bool hasPlanned)
 {
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
         BuildingQuality bq_BuildLocations = bl.Get(pt);
@@ -201,46 +209,47 @@ BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
     /*
      * We place a couple of construction sites and check whether BQC and BuildLocations map perfectly.
      */
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    beowulf::BuildLocations bl(beowulf->world, true);
-    bl.Calculate(beowulf->world.GetHQFlag());
-    ValidateBuildLocations(world, beowulf.get(), bl);
+    beowulf::BuildLocations bl(beowulf_raw->world, true);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
+    ValidateBuildLocations(world, beowulf_raw, bl);
 
     MapPoint farmPoint(9, 11);
     MapPoint wellPoint(7, 11);
     MapPoint millPoint(11, 13);
 
-    beowulf->world.Construct(beowulf->world.Create(BLD_FARM, beowulf::Building::PlanningRequest), farmPoint);
+    beowulf_raw->world.Construct(beowulf_raw->world.Create(BLD_FARM, beowulf::Building::PlanningRequest), farmPoint);
     bl.Update(farmPoint);
-    beowulf->world.Construct(beowulf->world.Create(BLD_WELL, beowulf::Building::PlanningRequest), wellPoint);
+    beowulf_raw->world.Construct(beowulf_raw->world.Create(BLD_WELL, beowulf::Building::PlanningRequest), wellPoint);
     bl.Update(wellPoint);
-    beowulf->world.Construct(beowulf->world.Create(BLD_MILL, beowulf::Building::PlanningRequest), millPoint);
+    beowulf_raw->world.Construct(beowulf_raw->world.Create(BLD_MILL, beowulf::Building::PlanningRequest), millPoint);
     bl.Update(millPoint);
 
     // We proceed until one building is under construction (exists in-game and occupies build locations).
-    Proceed([&]() { return beowulf->world.GetBuilding(farmPoint)->GetState() == beowulf::Building::UnderConstruction; }, { beowulf.get() }, em, world);
+    Proceed([&]() { return beowulf_raw->world.GetBuilding(farmPoint)->GetState() == beowulf::Building::UnderConstruction; }, { beowulf_raw }, em, world);
 
-    BOOST_REQUIRE(beowulf->world.GetBuilding(farmPoint)->GetState() == beowulf::Building::UnderConstruction);
-    BOOST_REQUIRE(beowulf->world.GetBuilding(wellPoint)->GetState() == beowulf::Building::UnderConstruction);
-    BOOST_REQUIRE(beowulf->world.GetBuilding(millPoint)->GetState() == beowulf::Building::UnderConstruction);
-    ValidateBuildLocations(world, beowulf.get(), bl);
+    BOOST_REQUIRE(beowulf_raw->world.GetBuilding(farmPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf_raw->world.GetBuilding(wellPoint)->GetState() == beowulf::Building::UnderConstruction);
+    BOOST_REQUIRE(beowulf_raw->world.GetBuilding(millPoint)->GetState() == beowulf::Building::UnderConstruction);
+    ValidateBuildLocations(world, beowulf_raw, bl);
 
     // Place Road
     std::vector<Direction> route = { Direction::EAST, Direction::EAST, Direction::EAST,
                                      Direction::NORTHWEST, Direction::NORTHWEST, Direction::WEST };
-    beowulf->world.ConstructRoad(MapPoint(12, 14), route);
+    beowulf_raw->world.ConstructRoad(MapPoint(12, 14), route);
 
     bl.Update(MapPoint(12, 14), static_cast<unsigned>(route.size()));
 
     // Set hasPlanned to true, since we only requested to build, but the engine did not yet execute the command.
-    ValidateBuildLocations(world, beowulf.get(), bl, true);
+    ValidateBuildLocations(world, beowulf_raw, bl, true);
 
-    Proceed([&]() { return beowulf->GetAII().IsRoad({ 12, 14 }, Direction::EAST); }, { beowulf.get() }, em, world);
+    Proceed([&]() { return beowulf_raw->GetAII().IsRoad({ 12, 14 }, Direction::EAST); }, { beowulf_raw }, em, world);
 
     bl.Update(MapPoint(12, 14), static_cast<unsigned>(route.size()));
-    ValidateBuildLocations(world, beowulf.get(), bl);
+    ValidateBuildLocations(world, beowulf_raw, bl);
 }
 
 BOOST_FIXTURE_TEST_CASE(BlockingManners, WorldLoaded1PFixture)
@@ -252,25 +261,26 @@ BOOST_FIXTURE_TEST_CASE(BlockingManners, WorldLoaded1PFixture)
     world.SetNO({18, 104}, new noGranite(GT_1, 1));
     world.RecalcBQAroundPointBig({18, 104});
 
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    beowulf::BuildLocations bl(beowulf->world, true);
-    bl.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl(beowulf_raw->world, true);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-//    beowulf::AsciiMap map(beowulf->GetAII(), beowulf->world.GetHQ()->GetPt(), 12);
-//    map.draw(beowulf->world);
+//    beowulf::AsciiMap map(beowulf_raw->GetAII(), beowulf_raw->world.GetHQ()->GetPt(), 12);
+//    map.draw(beowulf_raw->world);
 //    map.drawResources();
 //    map.draw(bl);
 //    map.write();
 
 //    map.clear();
-//    map.draw(beowulf->world);
+//    map.draw(beowulf_raw->world);
 //    map.drawResources();
 //    map.drawBuildLocations(beowulf->GetPlayerId());
 //    map.write();
 
-    ValidateBuildLocations(world, beowulf.get(), bl);
+    ValidateBuildLocations(world, beowulf_raw, bl);
 }
 
 BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution)
@@ -278,18 +288,19 @@ BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution
     // We create a situation where some build locations become invalid because it is
     // no longer possible to connect them to the road network.
 
-    std::unique_ptr<Beowulf> beowulf(static_cast<Beowulf*>(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world)));
-    beowulf->DisableRecurrents();
+    std::unique_ptr<AIPlayer> beowulf(AIFactory::Create(AI::Info(AI::BEOWULF, AI::HARD), 0, world));
+    Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
+    beowulf_raw->DisableRecurrents();
 
-    beowulf::BuildLocations bl(beowulf->world, true);
-    bl.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl(beowulf_raw->world, true);
+    bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-//    beowulf::AsciiMap map(beowulf->GetAII(), beowulf->world.GetHQ()->GetPt(), 10);
-//    map.draw(beowulf->world, false);
+//    beowulf::AsciiMap map(beowulf_raw->GetAII(), beowulf_raw->world.GetHQ()->GetPt(), 10);
+//    map.draw(beowulf_raw->world, false);
 //    map.draw(bl);
 //    map.write();
 
-    beowulf->world.ConstructRoad(beowulf->world.GetHQ()->GetFlag(), {
+    beowulf_raw->world.ConstructRoad(beowulf_raw->world.GetHQ()->GetFlag(), {
                                      Direction::WEST,
                                      Direction::WEST,
                                      Direction::WEST,
@@ -301,7 +312,7 @@ BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution
                                      Direction::EAST,
                                      Direction::NORTHEAST
                                  });
-    beowulf->world.ConstructRoad({ 9, 12 }, {
+    beowulf_raw->world.ConstructRoad({ 9, 12 }, {
                                      Direction::NORTHWEST,
                                      Direction::WEST,
                                      Direction::WEST,
@@ -310,7 +321,7 @@ BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution
                                      Direction::NORTHEAST,
                                      Direction::SOUTHEAST
                                  });
-    beowulf->world.ConstructRoad({ 7, 13 }, {
+    beowulf_raw->world.ConstructRoad({ 7, 13 }, {
                                      Direction::SOUTHEAST,
                                      Direction::SOUTHWEST,
                                      Direction::WEST
@@ -323,13 +334,13 @@ BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution
 //    map.draw(bl);
 //    map.write();
 
-    Proceed({ beowulf.get() }, em, world);
+    Proceed({ beowulf_raw }, em, world);
 
-    beowulf::BuildLocations bl2(beowulf->world, true);
-    bl2.Calculate(beowulf->world.GetHQFlag());
+    beowulf::BuildLocations bl2(beowulf_raw->world, true);
+    bl2.Calculate(beowulf_raw->world.GetHQFlag());
 
 //    map.clear();
-//    map.draw(beowulf->world, false);
+//    map.draw(beowulf_raw->world, false);
 //    map.draw(bl2);
 //    map.write();
 

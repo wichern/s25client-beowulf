@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/recurrent/BuildingPlanner.h"
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/Debug.h"
@@ -200,6 +198,7 @@ void BuildingPlanner::Execute()
     current_.requests.clear();
 }
 
+double HyperVolume(const std::vector<double>& vec);
 double HyperVolume(const std::vector<double>& vec)
 {
     double ret = 1.0;

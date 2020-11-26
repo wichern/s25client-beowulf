@@ -15,8 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/Resources.h"
 #include "ai/beowulf/Building.h"
 #include "ai/beowulf/World.h"
@@ -263,11 +261,11 @@ bool Resources::IsReachable(
 {
     if (type == BResourceFish) {
         // Try to find a path to one spot next to the fish.
-        for (Direction dir : Direction())  {
+        for (const auto dir : helpers::EnumRange<Direction>{})  {
             MapPoint fishNeighbour = nodes_.GetNeighbour(pt, dir);
             if (!aii_.gwb.IsWalkable(fishNeighbour))
                 continue;
-            if (aii_.gwb.FindHumanPath(from, fishNeighbour, 10) != INVALID_DIR) {
+            if (aii_.gwb.FindHumanPath(from, fishNeighbour, 10) != boost::none) {
                 return true;
             }
         }
@@ -277,7 +275,7 @@ bool Resources::IsReachable(
 
     if (type == BResourceHuntableAnimals || type == BResourceWood || type == BResourceStone) {
         unsigned max = type == BResourceHuntableAnimals ? 50 : 20;
-        return from == pt || aii_.gwb.FindHumanPath(from, pt, max) != INVALID_DIR;
+        return from == pt || aii_.gwb.FindHumanPath(from, pt, max) != boost::none;
     }
 
     return true;

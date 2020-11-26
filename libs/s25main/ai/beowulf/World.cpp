@@ -15,14 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
 
-#include "rttrDefines.h" // IWYU pragma: keep
-
 #include "ai/beowulf/World.h"
 #include "ai/beowulf/Beowulf.h"
 #include "ai/beowulf/Building.h"
 #include "ai/beowulf/Helper.h"
 #include "ai/beowulf/Debug.h"
 
+#include "RttrForeachPt.h"
 #include "buildings/noBuildingSite.h"
 #include "buildings/nobUsual.h"
 #include "buildings/nobMilitary.h"
@@ -83,12 +82,12 @@ World::World(Beowulf* beowulf, bool fow)
         const noFlag* flagObj = aii_.gwb.GetSpecObj<noFlag>(pt);
         if (flagObj && flagObj->GetPlayer() == aii_.GetPlayerId())
             SetFlagState(pt, FlagFinished);
-        for (unsigned char rdir = 0; rdir < 3; ++rdir) {
-            if (aii_.gwb.GetRoad(pt, rdir)) {
+        for (const RoadDir rdir : helpers::EnumRange<RoadDir>{}) {
+            if (aii_.gwb.GetRoad(pt, rdir) != PointRoad::None) {
                 if (aii_.gwb.GetNO(pt)->GetType() != NOP_BUILDING &&
-                        aii_.gwb.GetNO(GetNeighbour(pt, OppositeDirection(Direction(rdir))))->GetType() != NOP_BUILDING)
+                        aii_.gwb.GetNO(GetNeighbour(pt, OppositeDirection(toDirection(rdir))))->GetType() != NOP_BUILDING)
                 {
-                    node.roads[rdir] = RoadFinished;
+                    node.roads[static_cast<int>(rdir)] = RoadFinished;
                 }
             }
         }
@@ -418,7 +417,7 @@ void World::SetFlagState(const MapPoint& pt, FlagState state)
 
 bool World::IsPointConnected(const MapPoint& pt) const
 {
-    for (Direction dir : Direction()) {
+    for (const auto dir : helpers::EnumRange<Direction>{}) {
         if (HasRoad(pt, dir))
             return true;
     }
@@ -438,7 +437,7 @@ bool World::IsPlayerTerritory(const MapPoint& pt, bool includeAnticipated) const
         return false;
 
     // Neighbour nodes must belong to this player
-    for (Direction dir : Direction()) {
+    for (const auto dir : helpers::EnumRange<Direction>{}) {
         if (!IsOwner(GetNeighbour(pt, dir), includeAnticipated))
             return false;
     }
@@ -451,12 +450,12 @@ bool World::HasRoad(const MapPoint& pt, Direction dir) const
     MapPoint nodePt;
     unsigned idx;
 
-    if (dir.toUInt() >= 3) {
+    if (dir.native_value() >= 3) {
         nodePt = pt;
-        idx = OppositeDirection(dir).toUInt();
+        idx = OppositeDirection(dir).native_value();
     } else {
         nodePt = GetNeighbour(pt, dir);
-        idx = dir.toUInt();
+        idx = dir.native_value();
     }
 
     const Node& node = nodes_[nodePt];
@@ -466,7 +465,7 @@ bool World::HasRoad(const MapPoint& pt, Direction dir) const
 
 bool World::IsOnRoad(const MapPoint& pt) const
 {
-    for (Direction dir : Direction()) {
+    for (const auto dir : helpers::EnumRange<Direction>{}) {
         if (HasRoad(pt, dir))
             return true;
     }
@@ -476,19 +475,19 @@ bool World::IsOnRoad(const MapPoint& pt) const
 RoadState World::GetRoadState(const MapPoint& pt, Direction dir) const
 {
     Direction oppositeDir = OppositeDirection(dir);
-    if (dir.toUInt() >= 3)
-        return nodes_[pt].roads[oppositeDir.toUInt()];
+    if (dir.native_value() >= 3)
+        return nodes_[pt].roads[oppositeDir.native_value()];
     else
-        return nodes_[GetNeighbour(pt, dir)].roads[dir.toUInt()];
+        return nodes_[GetNeighbour(pt, dir)].roads[dir.native_value()];
 }
 
 void World::SetRoadState(const MapPoint& pt, Direction dir, RoadState state)
 {
     Direction oppositeDir = OppositeDirection(dir);
-    if (dir.toUInt() >= 3)
-        nodes_[pt].roads[oppositeDir.toUInt()] = state;
+    if (dir.native_value() >= 3)
+        nodes_[pt].roads[oppositeDir.native_value()] = state;
     else
-        nodes_[GetNeighbour(pt, dir)].roads[dir.toUInt()] = state;
+        nodes_[GetNeighbour(pt, dir)].roads[dir.native_value()] = state;
 }
 
 void World::SetRoadState(
@@ -510,7 +509,7 @@ BuildingQuality World::GetBQ(
 {
     BQCalculator2 bqc(*this, beowulf_->GetAII().gwb, tmps);
     BuildingQuality bq = bqc(pt, [this, pt](const MapPoint& pt2){
-        for (Direction dir : Direction())
+        for (const auto dir : helpers::EnumRange<Direction>{})
             if (HasRoad(pt2, dir))
                 return true;
         return false;
@@ -529,7 +528,7 @@ bool World::IsRoadPossible(
     // If 'pt' already has more than one road and we can't place a flag a road is impossible.
     if (!HasFlag(pt)) {
         bool hasRoads = false;
-        for (Direction d : Direction()) {
+        for (const auto d : helpers::EnumRange<Direction>{}) {
             if (HasRoad(pt, d)) {
                 hasRoads = true;
                 break;
@@ -542,7 +541,7 @@ bool World::IsRoadPossible(
     if (HasFlag(dest)) {
         // Do we need to place a flag at pt?
         unsigned roads = 0;
-        for (Direction d2 : Direction()) {
+        for (const auto d2 : helpers::EnumRange<Direction>{}) {
             if (HasRoad(pt, d2))
                 roads++;
         }
@@ -554,7 +553,7 @@ bool World::IsRoadPossible(
 
     // If dest already has roads, we need to check whether we can place a flag
     // and not need to place a flag from where we come.
-    for (Direction d : Direction()) {
+    for (const auto d : helpers::EnumRange<Direction>{}) {
         if (HasRoad(dest, d)) {
             // Can we place a flag at dest?
             if (GetBQ(dest, includeAnticipated, tmps) < BQ_FLAG)
@@ -562,7 +561,7 @@ bool World::IsRoadPossible(
 
             // Do we need to place a flag at pt?
             unsigned roads = 0;
-            for (Direction d2 : Direction()) {
+            for (const auto d2 : helpers::EnumRange<Direction>{}) {
                 if (HasRoad(pt, d2))
                     roads++;
             }
@@ -938,7 +937,7 @@ void World::PredictExpansionResults(
         const MapPoint& p = prediction.first;
 
         bool isBorder = false;
-        for (Direction dir : Direction()) {
+        for (const auto dir : helpers::EnumRange<Direction>{}) {
             MapPoint neighbour = GetNeighbour(p, dir);
             if (!predictions[neighbour].owned) {
                 isBorder = true;
@@ -954,10 +953,10 @@ void World::PredictExpansionResults(
 
 void World::PlanSegment(const MapPoint& pt, Direction dir)
 {
-    if (dir.toUInt() >= 3)
-        nodes_[pt].roadPlanCount[OppositeDirection(dir).toUInt()]++;
+    if (dir.native_value() >= 3)
+        nodes_[pt].roadPlanCount[OppositeDirection(dir).native_value()]++;
     else
-        nodes_[GetNeighbour(pt, dir)].roadPlanCount[dir.toUInt()]++;
+        nodes_[GetNeighbour(pt, dir)].roadPlanCount[dir.native_value()]++;
 }
 
 void World::SetPoint(Building* building, const MapPoint& pt)
@@ -1186,7 +1185,7 @@ void World::OnRoadNote(const RoadNote& note)
         if (bld && bld->GetState() == Building::UnderConstruction) {
             // Is it connected in a different way?
             bool connected = false;
-            for (Direction dir : Direction()) {
+            for (const auto dir : helpers::EnumRange<Direction>{}) {
                 if (HasRoad(note.pos, dir)) {
                     connected = true;
                     break;
