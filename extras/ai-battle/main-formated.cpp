@@ -25,9 +25,9 @@
 #include <boost/nowide/iostream.hpp>
 #include <boost/program_options.hpp>
 
-#include <chrono>
 #include <iomanip>
 #include <vector>
+#include <chrono>
 
 #ifndef _MSC_VER
 #    include <csignal>
