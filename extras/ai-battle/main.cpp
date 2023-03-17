@@ -2,31 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "AsyncChecksum.h"
-#include "EventManager.h"
-#include "Game.h"
-#include "GlobalGameSettings.h"
 #include "PlayerInfo.h"
-#include "ReplayInfo.h"
-#include "RttrConfig.h"
-#include "ai/AIPlayer.h"
-#include "factories/AIFactory.h"
-#include "files.h"
-#include "network/PlayerGameCommands.h"
-#include "random/Random.h"
-#include "world/GameWorld.h"
-#include "world/MapLoader.h"
-#include "gameTypes/MapInfo.h"
 #include "gameTypes/Nation.h"
 #include "s25util/colors.h"
 
-#include <boost/filesystem.hpp>
+#include "AIGameManager.h"
+
 #include <boost/nowide/args.hpp>
 #include <boost/nowide/iostream.hpp>
 #include <boost/program_options.hpp>
 
-#include <chrono>
-#include <iomanip>
+#include <string>
 #include <vector>
 
 #ifndef _MSC_VER
@@ -35,11 +21,10 @@
 #    include <windows.h>
 #endif
 
-namespace bfs = boost::filesystem;
 namespace bnw = boost::nowide;
 namespace po = boost::program_options;
 
-volatile sig_atomic_t stop = false;
+volatile sig_atomic_t g_stop = false;
 
 void InstallSignalHandlers();
 
@@ -49,6 +34,21 @@ BOOL WINAPI ConsoleSignalHandler(DWORD dwCtrlType);
 void ConsoleSignalHandler(int signum);
 #endif // _WIN32
 
+/**
+ * Parse and validate command line arguments.
+ * 
+ * Note: will call std::exit() when '-h' was given.
+ * 
+ * @param[in]   argc    Arguement count
+ * @param[in]   argv    Arguments
+ * @param[out]  mapPath Path to map file
+ * @param[out]  players List of AI players
+ * @param[out]  replay  whether replay shall be generated
+ * @return              true when input validation succeeded
+ * 
+ * @todo: Use GUI mode by default
+ * @todo: Add detailed description to argument parser
+*/
 bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::string>& players, bool& replay);
 
 /**
@@ -59,8 +59,7 @@ bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::str
  *
  *  @return Exit status
  *
- * @todo: CTRL-C will stop the game and store the replay.
- * @todo: Write a program that shows replays only
+ * CTRL-C will stop the game and store the replay.
  */
 int main(int argc, char** argv)
 {
@@ -80,20 +79,6 @@ int main(int argc, char** argv)
     {
         bnw::cout << "- " << player << "\n";
     }
-
-    // LOG.setLogFilepath(bfs::current_path());
-    // Initialize random generator
-    unsigned random_init = static_cast<unsigned>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-    RANDOM.Init(random_init);
-
-    if(!RTTRCONFIG.Init())
-    {
-        bnw::cerr << "RTTRCONFIG.Init() failed\n";
-        return EXIT_FAILURE;
-    }
-
-    GlobalGameSettings ggs;
-    ggs.exploration = Exploration::Classic;
 
     std::vector<PlayerInfo> playerInfos;
     for(const auto& player : players)
@@ -120,115 +105,18 @@ int main(int argc, char** argv)
 
         playerInfos.push_back(pi);
     }
-
-    Game game(ggs, 0 /* start-frame */, playerInfos);
-
-    MapLoader mapLoader(game.world_);
-    if(!mapLoader.Load(mapPath))
-    {
-        bnw::cerr << "Could not load map: " << mapPath << "\n";
+    
+    AIGameManager gameManager(replay, playerInfos);
+    if (!gameManager.Start(mapPath))
         return EXIT_FAILURE;
-    }
-
-    for(unsigned i = 0; i < playerInfos.size(); ++i)
-        game.AddAIPlayer(AIFactory::Create(playerInfos[i].aiInfo, i, game.world_));
-
-    std::unique_ptr<ReplayInfo> replayInfo;
-    if(replay)
+    
+    while(!g_stop)
     {
-        replayInfo = std::make_unique<ReplayInfo>();
-        replayInfo->filename = "ai-battle " + s25util::Time::FormatTime("%Y-%m-%d_%H-%i-%s") + ".rpl";
-        replayInfo->replay.random_init = random_init;
-        replayInfo->replay.ggs = ggs;
-
-        for(const auto& pi : playerInfos)
-            replayInfo->replay.AddPlayer(pi);
+        if (!gameManager.Run())
+            break;
     }
 
-    MapInfo mapInfo;
-    mapInfo.type = MapType::OldMap;
-    mapInfo.title = "AI Battle"; // @todo: check GameServer.cpp:148 on how to set title
-    mapInfo.filepath = mapPath;
-
-    if(!mapInfo.mapData.CompressFromFile(mapInfo.filepath, &mapInfo.mapChecksum))
-    {
-        bnw::cerr << "Could not load map data from " << mapPath << "\n";
-        return EXIT_FAILURE;
-    }
-    bfs::path luaFilePath = bfs::path(mapInfo.filepath).replace_extension("lua");
-    if(bfs::is_regular_file(luaFilePath))
-    {
-        if(!mapInfo.luaData.CompressFromFile(luaFilePath, &mapInfo.luaChecksum))
-        {
-            bnw::cerr << "Could not load lua data from " << mapPath << "\n";
-            return EXIT_FAILURE;
-        }
-        mapInfo.luaFilepath = luaFilePath;
-    }
-
-    if(!mapInfo.verifySize())
-    {
-        bnw::cerr << "Map is too large: " << mapPath << "\n";
-        return EXIT_FAILURE;
-    }
-
-    if(replayInfo
-       && !replayInfo->replay.StartRecording(RTTRCONFIG.ExpandPath(s25::folders::replays) / replayInfo->filename,
-                                             mapInfo))
-    {
-        bnw::cerr << "Could not start recording replay\n";
-        return EXIT_FAILURE;
-    }
-
-    game.Start(false /* startFromSave */);
-    while(!game.IsGameFinished() && !stop)
-    {
-        bool isnwf = (game.em_->GetCurrentGF() % 5 == 0);
-        for(unsigned player = 0; player < playerInfos.size(); ++player)
-        {
-            game.GetAIPlayer(player)->RunGF(game.em_->GetCurrentGF(), isnwf);
-
-            auto gcs = game.GetAIPlayer(player)->FetchGameCommands();
-            for(gc::GameCommandPtr& gc : gcs)
-                gc->Execute(game.world_, player);
-            if(replayInfo && !gcs.empty() && replayInfo->replay.IsRecording())
-            {
-                PlayerGameCommands playergcs;
-                playergcs.gcs = gcs;
-                replayInfo->replay.AddGameCommand(game.em_->GetCurrentGF(), player, playergcs);
-            }
-        }
-
-        game.RunGF();
-
-        if(game.em_->GetCurrentGF() % 500 == 0)
-        {
-            bnw::cout << "GF " << game.em_->GetCurrentGF() << "\n";
-            for(unsigned i = 0; i < playerInfos.size(); ++i)
-                bnw::cout << playerInfos[i].name << ": Country: " << std::setw(5)
-                          << game.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Country)
-                          << ", Buildings: " << std::setw(3)
-                          << game.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Buildings)
-                          << ", Military: " << std::setw(3)
-                          << game.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Military)
-                          << ", Gold: " << std::setw(3)
-                          << game.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Gold)
-                          << ", Productivity: " << std::setw(2)
-                          << game.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Productivity) << "\n";
-        }
-    }
-
-    if(replayInfo && replayInfo->replay.IsRecording())
-        replayInfo->replay.UpdateLastGF(game.em_->GetCurrentGF());
-
-    if(replayInfo)
-    {
-        if(replayInfo->replay.IsRecording())
-            replayInfo->replay.StopRecording();
-        replayInfo->replay.Close();
-        bnw::cout << "Replay written to " << replayInfo->filename << "\n";
-        replayInfo.reset();
-    }
+    gameManager.Stop();
 
     return EXIT_SUCCESS;
 }
@@ -295,7 +183,7 @@ BOOL WINAPI ConsoleSignalHandler(DWORD dwCtrlType)
     {
         case CTRL_C_EVENT:
         {
-            stop = true;
+            g_stop = true;
             return TRUE;
         }
         break;
@@ -305,8 +193,7 @@ BOOL WINAPI ConsoleSignalHandler(DWORD dwCtrlType)
 #else
 void ConsoleSignalHandler(int /*signum*/)
 {
-    bnw::cout << "stopping...\n" << std::flush;
-    stop = true;
+    g_stop = true;
 }
 #endif
 
