@@ -4,15 +4,17 @@
 
 #include "AIGameManager.h"
 
-#include "ai/AIPlayer.h"
 #include "EventManager.h"
 #include "RttrConfig.h"
+#include "ai/AIPlayer.h"
 #include "factories/AIFactory.h"
 #include "files.h"
+#include "helpers/format.hpp"
+#include "network/PlayerGameCommands.h"
 #include "random/Random.h"
 #include "world/MapLoader.h"
 #include "gameTypes/MapInfo.h"
-#include "network/PlayerGameCommands.h"
+#include "gameData/GameConsts.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/nowide/args.hpp>
@@ -24,7 +26,7 @@
 namespace bfs = boost::filesystem;
 namespace bnw = boost::nowide;
 
-AIGameManager::AIGameManager(bool createReplay, const std::vector<PlayerInfo>& playerInfos)
+AIGameManager::AIGameManager(bool createReplay, const std::vector<PlayerInfo>&& playerInfos)
     : playerInfos_(playerInfos), game_(GlobalGameSettings(), 0 /* start-frame */, playerInfos_)
 {
     if(createReplay)
@@ -72,7 +74,7 @@ bool AIGameManager::InitReplay(std::string& mapPath, uint64_t random_init)
 
         MapInfo mapInfo;
         mapInfo.type = MapType::OldMap;
-        mapInfo.title = "AI Battle"; // @todo: check GameServer.cpp:148 on how to set title
+        mapInfo.title = "AI Battle";
         mapInfo.filepath = mapPath;
 
         if(!mapInfo.mapData.CompressFromFile(mapInfo.filepath, &mapInfo.mapChecksum))
@@ -80,6 +82,7 @@ bool AIGameManager::InitReplay(std::string& mapPath, uint64_t random_init)
             bnw::cerr << "Could not load map data from " << mapPath << "\n";
             return false;
         }
+
         bfs::path luaFilePath = bfs::path(mapInfo.filepath).replace_extension("lua");
         if(bfs::is_regular_file(luaFilePath))
         {
@@ -133,7 +136,7 @@ bool AIGameManager::Run()
 
     if(game_.em_->GetCurrentGF() % 500 == 0)
     {
-        bnw::cout << "GF " << game_.em_->GetCurrentGF() << "\n";
+        bnw::cout << "GF " << game_.em_->GetCurrentGF() << " (" << FormatGFTime(game_.em_->GetCurrentGF()) << ")\n";
         for(unsigned i = 0; i < playerInfos_.size(); ++i)
             bnw::cout << playerInfos_[i].name << ": Country: " << std::setw(5)
                       << game_.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Country)
@@ -163,4 +166,27 @@ void AIGameManager::Stop()
         bnw::cout << "Replay written to " << replayInfo_->filename << "\n";
         replayInfo_.reset();
     }
+}
+
+std::string AIGameManager::FormatGFTime(const unsigned gf) const
+{
+    using seconds = std::chrono::duration<uint32_t, std::chrono::seconds::period>;
+    using hours = std::chrono::duration<uint32_t, std::chrono::hours::period>;
+    using minutes = std::chrono::duration<uint32_t, std::chrono::minutes::period>;
+    using std::chrono::duration_cast;
+
+    // In Sekunden umrechnen
+    seconds numSeconds = duration_cast<seconds>(gf * SPEED_GF_LENGTHS[referenceSpeed]);
+
+    // Angaben rausfiltern
+    hours numHours = duration_cast<hours>(numSeconds);
+    numSeconds -= numHours;
+    minutes numMinutes = duration_cast<minutes>(numSeconds);
+    numSeconds -= numMinutes;
+
+    // ganze Stunden mit dabei? Dann entsprechend anderes format, ansonsten ignorieren wir die einfach
+    if(numHours.count())
+        return helpers::format("%u:%02u:%02u", numHours.count(), numMinutes.count(), numSeconds.count());
+    else
+        return helpers::format("%02u:%02u", numMinutes.count(), numSeconds.count());
 }

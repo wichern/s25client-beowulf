@@ -36,19 +36,19 @@ void ConsoleSignalHandler(int signum);
 
 /**
  * Parse and validate command line arguments.
- * 
+ *
  * Note: will call std::exit() when '-h' was given.
- * 
+ *
  * @param[in]   argc    Arguement count
  * @param[in]   argv    Arguments
  * @param[out]  mapPath Path to map file
  * @param[out]  players List of AI players
  * @param[out]  replay  whether replay shall be generated
  * @return              true when input validation succeeded
- * 
+ *
  * @todo: Use GUI mode by default
  * @todo: Add detailed description to argument parser
-*/
+ */
 bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::string>& players, bool& replay);
 
 /**
@@ -105,14 +105,14 @@ int main(int argc, char** argv)
 
         playerInfos.push_back(pi);
     }
-    
-    AIGameManager gameManager(replay, playerInfos);
-    if (!gameManager.Start(mapPath))
+
+    AIGameManager gameManager(replay, std::move(playerInfos));
+    if(!gameManager.Start(mapPath))
         return EXIT_FAILURE;
-    
+
     while(!g_stop)
     {
-        if (!gameManager.Run())
+        if(!gameManager.Run())
             break;
     }
 

@@ -17,10 +17,23 @@
 class AIGameManager
 {
 public:
-    AIGameManager(bool createReplay, const std::vector<PlayerInfo>& playerInfos);
+    /// @brief Constructor
+    /// @param createReplay     Whether to create a replay file
+    /// @param playerInfos      List of AI players to let fight
+    AIGameManager(bool createReplay, const std::vector<PlayerInfo>&& playerInfos);
 
+    /// @brief Start game
+    /// @param mapPath          Path to mapfile
+    /// @return                 true on success
     bool Start(std::string& mapPath);
+
+    /// @brief Run next GF
+    /// @return                 true, unless the game is over
     bool Run();
+
+    /// @brief Stop game
+    ///
+    /// This method will write the replay file.
     void Stop();
 
 private:
@@ -28,5 +41,12 @@ private:
     std::unique_ptr<ReplayInfo> replayInfo_;
     Game game_;
 
+    /// @brief Initialize replayInfo_ object
+    /// @param mapPath          path to map
+    /// @param random_init      random seed as used in RANDOM.Init()
+    /// @return                 true on success
     bool InitReplay(std::string& mapPath, uint64_t random_init);
+
+    /// Wandelt eine GF-Angabe in eine Zeitangabe um (HH:MM:SS oder MM:SS wenn Stunden = 0)
+    std::string FormatGFTime(unsigned gf) const;
 };
