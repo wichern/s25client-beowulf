@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/MapBase.h"
 #include "commonDefines.h"
@@ -55,34 +42,34 @@ MapPoint MapBase::GetNeighbour(const MapPoint pt, const Direction dir) const
     */
 
     MapPoint res;
-    switch(dir.native_value())
+    switch(dir)
     {
-        case Direction::WEST: // -1|0   -1|0
+        case Direction::West: // -1|0   -1|0
             res.x = ((pt.x == 0) ? size_.x : pt.x) - 1;
             res.y = pt.y;
             break;
-        case Direction::NORTHWEST: // -1|-1   0|-1
+        case Direction::NorthWest: // -1|-1   0|-1
             res.x = (pt.y & 1) ? pt.x : (((pt.x == 0) ? size_.x : pt.x) - 1);
             res.y = ((pt.y == 0) ? size_.y : pt.y) - 1;
             break;
-        case Direction::NORTHEAST: // 0|-1  -1|-1
+        case Direction::NorthEast: // 0|-1  -1|-1
             res.x = (!(pt.y & 1)) ? pt.x : ((pt.x == size_.x - 1) ? 0 : pt.x + 1);
             res.y = ((pt.y == 0) ? size_.y : pt.y) - 1;
             break;
-        case Direction::EAST: // 1|0    1|0
+        case Direction::East: // 1|0    1|0
             res.x = pt.x + 1;
             if(res.x == size_.x)
                 res.x = 0;
             res.y = pt.y;
             break;
-        case Direction::SOUTHEAST: // 1|1    0|1
+        case Direction::SouthEast: // 1|1    0|1
             res.x = (!(pt.y & 1)) ? pt.x : ((pt.x == size_.x - 1) ? 0 : pt.x + 1);
             res.y = pt.y + 1;
             if(res.y == size_.y)
                 res.y = 0;
             break;
         default:
-            RTTR_Assert(dir == Direction::SOUTHWEST);                         // 0|1   -1|1
+            RTTR_Assert(dir == Direction::SouthWest);                         // 0|1   -1|1
             res.x = (pt.y & 1) ? pt.x : (((pt.x == 0) ? size_.x : pt.x) - 1); //-V537
             res.y = pt.y + 1;
             if(res.y == size_.y)
@@ -100,10 +87,26 @@ MapPoint MapBase::GetNeighbour2(const MapPoint pt, unsigned dir) const
     return MakeMapPoint(::GetNeighbour2(Position(pt), dir));
 }
 
+helpers::EnumArray<MapPoint, Direction> MapBase::GetNeighbours(const MapPoint pt) const
+{
+    const MapCoord yplus1 = pt.y == size_.y - 1 ? 0 : pt.y + 1;
+    const MapCoord yminus1 = (pt.y == 0 ? size_.y : pt.y) - 1;
+    const MapCoord xplus1 = pt.x == size_.x - 1 ? 0 : pt.x + 1;
+    const MapCoord xminus1 = (pt.x == 0 ? size_.x : pt.x) - 1;
+    const bool isEvenRow = (pt.y & 1) == 0;
+
+    return {MapPoint(xminus1, pt.y),
+            MapPoint(!isEvenRow ? pt.x : xminus1, yminus1),
+            MapPoint(isEvenRow ? pt.x : xplus1, yminus1),
+            MapPoint(xplus1, pt.y),
+            MapPoint(isEvenRow ? pt.x : xplus1, yplus1),
+            MapPoint(!isEvenRow ? pt.x : xminus1, yplus1)};
+}
+
 unsigned MapBase::CalcDistance(const Position& p1, const Position& p2) const
 {
     int dx = ((p1.x - p2.x) * 2) + (p1.y & 1) - (p2.y & 1);
-    int dy = safeDiff(p1.y, p2.y) * 2;
+    int dy = absDiff(p1.y, p2.y) * 2;
 
     if(dx < 0)
         dx = -dx;
@@ -123,16 +126,21 @@ unsigned MapBase::CalcDistance(const Position& p1, const Position& p2) const
     return ((dy + (dx > 0 ? dx : 0)) / 2);
 }
 
+unsigned MapBase::CalcMaxDistance() const
+{
+    return CalcDistance(MapPoint::all(0), MapPoint(size_.x / 2, size_.y / 2));
+}
+
 ShipDirection MapBase::GetShipDir(MapPoint fromPt, MapPoint toPt) const
 {
-    // First divide into NORTH/SOUTH by only looking at the y-Difference. On equal we choose SOUTH
+    // First divide into North/South by only looking at the y-Difference. On equal we choose South
     // Then choose between main dir (S/N) or partial E/W:
     //     6 directions -> 60deg covered per direction, mainDir +- 30deg
     //     -> Switching at an angle of 60deg compared to x-axis
     //     hence: |dy/dx| > tan(60deg) -> main dir, else add E or W
 
-    unsigned dy = safeDiff(fromPt.y, toPt.y);
-    unsigned dx = safeDiff(fromPt.x, toPt.x);
+    unsigned dy = absDiff(fromPt.y, toPt.y);
+    unsigned dx = absDiff(fromPt.x, toPt.x);
     // Handle wrapping. Also swap coordinates when wrapping (we reverse the direction)
     if(dy > size_.y / 2u)
     {
@@ -153,20 +161,20 @@ ShipDirection MapBase::GetShipDir(MapPoint fromPt, MapPoint toPt) const
     {
         // North
         if(isMainDir)
-            return ShipDirection::NORTH;
+            return ShipDirection::North;
         else if(toPt.x < fromPt.x)
-            return ShipDirection::NORTHWEST;
+            return ShipDirection::NorthWest;
         else
-            return ShipDirection::NORTHEAST;
+            return ShipDirection::NorthEast;
     } else
     {
         // South
         if(isMainDir)
-            return ShipDirection::SOUTH;
+            return ShipDirection::South;
         else if(toPt.x < fromPt.x)
-            return ShipDirection::SOUTHWEST;
+            return ShipDirection::SouthWest;
         else
-            return ShipDirection::SOUTHEAST;
+            return ShipDirection::SouthEast;
     }
 }
 

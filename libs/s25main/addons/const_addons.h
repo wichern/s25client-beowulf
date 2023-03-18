@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -36,6 +23,7 @@
 // 00B Ribosom
 // 00C Flamefire
 // 00D Shawn8901
+// 00E Jonathan
 
 // Do not forget to add your Addon to GlobalGameSettings::registerAllAddons @ GlobalGameSettings.cpp!
 // Never use a number twice!
@@ -78,7 +66,9 @@ ENUM_WITH_STRING(AddonId, LIMIT_CATAPULTS = 0x00000000, INEXHAUSTIBLE_MINES = 0x
                  NUM_SCOUTS_EXPLORATION = 0x00C00000,
 
                  FRONTIER_DISTANCE_REACHABLE = 0x00D0000, COINS_CAPTURED_BLD = 0x00D0001,
-                 DEMOLISH_BLD_WO_RES = 0x00D0002)
+                 DEMOLISH_BLD_WO_RES = 0x00D0002,
+
+                 PEACEFULMODE = 0x00E0000, DURABLE_GEOLOGIST_SIGNS = 0x00E0001, ECONOMY_MODE_GAME_LENGTH = 0x00E0002)
 //-V:AddonId:801
 
 enum class AddonGroup : unsigned

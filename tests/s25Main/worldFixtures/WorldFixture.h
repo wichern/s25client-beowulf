@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -51,7 +38,7 @@ unsigned rttr_exec_till_ct_gf(TestEventManager& em, unsigned maxGFs, T&& cond)
 
 #define RTTR_EXEC_TILL_CT_GF(maxGFs, cond, gfReturnVar)                           \
     gfReturnVar = rttr_exec_till_ct_gf(this->em, maxGFs, [&] { return (cond); }); \
-    BOOST_REQUIRE((cond))
+    BOOST_TEST_REQUIRE((cond))
 
 /// Execute up to maxGFs gameframes or till a condition is met. Asserts the condition is true afterwards
 #define RTTR_EXEC_TILL(maxGFs, cond)                       \
@@ -117,14 +104,28 @@ struct WorldFixture
         // Fast moving ships
         ggs.setSelection(AddonId::SHIP_SPEED, 4);
         // Explored area stays explored. Avoids fow creation
-        ggs.exploration = EXP_CLASSIC;
-        BOOST_REQUIRE(worldCreator(world));
-        BOOST_REQUIRE_EQUAL(world.GetNumPlayers(), T_numPlayers);
+        ggs.exploration = Exploration::Classic;
+        BOOST_TEST_REQUIRE(worldCreator(world));
+        BOOST_TEST_REQUIRE(world.GetNumPlayers() == T_numPlayers);
     }
     static PlayerInfo GetPlayer()
     {
         PlayerInfo result;
-        result.ps = PS_OCCUPIED;
+        result.ps = PlayerState::Occupied;
         return result;
     }
+};
+
+class TestWorld : public World
+{
+public:
+    TestWorld() = default;
+    TestWorld(const MapExtent size, DescIdx<LandscapeDesc> lt = DescIdx<LandscapeDesc>{1}) { Init(size, lt); }
+    using World::GetNodeInt;
+
+protected:
+    // LCOV_EXCL_START
+    void AltitudeChanged(MapPoint) override {}
+    void VisibilityChanged(MapPoint, unsigned, Visibility, Visibility) override {}
+    // LCOV_EXCL_STOP
 };

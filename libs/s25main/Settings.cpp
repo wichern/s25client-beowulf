@@ -1,21 +1,9 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Settings.h"
+#include "DrawPoint.h"
 #include "RTTR_Version.h"
 #include "RttrConfig.h"
 #include "drivers/AudioDriverWrapper.h"
@@ -23,6 +11,7 @@
 #include "files.h"
 #include "helpers/strUtils.h"
 #include "languages.h"
+#include "gameData/const_gui_ids.h"
 #include "libsiedler2/ArchivItem_Ini.h"
 #include "libsiedler2/ArchivItem_Text.h"
 #include "libsiedler2/libsiedler2.h"
@@ -32,11 +21,29 @@
 #include <boost/filesystem/operations.hpp>
 
 const int Settings::VERSION = 13;
-const std::array<std::string, 11> Settings::SECTION_NAMES = {
-  {"global", "video", "language", "driver", "sound", "lobby", "server", "proxy", "interface", "ingame", "addons"}};
+const std::array<std::string, 10> Settings::SECTION_NAMES = {
+  {"global", "video", "language", "driver", "sound", "lobby", "server", "proxy", "interface", "addons"}};
 
 const std::array<short, 13> Settings::SCREEN_REFRESH_RATES = {
   {-1, 25, 30, 50, 60, 75, 80, 100, 120, 150, 180, 200, 240}};
+
+const std::map<GUI_ID, std::string> persistentWindows = {{CGI_CHAT, "wnd_chat"},
+                                                         {CGI_POSTOFFICE, "wnd_postoffice"},
+                                                         {CGI_DISTRIBUTION, "wnd_distribution"},
+                                                         {CGI_BUILDORDER, "wnd_buildorder"},
+                                                         {CGI_TRANSPORT, "wnd_transport"},
+                                                         {CGI_MILITARY, "wnd_military"},
+                                                         {CGI_TOOLS, "wnd_tools"},
+                                                         {CGI_INVENTORY, "wnd_inventory"},
+                                                         {CGI_MINIMAP, "wnd_minimap"},
+                                                         {CGI_BUILDINGS, "wnd_buildings"},
+                                                         {CGI_BUILDINGSPRODUCTIVITY, "wnd_buildingsproductivity"},
+                                                         {CGI_MUSICPLAYER, "wnd_musicplayer"},
+                                                         {CGI_STATISTICS, "wnd_statistics"},
+                                                         {CGI_ECONOMICPROGRESS, "wnd_economicprogress"},
+                                                         {CGI_DIPLOMACY, "wnd_diplomacy"},
+                                                         {CGI_SHIP, "wnd_ship"},
+                                                         {CGI_MERCHANDISE_STATISTICS, "wnd_merchandise_statistics"}};
 
 namespace validate {
 boost::optional<uint16_t> checkPort(const std::string& port)
@@ -63,11 +70,12 @@ void Settings::LoadDefaults()
 {
     // global
     // {
-    // 0 = ask user at start,1 = enabled, 2 = disabled
+    // 0 = ask user at start, 1 = enabled, 2 = always ask
     global.submit_debug_data = 0;
-    global.use_upnp = 2;
+    global.use_upnp = false;
     global.smartCursor = true;
     global.debugMode = false;
+    global.showGFInfo = false;
     // }
 
     // video
@@ -102,10 +110,10 @@ void Settings::LoadDefaults()
 
     // sound
     // {
-    sound.musik = false;
-    sound.musik_volume = 30;
-    sound.effekte = true;
-    sound.effekte_volume = 75;
+    sound.musicEnabled = false;
+    sound.musicVolume = 30;
+    sound.effectsEnabled = true;
+    sound.effectsVolume = 75;
     sound.playlist = s25::files::defaultPlaylist;
     // }
 
@@ -133,14 +141,29 @@ void Settings::LoadDefaults()
     interface.revert_mouse = false;
     // }
 
-    // ingame
-    // {
-    ingame.scale_statistics = false;
-    // }
-
     // addons
     // {
     addons.configuration.clear();
+    // }
+
+    LoadIngameDefaults();
+}
+
+void Settings::LoadIngameDefaults()
+{
+    // ingame
+    // {
+    ingame.scale_statistics = false;
+    ingame.showBQ = false;
+    ingame.showNames = false;
+    ingame.showProductivity = false;
+    ingame.minimapExtended = false;
+    // }
+
+    // windows
+    // {
+    for(const auto& window : persistentWindows)
+        windows.persistentSettings[window.first] = PersistentWindowSettings();
     // }
 }
 
@@ -152,7 +175,7 @@ void Settings::Load()
     const auto settingsPath = RTTRCONFIG.ExpandPath(s25::resources::config);
     try
     {
-        if(libsiedler2::Load(settingsPath, settings) != 0 || settings.size() != SECTION_NAMES.size())
+        if(libsiedler2::Load(settingsPath, settings) != 0 || settings.size() < SECTION_NAMES.size())
             throw std::runtime_error("File missing or invalid");
 
         const libsiedler2::ArchivItem_Ini* iniGlobal =
@@ -169,46 +192,41 @@ void Settings::Load()
         const libsiedler2::ArchivItem_Ini* iniProxy = static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("proxy"));
         const libsiedler2::ArchivItem_Ini* iniInterface =
           static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("interface"));
-        const libsiedler2::ArchivItem_Ini* iniIngame =
-          static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("ingame"));
         const libsiedler2::ArchivItem_Ini* iniAddons =
           static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("addons"));
 
         // ist eine der Kategorien nicht vorhanden?
         if(!iniGlobal || !iniVideo || !iniLanguage || !iniDriver || !iniSound || !iniLobby || !iniServer || !iniProxy
-           || !iniInterface || !iniIngame || !iniAddons)
+           || !iniInterface || !iniAddons)
         {
             throw std::runtime_error("Missing section");
         }
         // stimmt die Settingsversion?
-        if(iniGlobal->getValueI("version") != VERSION)
-        {
+        if(iniGlobal->getValue("version", 0) != VERSION)
             throw std::runtime_error("Wrong version");
-        }
 
         // global
         // {
-        // stimmt die Spielrevision überein?
-        if(iniGlobal->getValue("gameversion") != RTTR_Version::GetRevision())
+        if(iniGlobal->getValue("gameversion") != rttr::version::GetRevision())
             s25util::warning("Your application version has changed - please recheck your settings!\n");
 
-        global.submit_debug_data = iniGlobal->getValueI("submit_debug_data");
-        global.use_upnp = iniGlobal->getValueI("use_upnp");
-        global.smartCursor = (iniGlobal->getValue("smartCursor").empty() || iniGlobal->getValueI("smartCursor") != 0);
-        global.debugMode = (iniGlobal->getValueI("debugMode") != 0);
-
+        global.submit_debug_data = iniGlobal->getIntValue("submit_debug_data");
+        global.use_upnp = iniGlobal->getBoolValue("use_upnp");
+        global.smartCursor = iniGlobal->getValue("smartCursor", true);
+        global.debugMode = iniGlobal->getValue("debugMode", false);
+        global.showGFInfo = iniGlobal->getValue("showGFInfo", false);
         // };
 
         // video
         // {
-        video.windowedSize.width = iniVideo->getValueI("windowed_width");
-        video.windowedSize.height = iniVideo->getValueI("windowed_height");
-        video.fullscreenSize.width = iniVideo->getValueI("fullscreen_width");
-        video.fullscreenSize.height = iniVideo->getValueI("fullscreen_height");
-        video.fullscreen = (iniVideo->getValueI("fullscreen") != 0);
-        video.vsync = iniVideo->getValueI("vsync");
-        video.vbo = (iniVideo->getValueI("vbo") != 0);
-        video.shared_textures = (iniVideo->getValueI("shared_textures") != 0);
+        video.windowedSize.width = iniVideo->getIntValue("windowed_width");
+        video.windowedSize.height = iniVideo->getIntValue("windowed_height");
+        video.fullscreenSize.width = iniVideo->getIntValue("fullscreen_width");
+        video.fullscreenSize.height = iniVideo->getIntValue("fullscreen_height");
+        video.fullscreen = iniVideo->getBoolValue("fullscreen");
+        video.vsync = iniVideo->getBoolValue("vsync");
+        video.vbo = iniVideo->getBoolValue("vbo");
+        video.shared_textures = iniVideo->getBoolValue("shared_textures");
         // };
 
         if(video.fullscreenSize.width == 0 || video.fullscreenSize.height == 0 || video.windowedSize.width == 0
@@ -230,10 +248,10 @@ void Settings::Load()
 
         // sound
         // {
-        sound.musik = (iniSound->getValueI("musik") != 0);
-        sound.musik_volume = iniSound->getValueI("musik_volume");
-        sound.effekte = (iniSound->getValueI("effekte") != 0);
-        sound.effekte_volume = iniSound->getValueI("effekte_volume");
+        sound.musicEnabled = iniSound->getBoolValue("musik");
+        sound.musicVolume = iniSound->getIntValue("musik_volume");
+        sound.effectsEnabled = iniSound->getBoolValue("effekte");
+        sound.effectsVolume = iniSound->getIntValue("effekte_volume");
         sound.playlist = iniSound->getValue("playlist");
         // }
 
@@ -241,7 +259,7 @@ void Settings::Load()
         // {
         lobby.name = iniLobby->getValue("name");
         lobby.password = iniLobby->getValue("password");
-        lobby.save_password = (iniLobby->getValueI("save_password") != 0);
+        lobby.save_password = iniLobby->getBoolValue("save_password");
         // }
 
         if(lobby.name.empty())
@@ -252,7 +270,7 @@ void Settings::Load()
         server.last_ip = iniServer->getValue("last_ip");
         boost::optional<uint16_t> port = validate::checkPort(iniServer->getValue("local_port"));
         server.localPort = port.value_or(3665);
-        server.ipv6 = (iniServer->getValueI("ipv6") != 0);
+        server.ipv6 = iniServer->getBoolValue("ipv6");
         // }
 
         // proxy
@@ -260,7 +278,7 @@ void Settings::Load()
         proxy.hostname = iniProxy->getValue("proxy");
         port = validate::checkPort(iniProxy->getValue("port"));
         proxy.port = port.value_or(1080);
-        proxy.type = ProxyType(iniProxy->getValueI("typ"));
+        proxy.type = ProxyType(iniProxy->getIntValue("typ"));
         // }
 
         // leere proxyadresse deaktiviert proxy komplett
@@ -276,13 +294,8 @@ void Settings::Load()
 
         // interface
         // {
-        interface.autosave_interval = iniInterface->getValueI("autosave_interval");
-        interface.revert_mouse = (iniInterface->getValueI("revert_mouse") != 0);
-        // }
-
-        // ingame
-        // {
-        ingame.scale_statistics = (iniIngame->getValueI("scale_statistics") != 0);
+        interface.autosave_interval = iniInterface->getIntValue("autosave_interval");
+        interface.revert_mouse = iniInterface->getBoolValue("revert_mouse");
         // }
 
         // addons
@@ -295,14 +308,55 @@ void Settings::Load()
                 addons.configuration.insert(std::make_pair(s25util::fromStringClassic<unsigned>(item->getName()),
                                                            s25util::fromStringClassic<unsigned>(item->getText())));
         }
-        // }
 
+        LoadIngame();
+        // }
     } catch(std::runtime_error& e)
     {
         s25util::warning(std::string("Could not use settings from \"") + settingsPath.string()
                          + "\", using default values. Reason: " + e.what());
         LoadDefaults();
         Save();
+    }
+}
+
+void Settings::LoadIngame()
+{
+    libsiedler2::Archiv settingsIngame;
+    const auto settingsPathIngame = RTTRCONFIG.ExpandPath(s25::resources::ingameOptions);
+    try
+    {
+        if(libsiedler2::Load(settingsPathIngame, settingsIngame) != 0)
+            throw std::runtime_error("File missing");
+
+        const libsiedler2::ArchivItem_Ini* iniIngame =
+          static_cast<libsiedler2::ArchivItem_Ini*>(settingsIngame.find("ingame"));
+        if(!iniIngame)
+            throw std::runtime_error("Missing section");
+        // ingame
+        // {
+        ingame.scale_statistics = iniIngame->getBoolValue("scale_statistics");
+        ingame.showBQ = iniIngame->getBoolValue("show_building_quality");
+        ingame.showNames = iniIngame->getBoolValue("show_names");
+        ingame.showProductivity = iniIngame->getBoolValue("show_productivity");
+        ingame.minimapExtended = iniIngame->getBoolValue("minimap_extended");
+        // }
+        // ingame windows
+        for(const auto& window : persistentWindows)
+        {
+            const auto* iniWindow = static_cast<const libsiedler2::ArchivItem_Ini*>(settingsIngame.find(window.second));
+            if(!iniWindow)
+                continue;
+            windows.persistentSettings[window.first].lastPos.x = iniWindow->getIntValue("pos_x");
+            windows.persistentSettings[window.first].lastPos.y = iniWindow->getIntValue("pos_y");
+            windows.persistentSettings[window.first].isOpen = iniWindow->getIntValue("is_open");
+        }
+    } catch(std::runtime_error& e)
+    {
+        s25util::warning(std::string("Could not use ingame settings from \"") + settingsPathIngame.string()
+                         + "\", using default values. Reason: " + e.what());
+        LoadIngameDefaults();
+        SaveIngame();
     }
 }
 
@@ -324,21 +378,21 @@ void Settings::Save()
     libsiedler2::ArchivItem_Ini* iniServer = static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("server"));
     libsiedler2::ArchivItem_Ini* iniProxy = static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("proxy"));
     libsiedler2::ArchivItem_Ini* iniInterface = static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("interface"));
-    libsiedler2::ArchivItem_Ini* iniIngame = static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("ingame"));
     libsiedler2::ArchivItem_Ini* iniAddons = static_cast<libsiedler2::ArchivItem_Ini*>(settings.find("addons"));
 
     // ist eine der Kategorien nicht vorhanden?
     RTTR_Assert(iniGlobal && iniVideo && iniLanguage && iniDriver && iniSound && iniLobby && iniServer && iniProxy
-                && iniInterface && iniIngame && iniAddons);
+                && iniInterface && iniAddons);
 
     // global
     // {
     iniGlobal->setValue("version", VERSION);
-    iniGlobal->setValue("gameversion", RTTR_Version::GetRevision());
+    iniGlobal->setValue("gameversion", rttr::version::GetRevision());
     iniGlobal->setValue("submit_debug_data", global.submit_debug_data);
     iniGlobal->setValue("use_upnp", global.use_upnp);
-    iniGlobal->setValue("smartCursor", global.smartCursor ? 1 : 0);
-    iniGlobal->setValue("debugMode", global.debugMode ? 1 : 0);
+    iniGlobal->setValue("smartCursor", global.smartCursor);
+    iniGlobal->setValue("debugMode", global.debugMode);
+    iniGlobal->setValue("showGFInfo", global.showGFInfo);
     // };
 
     // video
@@ -347,10 +401,10 @@ void Settings::Save()
     iniVideo->setValue("fullscreen_height", video.fullscreenSize.height);
     iniVideo->setValue("windowed_width", video.windowedSize.width);
     iniVideo->setValue("windowed_height", video.windowedSize.height);
-    iniVideo->setValue("fullscreen", (video.fullscreen ? 1 : 0));
+    iniVideo->setValue("fullscreen", video.fullscreen);
     iniVideo->setValue("vsync", video.vsync);
-    iniVideo->setValue("vbo", (video.vbo ? 1 : 0));
-    iniVideo->setValue("shared_textures", (video.shared_textures ? 1 : 0));
+    iniVideo->setValue("vbo", video.vbo);
+    iniVideo->setValue("shared_textures", video.shared_textures);
     // };
 
     // language
@@ -366,10 +420,10 @@ void Settings::Save()
 
     // sound
     // {
-    iniSound->setValue("musik", (sound.musik ? 1 : 0));
-    iniSound->setValue("musik_volume", sound.musik_volume);
-    iniSound->setValue("effekte", (sound.effekte ? 1 : 0));
-    iniSound->setValue("effekte_volume", sound.effekte_volume);
+    iniSound->setValue("musik", sound.musicEnabled);
+    iniSound->setValue("musik_volume", sound.musicVolume);
+    iniSound->setValue("effekte", sound.effectsEnabled);
+    iniSound->setValue("effekte_volume", sound.effectsVolume);
     iniSound->setValue("playlist", sound.playlist);
     // }
 
@@ -377,14 +431,14 @@ void Settings::Save()
     // {
     iniLobby->setValue("name", lobby.name);
     iniLobby->setValue("password", lobby.password);
-    iniLobby->setValue("save_password", (lobby.save_password ? 1 : 0));
+    iniLobby->setValue("save_password", lobby.save_password);
     // }
 
     // server
     // {
     iniServer->setValue("last_ip", server.last_ip);
     iniServer->setValue("local_port", server.localPort);
-    iniServer->setValue("ipv6", (server.ipv6 ? 1 : 0));
+    iniServer->setValue("ipv6", server.ipv6);
     // }
 
     // proxy
@@ -397,22 +451,60 @@ void Settings::Save()
     // interface
     // {
     iniInterface->setValue("autosave_interval", interface.autosave_interval);
-    iniInterface->setValue("revert_mouse", (interface.revert_mouse ? 1 : 0));
-    // }
-
-    // ingame
-    // {
-    iniIngame->setValue("scale_statistics", (ingame.scale_statistics ? 1 : 0));
+    iniInterface->setValue("revert_mouse", interface.revert_mouse);
     // }
 
     // addons
     // {
     iniAddons->clear();
     for(const auto& it : addons.configuration)
-        iniAddons->addValue(s25util::toStringClassic(it.first), s25util::toStringClassic(it.second));
+        iniAddons->setValue(s25util::toStringClassic(it.first), s25util::toStringClassic(it.second));
     // }
 
     bfs::path settingsPath = RTTRCONFIG.ExpandPath(s25::resources::config);
     if(libsiedler2::Write(settingsPath, settings) == 0)
         bfs::permissions(settingsPath, bfs::owner_read | bfs::owner_write);
+
+    SaveIngame();
+}
+
+void Settings::SaveIngame()
+{
+    libsiedler2::Archiv settingsIngame;
+    settingsIngame.alloc(1 + persistentWindows.size());
+    settingsIngame.set(0, std::make_unique<libsiedler2::ArchivItem_Ini>("ingame"));
+    unsigned i = 1;
+    for(const auto& window : persistentWindows)
+    {
+        settingsIngame.set(i, std::make_unique<libsiedler2::ArchivItem_Ini>(window.second));
+        i++;
+    }
+
+    auto* iniIngame = static_cast<libsiedler2::ArchivItem_Ini*>(settingsIngame.find("ingame"));
+
+    RTTR_Assert(iniIngame);
+
+    // ingame
+    // {
+    iniIngame->setValue("scale_statistics", ingame.scale_statistics);
+    iniIngame->setValue("show_building_quality", ingame.showBQ);
+    iniIngame->setValue("show_names", ingame.showNames);
+    iniIngame->setValue("show_productivity", ingame.showProductivity);
+    iniIngame->setValue("minimap_extended", ingame.minimapExtended);
+    // }
+
+    // ingame windows
+    for(const auto& window : persistentWindows)
+    {
+        auto* iniWindow = static_cast<libsiedler2::ArchivItem_Ini*>(settingsIngame.find(window.second));
+        if(!iniWindow)
+            continue;
+        iniWindow->setValue("pos_x", windows.persistentSettings[window.first].lastPos.x);
+        iniWindow->setValue("pos_y", windows.persistentSettings[window.first].lastPos.y);
+        iniWindow->setValue("is_open", windows.persistentSettings[window.first].isOpen);
+    }
+
+    bfs::path settingsPathIngame = RTTRCONFIG.ExpandPath(s25::resources::ingameOptions);
+    if(libsiedler2::Write(settingsPathIngame, settingsIngame) == 0)
+        bfs::permissions(settingsPathIngame, bfs::owner_read | bfs::owner_write);
 }

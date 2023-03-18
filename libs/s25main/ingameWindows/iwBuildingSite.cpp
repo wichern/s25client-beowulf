@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwBuildingSite.h"
 #include "Loader.h"
@@ -35,17 +22,19 @@ iwBuildingSite::iwBuildingSite(GameWorldView& gwv, const noBuildingSite* const b
       gwv(gwv), buildingsite(buildingsite)
 {
     // Bild des Gebäudes
-    AddImage(0, DrawPoint(113, 130), buildingsite->GetBuildingImage());
+    AddImage(0, DrawPoint(113, 130), &buildingsite->GetBuildingImage());
     // Gebäudename
     AddText(1, DrawPoint(113, 44), _("Order of building site"), COLOR_YELLOW, FontStyle::CENTER, NormalFont);
 
     // Hilfe
-    AddImageButton(2, DrawPoint(16, 147), Extent(30, 32), TC_GREY, LOADER.GetImageN("io", 225), _("Help"));
+    AddImageButton(2, DrawPoint(16, 147), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io", 225), _("Help"));
     // Gebäude abbrennen
-    AddImageButton(3, DrawPoint(50, 147), Extent(34, 32), TC_GREY, LOADER.GetImageN("io", 23), _("Demolish house"));
+    AddImageButton(3, DrawPoint(50, 147), Extent(34, 32), TextureColor::Grey, LOADER.GetImageN("io", 23),
+                   _("Demolish house"));
 
     // "Gehe Zu Ort"
-    AddImageButton(4, DrawPoint(179, 147), Extent(30, 32), TC_GREY, LOADER.GetImageN("io", 107), _("Go to place"));
+    AddImageButton(4, DrawPoint(179, 147), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io", 107),
+                   _("Go to place"));
 }
 
 void iwBuildingSite::Msg_ButtonClick(const unsigned ctrl_id)
@@ -86,12 +75,12 @@ void iwBuildingSite::Msg_PaintAfter()
 
         if(i == 0)
         {
-            wares_count = BUILDING_COSTS[buildingsite->GetNation()][buildingsite->GetBuildingType()].boards;
+            wares_count = BUILDING_COSTS[buildingsite->GetBuildingType()].boards;
             wares_used = buildingsite->getUsedBoards();
             wares_delivered = buildingsite->getBoards() + wares_used;
         } else
         {
-            wares_count = BUILDING_COSTS[buildingsite->GetNation()][buildingsite->GetBuildingType()].stones;
+            wares_count = BUILDING_COSTS[buildingsite->GetBuildingType()].stones;
             wares_used = buildingsite->getUsedStones();
             wares_delivered = buildingsite->getStones() + wares_used;
         }
@@ -107,12 +96,12 @@ void iwBuildingSite::Msg_PaintAfter()
         // Die Waren
         for(unsigned char z = 0; z < wares_count; ++z)
         {
-            glArchivItem_Bitmap* bitmap = LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + (i == 0 ? GD_BOARDS : GD_STONES));
-            bitmap->DrawFull(waresPos, (z < wares_delivered ? 0xFFFFFFFF : 0xFF404040));
+            LOADER.GetWareTex(i == 0 ? GoodType::Boards : GoodType::Stones)
+              ->DrawFull(waresPos, (z < wares_delivered ? 0xFFFFFFFF : 0xFF404040));
 
             // Hammer wenn Ware verbaut
             if(z < wares_used)
-                LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_HAMMER)->DrawFull(waresPos);
+                LOADER.GetWareTex(GoodType::Hammer)->DrawFull(waresPos);
             waresPos.x += 24;
         }
         curPos.y += 29;

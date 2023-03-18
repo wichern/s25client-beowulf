@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "EventManager.h"
 #include "GameEvent.h"
@@ -34,7 +21,7 @@ EventManager::~EventManager()
 
 void EventManager::Clear()
 {
-    for(auto& event : events)
+    for(const auto& event : events)
     {
         for(const GameEvent* ev : event.second)
         {
@@ -46,7 +33,7 @@ void EventManager::Clear()
     events.clear();
     RTTR_Assert(numActiveEvents == 0u);
 
-    for(auto& it : killList)
+    for(auto* it : killList)
     {
         GameObject* obj = it;
         it = nullptr;
@@ -110,6 +97,7 @@ void EventManager::DestroyCurrentObjects()
         // Object is no longer in the kill list (some may check this upon destruction)
         it = nullptr;
         obj->Destroy();
+        RTTR_Assert(!ObjectHasEvents(*obj));
         delete obj;
     }
 
@@ -145,7 +133,7 @@ void EventManager::ExecuteEvents(const EventMap::iterator& itEvents)
     // 2) Checking for events -> Remove all deleted events so only valid ones are in the list
     for(auto e_it = curEvents.begin(); e_it != curEvents.end(); e_it = curEvents.erase(e_it))
     {
-        const GameEvent* ev = (*e_it);
+        const GameEvent* ev = *e_it;
         RTTR_Assert(ev->obj);
         RTTR_Assert(ev->obj->GetObjId() <= GameObject::GetObjIDCounter());
 
@@ -210,7 +198,7 @@ void EventManager::Deserialize(SerializedGameData& sgd)
 
 bool EventManager::ObjectHasEvents(const GameObject& obj)
 {
-    for(auto& event : events)
+    for(const auto& event : events)
     {
         for(const GameEvent* ev : event.second)
         {
@@ -276,5 +264,10 @@ void EventManager::AddToKillList(GameObject* obj)
 {
     RTTR_Assert(obj);
     RTTR_Assert(!IsObjectInKillList(*obj));
-    killList.push_back(obj);
+    killList.emplace_back(obj);
+}
+
+void EventManager::AddToKillList(std::unique_ptr<GameObject> obj)
+{
+    AddToKillList(obj.release());
 }

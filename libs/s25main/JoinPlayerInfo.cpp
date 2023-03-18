@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "JoinPlayerInfo.h"
 #include "RTTR_Assert.h"
@@ -57,10 +44,10 @@ void JoinPlayerInfo::SetAIName(unsigned playerId)
 
     switch (aiInfo.type)
     {
-        case AI::DUMMY:
+        case AI::Type::Dummy:
             name = (boost::format(_("Dummy %u")) % playerId).str();
             break;
-        case AI::BEOWULF:
+        case AI::Type::Beowulf:
             name = (boost::format(_("Beowulf %u")) % playerId).str(); break;
         default: 
             name = (boost::format(_("Computer %u")) % playerId).str(); break;
@@ -68,13 +55,13 @@ void JoinPlayerInfo::SetAIName(unsigned playerId)
 
     name += _(" (AI)");
 
-    if(aiInfo.type == AI::DEFAULT || aiInfo.type == AI::BEOWULF)
+    if(aiInfo.type == AI::Type::Default || aiInfo.type == AI::Type::Beowulf)
     {
         switch(aiInfo.level)
         {
-            case AI::EASY: name += _(" (easy)"); break;
-            case AI::MEDIUM: name += _(" (medium)"); break;
-            case AI::HARD: name += _(" (hard)"); break;
+            case AI::Level::Easy: name += _(" (easy)"); break;
+            case AI::Level::Medium: name += _(" (medium)"); break;
+            case AI::Level::Hard: name += _(" (hard)"); break;
         }
     }
 }

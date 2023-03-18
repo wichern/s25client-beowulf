@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwBaseWarehouse.h"
 #include "GamePlayer.h"
@@ -68,40 +55,40 @@ iwBaseWarehouse::iwBaseWarehouse(GameWorldView& gwv, GameCommandFactory& gcFacto
     background = LOADER.GetImageN("resource", 41);
 
     // Auswahl für Auslagern/Einlagern Verbieten-Knöpfe
-    ctrlOptionGroup* group = AddOptionGroup(ID_STORE_SETTINGS_GROUP, ctrlOptionGroup::CHECK);
+    ctrlOptionGroup* group = AddOptionGroup(ID_STORE_SETTINGS_GROUP, GroupSelectType::Check);
     // Einlagern
-    group->AddImageButton(ID_COLLECT, DrawPoint(16, 335), Extent(32, 32), TC_GREY, LOADER.GetImageN("io_new", 4),
-                          _("Collect"));
+    group->AddImageButton(ID_COLLECT, DrawPoint(16, 335), Extent(32, 32), TextureColor::Grey,
+                          LOADER.GetImageN("io_new", 4), _("Collect"));
     // Auslagern
-    group->AddImageButton(ID_TAKEOUT, DrawPoint(52, 335), Extent(32, 32), TC_GREY, LOADER.GetImageN("io", 211),
-                          _("Take out of store"));
+    group->AddImageButton(ID_TAKEOUT, DrawPoint(52, 335), Extent(32, 32), TextureColor::Grey,
+                          LOADER.GetImageN("io", 211), _("Take out of store"));
     // Einlagern verbieten
-    group->AddImageButton(ID_STOP, DrawPoint(86, 335), Extent(32, 32), TC_GREY, LOADER.GetImageN("io", 212),
+    group->AddImageButton(ID_STOP, DrawPoint(86, 335), Extent(32, 32), TextureColor::Grey, LOADER.GetImageN("io", 212),
                           _("Stop storage"));
     // nix tun auswählen
     group->SetSelection(ID_COLLECT);
     // Alle auswählen bzw setzen!
-    AddImageButton(ID_SELECT_ALL, DrawPoint(122, 335), Extent(32, 32), TC_GREY, LOADER.GetImageN("io", 223),
+    AddImageButton(ID_SELECT_ALL, DrawPoint(122, 335), Extent(32, 32), TextureColor::Grey, LOADER.GetImageN("io", 223),
                    _("Select all"));
 
     // "Gehe Zu Ort"
-    AddImageButton(ID_GOTO, DrawPoint(122, 369), Extent(15, 32), TC_GREY, LOADER.GetImageN("io_new", 10),
+    AddImageButton(ID_GOTO, DrawPoint(122, 369), Extent(15, 32), TextureColor::Grey, LOADER.GetImageN("io_new", 10),
                    _("Go to place"));
     // Go to next warehouse
-    AddImageButton(ID_GOTO_NEXT, DrawPoint(139, 369), Extent(15, 32), TC_GREY, LOADER.GetImageN("io_new", 13),
-                   _("Go to next warehouse"));
+    AddImageButton(ID_GOTO_NEXT, DrawPoint(139, 369), Extent(15, 32), TextureColor::Grey,
+                   LOADER.GetImageN("io_new", 13), _("Go to next warehouse"));
 
     UpdateOverlays();
 
     // Lagerhaus oder Hafengebäude?
-    if(wh->GetGOT() == GOT_NOB_STOREHOUSE || wh->GetGOT() == GOT_NOB_HARBORBUILDING)
+    if(wh->GetGOT() == GO_Type::NobStorehouse || wh->GetGOT() == GO_Type::NobHarborbuilding)
     {
         // Abbrennbutton hinzufügen
         // "Blättern" in Bretter stauchen und verschieben
         GetCtrl<ctrlButton>(ID_PAGINATE)->SetWidth(32);
         GetCtrl<ctrlButton>(ID_PAGINATE)->SetPos(DrawPoint(86, 369));
 
-        AddImageButton(ID_DEMOLISH, DrawPoint(52, 369), Extent(32, 32), TC_GREY, LOADER.GetImageN("io", 23),
+        AddImageButton(ID_DEMOLISH, DrawPoint(52, 369), Extent(32, 32), TextureColor::Grey, LOADER.GetImageN("io", 23),
                        _("Demolish house"));
     }
 }
@@ -126,20 +113,25 @@ void iwBaseWarehouse::Msg_Group_ButtonClick(const unsigned group_id, const unsig
         EInventorySetting setting;
         switch(optiongroup->GetSelection())
         {
-            case ID_COLLECT: setting = EInventorySetting::COLLECT; break;
-            case ID_TAKEOUT: setting = EInventorySetting::SEND; break;
-            case ID_STOP: setting = EInventorySetting::STOP; break;
+            case ID_COLLECT: setting = EInventorySetting::Collect; break;
+            case ID_TAKEOUT: setting = EInventorySetting::Send; break;
+            case ID_STOP: setting = EInventorySetting::Stop; break;
             default: throw std::invalid_argument("iwBaseWarehouse::Optiongroup");
         }
-        InventorySetting state = GetCurPage() == warePageID ? wh->GetInventorySettingVisual(GoodType(ctrl_id - 100)) :
-                                                              wh->GetInventorySettingVisual(Job(ctrl_id - 100));
-        state.Toggle(setting);
-        if(gcFactory.SetInventorySetting(wh->GetPos(), GetCurPage() == peoplePageID, ctrl_id - 100, state))
-        {
-            // optisch schonmal setzen
-            wh->SetInventorySettingVisual(GetCurPage() == peoplePageID, ctrl_id - 100, state);
-            UpdateOverlay(ctrl_id - 100);
-        }
+        auto setSetting = [this](auto what, EInventorySetting setting) {
+            InventorySetting state = wh->GetInventorySettingVisual(what);
+            state.Toggle(setting);
+            if(gcFactory.SetInventorySetting(wh->GetPos(), what, state))
+            {
+                // optisch schonmal setzen
+                wh->SetInventorySettingVisual(what, state);
+                UpdateOverlay(rttr::enum_cast(what));
+            }
+        };
+        if(GetCurPage() == warePageID)
+            setSetting(GoodType(ctrl_id - 100), setting);
+        else
+            setSetting(Job(ctrl_id - 100), setting);
     }
 }
 
@@ -164,22 +156,23 @@ void iwBaseWarehouse::Msg_ButtonClick(const unsigned ctrl_id)
             EInventorySetting data;
             switch(optiongroup->GetSelection())
             {
-                case ID_COLLECT: data = EInventorySetting::COLLECT; break;
-                case ID_TAKEOUT: data = EInventorySetting::SEND; break;
-                case ID_STOP: data = EInventorySetting::STOP; break;
+                case ID_COLLECT: data = EInventorySetting::Collect; break;
+                case ID_TAKEOUT: data = EInventorySetting::Send; break;
+                case ID_STOP: data = EInventorySetting::Stop; break;
                 default: throw std::invalid_argument("iwBaseWarehouse::Optiongroup");
             }
-            const unsigned count = (GetCurPage() == warePageID) ? NUM_WARE_TYPES : NUM_JOB_TYPES;
+            const unsigned count =
+              (GetCurPage() == warePageID) ? helpers::NumEnumValues_v<GoodType> : helpers::NumEnumValues_v<Job>;
             std::vector<InventorySetting> states;
             states.reserve(count);
             if(GetCurPage() == warePageID)
             {
-                for(unsigned i = 0; i < NUM_WARE_TYPES; i++)
-                    states.push_back(wh->GetInventorySettingVisual(i == GD_WATEREMPTY ? GD_WATER : GoodType(i)));
+                for(const auto i : helpers::enumRange<GoodType>())
+                    states.push_back(wh->GetInventorySettingVisual(i == GoodType::WaterEmpty ? GoodType::Water : i));
             } else
             {
-                for(unsigned i = 0; i < NUM_JOB_TYPES; i++)
-                    states.push_back(wh->GetInventorySettingVisual(Job(i)));
+                for(const auto i : helpers::enumRange<Job>())
+                    states.push_back(wh->GetInventorySettingVisual(i));
             }
             // Check if we need to enable all or disable all
             // If at least 1 disabled is found, enable all
@@ -201,10 +194,14 @@ void iwBaseWarehouse::Msg_ButtonClick(const unsigned ctrl_id)
             if(gcFactory.SetAllInventorySettings(wh->GetPos(), GetCurPage() == peoplePageID, states))
             {
                 // optisch setzen
-                for(unsigned char i = 0; i < count; ++i)
+                if(GetCurPage() == warePageID)
                 {
-                    // Status ändern
-                    wh->SetInventorySettingVisual(GetCurPage() == peoplePageID, i, states[i]);
+                    for(const auto i : helpers::enumRange<GoodType>())
+                        wh->SetInventorySettingVisual(i, states[rttr::enum_cast(i)]);
+                } else
+                {
+                    for(const auto i : helpers::enumRange<Job>())
+                        wh->SetInventorySettingVisual(i, states[rttr::enum_cast(i)]);
                 }
                 UpdateOverlays();
             }
@@ -237,16 +234,16 @@ void iwBaseWarehouse::Msg_ButtonClick(const unsigned ctrl_id)
                 if(it == storehouses.end()) // was last entry in list -> goto first
                     it = storehouses.begin();
                 gwv.MoveToMapPt((*it)->GetPos());
-                if((*it)->GetBuildingType() == BLD_HEADQUARTERS)
+                if((*it)->GetBuildingType() == BuildingType::Headquarters)
                 {
                     WINDOWMANAGER.ReplaceWindow(std::make_unique<iwHQ>(gwv, gcFactory, *it)).SetPos(GetPos());
-                } else if((*it)->GetBuildingType() == BLD_HARBORBUILDING)
+                } else if((*it)->GetBuildingType() == BuildingType::HarborBuilding)
                 {
                     WINDOWMANAGER
                       .ReplaceWindow(
                         std::make_unique<iwHarborBuilding>(gwv, gcFactory, dynamic_cast<nobHarborBuilding*>(*it)))
                       .SetPos(GetPos());
-                } else if((*it)->GetBuildingType() == BLD_STOREHOUSE)
+                } else if((*it)->GetBuildingType() == BuildingType::Storehouse)
                 {
                     WINDOWMANAGER
                       .ReplaceWindow(
@@ -286,20 +283,20 @@ void iwBaseWarehouse::UpdateOverlay(unsigned i, bool isWare)
     // Einlagern verbieten-Bild (de)aktivieren
     auto* image = group->GetCtrl<ctrlImage>(400 + i);
     if(image)
-        image->SetVisible(isWare ? wh->IsInventorySettingVisual(GoodType(i), EInventorySetting::STOP) :
-                                   wh->IsInventorySettingVisual(Job(i), EInventorySetting::STOP));
+        image->SetVisible(isWare ? wh->IsInventorySettingVisual(GoodType(i), EInventorySetting::Stop) :
+                                   wh->IsInventorySettingVisual(Job(i), EInventorySetting::Stop));
 
     // Auslagern-Bild (de)aktivieren
     image = group->GetCtrl<ctrlImage>(500 + i);
     if(image)
-        image->SetVisible(isWare ? wh->IsInventorySettingVisual(GoodType(i), EInventorySetting::SEND) :
-                                   wh->IsInventorySettingVisual(Job(i), EInventorySetting::SEND));
+        image->SetVisible(isWare ? wh->IsInventorySettingVisual(GoodType(i), EInventorySetting::Send) :
+                                   wh->IsInventorySettingVisual(Job(i), EInventorySetting::Send));
 
     // Einlagern-Bild (de)aktivieren
     image = group->GetCtrl<ctrlImage>(700 + i);
     if(image)
-        image->SetVisible(isWare ? wh->IsInventorySettingVisual(GoodType(i), EInventorySetting::COLLECT) :
-                                   wh->IsInventorySettingVisual(Job(i), EInventorySetting::COLLECT));
+        image->SetVisible(isWare ? wh->IsInventorySettingVisual(GoodType(i), EInventorySetting::Collect) :
+                                   wh->IsInventorySettingVisual(Job(i), EInventorySetting::Collect));
 }
 
 void iwBaseWarehouse::UpdateOverlays()
@@ -307,7 +304,7 @@ void iwBaseWarehouse::UpdateOverlays()
     // Ein/Auslager Overlays entsprechend setzen
     for(unsigned char category = 0; category < 2; ++category)
     {
-        unsigned count = (category == 0) ? NUM_WARE_TYPES : NUM_JOB_TYPES;
+        unsigned count = (category == 0) ? helpers::NumEnumValues_v<GoodType> : helpers::NumEnumValues_v<Job>;
         for(unsigned i = 0; i < count; ++i)
         {
             UpdateOverlay(i, category == 0);

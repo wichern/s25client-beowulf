@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "PositionSearch.h"
 #include "AIPlayerJH.h"
@@ -59,9 +46,8 @@ AIJH::PositionSearchState AIJH::PositionSearch::execute(const AIPlayerJH& player
         }
 
         // now insert neighbouring nodes...
-        for(const auto dir : helpers::EnumRange<Direction>{})
+        for(const MapPoint neighbourPt : player.GetWorld().GetNeighbours(pt))
         {
-            MapPoint neighbourPt = player.GetWorld().GetNeighbour(pt, dir);
             unsigned nIdx = player.GetWorld().GetIdx(neighbourPt);
 
             // test if already tested or not in territory
@@ -79,13 +65,13 @@ AIJH::PositionSearchState AIJH::PositionSearch::execute(const AIPlayerJH& player
         // no more nodes to test
         // fail iff not reached minimum
         if(resultValue < minimum)
-            return SEARCH_FAILED;
+            return PositionSearchState::Failed;
         else
-            return SEARCH_SUCCESSFUL;
+            return PositionSearchState::Successfull;
     } else if(resultValue >= minimum && !searchGlobalOptimum)
     {
         // reached minimal satisfying value and we were not looking for the best
-        return SEARCH_SUCCESSFUL;
+        return PositionSearchState::Successfull;
     } else
-        return SEARCH_IN_PROGRESS;
+        return PositionSearchState::InProgress;
 }

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "LuaPlayer.h"
 #include "EventManager.h"
@@ -22,12 +9,13 @@
 #include "ai/AIPlayer.h"
 #include "buildings/nobBaseWarehouse.h"
 #include "buildings/nobHQ.h"
+#include "helpers/EnumRange.h"
 #include "helpers/toString.h"
 #include "lua/LuaHelpers.h"
 #include "lua/LuaInterfaceBase.h"
 #include "notifications/BuildingNote.h"
 #include "postSystem/PostMsgWithBuilding.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "world/TerritoryRegion.h"
 #include "gameTypes/BuildingCount.h"
 #include "gameData/BuildingConsts.h"
@@ -56,6 +44,7 @@ void LuaPlayer::Register(kaguya::State& state)
                                .addFunction("GetNumBuildingSites", &LuaPlayer::GetNumBuildingSites)
                                .addFunction("GetNumWares", &LuaPlayer::GetNumWares)
                                .addFunction("GetNumPeople", &LuaPlayer::GetNumPeople)
+                               .addFunction("GetStatisticsValue", &LuaPlayer::GetStatisticsValue)
                                .addFunction("AIConstructionOrder", &LuaPlayer::AIConstructionOrder)
                                .addFunction("ModifyHQ", &LuaPlayer::ModifyHQ)
                                .addFunction("GetHQPos", &LuaPlayer::GetHQPos)
@@ -91,14 +80,14 @@ void LuaPlayer::DisableBuilding(lua::SafeEnum<BuildingType> bld)
 
 void LuaPlayer::EnableAllBuildings()
 {
-    for(unsigned building_type = 0; building_type < NUM_BUILDING_TYPES; building_type++)
-        player.EnableBuilding(BuildingType(building_type));
+    for(const auto bld : helpers::enumRange<BuildingType>())
+        player.EnableBuilding(bld);
 }
 
 void LuaPlayer::DisableAllBuildings()
 {
-    for(unsigned building_type = 0; building_type < NUM_BUILDING_TYPES; building_type++)
-        player.DisableBuilding(BuildingType(building_type));
+    for(const auto bld : helpers::enumRange<BuildingType>())
+        player.DisableBuilding(bld);
 }
 
 void LuaPlayer::SetRestrictedArea(kaguya::VariadicArgType inPoints)
@@ -178,7 +167,7 @@ void LuaPlayer::SetRestrictedArea(kaguya::VariadicArgType inPoints)
 
 bool LuaPlayer::IsInRestrictedArea(unsigned x, unsigned y) const
 {
-    const GameWorldGame& world = player.GetGameWorld();
+    const GameWorld& world = player.GetGameWorld();
     lua::assertTrue(x < world.GetWidth(), "x coordinate to large");
     lua::assertTrue(y < world.GetHeight(), "y coordinate to large");
     return TerritoryRegion::IsPointValid(world.GetSize(), player.GetRestrictedArea(), MapPoint(x, y));
@@ -220,7 +209,13 @@ bool LuaPlayer::AddPeople(const std::map<lua::SafeEnum<Job>, unsigned>& people)
 
     for(const auto& it : people)
     {
-        goods.Add(it.first, it.second);
+        const Job job = it.first;
+        if(job == Job::BoatCarrier)
+        {
+            goods.Add(Job::Helper, it.second);
+            goods.Add(GoodType::Boat, it.second);
+        } else
+            goods.Add(job, it.second);
     }
 
     warehouse->AddGoods(goods, true);
@@ -247,12 +242,17 @@ unsigned LuaPlayer::GetNumPeople(lua::SafeEnum<Job> job) const
     return player.GetInventory().people[job];
 }
 
+unsigned LuaPlayer::GetStatisticsValue(lua::SafeEnum<StatisticType> stat) const
+{
+    return player.GetStatisticCurrentValue(stat);
+}
+
 bool LuaPlayer::AIConstructionOrder(unsigned x, unsigned y, lua::SafeEnum<BuildingType> bld)
 {
     // Only for actual AIs
     if(!player.isUsed() || player.isHuman())
         return false;
-    GameWorldGame& world = player.GetGameWorld();
+    GameWorld& world = player.GetGameWorld();
     lua::assertTrue(x < world.GetWidth(), "x coordinate to large");
     lua::assertTrue(y < world.GetHeight(), "y coordinate to large");
     world.GetNotifications().publish(BuildingNote(BuildingNote::LuaOrder, player.GetPlayerId(), MapPoint(x, y), bld));
@@ -299,26 +299,14 @@ bool LuaPlayer::IsAttackable(unsigned char otherPlayerId)
 
 void LuaPlayer::SuggestPact(unsigned char otherPlayerId, const lua::SafeEnum<PactType> pt, const unsigned duration)
 {
-    auto gameInst = game.lock();
-    if(!gameInst)
-        return;
-    AIPlayer* ai = gameInst->GetAIPlayer(player.GetPlayerId());
+    AIPlayer* ai = game.GetAIPlayer(player.GetPlayerId());
     if(ai != nullptr)
-    {
-        AIInterface aii = ai->getAIInterface();
-        aii.SuggestPact(otherPlayerId, pt, duration);
-    }
+        ai->getAIInterface().SuggestPact(otherPlayerId, pt, duration);
 }
 
 void LuaPlayer::CancelPact(const lua::SafeEnum<PactType> pt, unsigned char otherPlayerId)
 {
-    auto gameInst = game.lock();
-    if(!gameInst)
-        return;
-    AIPlayer* ai = gameInst->GetAIPlayer(player.GetPlayerId());
+    AIPlayer* ai = game.GetAIPlayer(player.GetPlayerId());
     if(ai != nullptr)
-    {
-        AIInterface aii = ai->getAIInterface();
-        aii.CancelPact(pt, otherPlayerId);
-    }
+        ai->getAIInterface().CancelPact(pt, otherPlayerId);
 }

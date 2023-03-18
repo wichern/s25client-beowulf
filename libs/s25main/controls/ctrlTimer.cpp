@@ -1,75 +1,47 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ctrlTimer.h"
 
 #include "drivers/VideoDriverWrapper.h"
 
-/** @var ctrlTimer::timer
- *
- *  Der Timer zum Abgleichen der Zeit.
- */
+ctrlTimer::ctrlTimer(Window* parent, unsigned id, std::chrono::milliseconds timeout)
+    : Window(parent, id, DrawPoint(0, 0)), timeout_(timeout), timer_(true)
+{}
 
-/** @var ctrlTimer::timeout
- *
- *  Die Zeit nach der der Timer zünden soll.
+/**
+ *  start the timer
  */
-
-ctrlTimer::ctrlTimer(Window* parent, unsigned id, unsigned timeout) : Window(parent, id, DrawPoint(0, 0))
+void ctrlTimer::Start(std::chrono::milliseconds timeout)
 {
-    Start(timeout);
+    timeout_ = timeout;
+    Start();
+}
+
+void ctrlTimer::Start()
+{
+    timer_.restart();
 }
 
 /**
- *  startet den Timer.
- */
-void ctrlTimer::Start(unsigned timeout)
-{
-    this->timeout_ = timeout;
-
-    // timer initialisieren
-    timer = VIDEODRIVER.GetTickCount();
-}
-
-/**
- *  stoppt den Timer
+ *  stop the timer
  */
 void ctrlTimer::Stop()
 {
-    timer = 0;
+    timer_.stop();
 }
 
 void ctrlTimer::Msg_PaintBefore()
 {
     Window::Msg_PaintBefore();
-    // timer ist deaktiviert, nix tun
-    if(timer == 0)
+
+    if(!timer_.isRunning())
         return;
 
-    // Bei Timeout weiterschalten
-    if(VIDEODRIVER.GetTickCount() - timer > timeout_)
+    if(timer_.getElapsed() >= timeout_)
     {
+        timer_.restart(); // Do this first so parent can stop or change duration
         GetParent()->Msg_Timer(GetID());
-
-        if(timer != 0)
-        {
-            timer = VIDEODRIVER.GetTickCount();
-            if(timer == 0)
-                timer = 1;
-        }
     }
 }

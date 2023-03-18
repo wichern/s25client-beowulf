@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noMovable.h"
 
@@ -22,14 +9,14 @@
 #include "SerializedGameData.h"
 #include "enum_cast.hpp"
 #include "network/GameClient.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/MapConsts.h"
 #include "s25util/Log.h"
 
 EventState::EventState(SerializedGameData& sgd) : elapsed(sgd.PopUnsignedInt()), length(sgd.PopUnsignedInt()) {}
 
 noMovable::noMovable(const NodalObjectType nop, const MapPoint pos)
-    : noCoordBase(nop, pos), curMoveDir(4), ascent(0), moving(false), current_ev(nullptr)
+    : noCoordBase(nop, pos), curMoveDir(Direction::SouthEast), ascent(0), moving(false), current_ev(nullptr)
 {}
 
 void noMovable::Serialize(SerializedGameData& sgd) const
@@ -55,9 +42,9 @@ noMovable::noMovable(SerializedGameData& sgd, const unsigned obj_id)
 void noMovable::Walk()
 {
     moving = false;
-    gwg->RemoveFigure(pos, this);
-    pos = gwg->GetNeighbour(pos, curMoveDir);
-    gwg->AddFigure(pos, this);
+    const MapPoint oldPos = pos;
+    pos = world->GetNeighbour(pos, curMoveDir);
+    world->AddFigure(pos, world->RemoveFigure(oldPos, *this));
 }
 
 void noMovable::FaceDir(Direction newDir)
@@ -85,7 +72,7 @@ void noMovable::StartMoving(const Direction dir, unsigned gf_length)
 
     // Steigung ermitteln, muss entsprechend langsamer (hoch) bzw. schneller (runter) laufen
     // runter natürlich nich so viel schneller werden wie langsamer hoch
-    switch(int(gwg->GetNeighbourNode(pos, dir).altitude) - int(gwg->GetNode(pos).altitude))
+    switch(int(world->GetNeighbourNode(pos, dir).altitude) - int(world->GetNode(pos).altitude))
     {
         default: ascent = 3; break; // gerade
         case 1:
@@ -158,7 +145,7 @@ DrawPoint noMovable::CalcRelative(DrawPoint curPt, DrawPoint nextPt) const
     RTTR_Assert(curTimePassed <= duration);
 
     // Check for map border crossing
-    const Position mapDrawSize = gwg->GetSize() * Position(TR_W, TR_H);
+    const Position mapDrawSize = world->GetSize() * Position(TR_W, TR_H);
     if(std::abs(nextPt.x - curPt.x) >= mapDrawSize.x / 2)
     {
         // So we need to get closer to nextPt
@@ -181,8 +168,8 @@ DrawPoint noMovable::CalcRelative(DrawPoint curPt, DrawPoint nextPt) const
 /// Interpoliert fürs Laufen zwischen zwei Kartenpunkten
 DrawPoint noMovable::CalcWalkingRelative() const
 {
-    Position curPt = gwg->GetNodePos(pos);
-    Position nextPt = gwg->GetNodePos(gwg->GetNeighbour(pos, curMoveDir));
+    Position curPt = world->GetNodePos(pos);
+    Position nextPt = world->GetNodePos(world->GetNeighbour(pos, curMoveDir));
 
     return CalcRelative(curPt, nextPt);
 }
@@ -209,7 +196,7 @@ MapPoint noMovable::GetDestinationForCurrentMove() const
     // Bewegt sich das Ding gerade?
     if(IsMoving())
         // Dann unsere Zielrichtung zur Berechnung verwenden
-        return gwg->GetNeighbour(pos, curMoveDir);
+        return world->GetNeighbour(pos, curMoveDir);
 
     return pos;
 }

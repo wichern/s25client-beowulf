@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofCatapultMan.h"
 #include "CatapultStone.h"
@@ -27,7 +14,7 @@
 #include "network/GameClient.h"
 #include "ogl/glArchivItem_Bitmap_Player.h"
 #include "random/Random.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/JobConsts.h"
 #include "gameData/MapConsts.h"
 #include "gameData/GameConsts.h"
@@ -38,26 +25,26 @@ nofCatapultMan::PossibleTarget::PossibleTarget(SerializedGameData& sgd)
     : pos(sgd.PopMapPoint()), distance(sgd.PopUnsignedInt())
 {}
 
-void nofCatapultMan::PossibleTarget::Serialize_PossibleTarget(SerializedGameData& sgd) const
+void nofCatapultMan::PossibleTarget::Serialize(SerializedGameData& sgd) const
 {
-    sgd.PushMapPoint(pos);
+    helpers::pushPoint(sgd, pos);
     sgd.PushUnsignedInt(distance);
 }
 
 nofCatapultMan::nofCatapultMan(const MapPoint pos, const unsigned char player, nobUsual* workplace)
-    : nofBuildingWorker(JOB_HELPER, pos, player, workplace), wheel_steps(0)
+    : nofBuildingWorker(Job::Helper, pos, player, workplace), wheel_steps(0)
 {}
 
 nofCatapultMan::nofCatapultMan(SerializedGameData& sgd, const unsigned obj_id)
     : nofBuildingWorker(sgd, obj_id), wheel_steps(sgd.PopSignedInt()), target(sgd)
 {}
 
-void nofCatapultMan::Serialize_nofCatapultMan(SerializedGameData& sgd) const
+void nofCatapultMan::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_nofBuildingWorker(sgd);
+    nofBuildingWorker::Serialize(sgd);
 
     sgd.PushSignedInt(wheel_steps);
-    target.Serialize_PossibleTarget(sgd);
+    target.PossibleTarget::Serialize(sgd);
 }
 
 void nofCatapultMan::WalkedDerived() {}
@@ -69,7 +56,7 @@ void nofCatapultMan::DrawWorking(DrawPoint drawPt)
     switch(state)
     {
         default: return;
-        case STATE_CATAPULT_TARGETBUILDING:
+        case State::CatapultTargetBuilding:
         {
             int step = GAMECLIENT.Interpolate(std::abs(wheel_steps) + 1, current_ev);
 
@@ -86,7 +73,7 @@ void nofCatapultMan::DrawWorking(DrawPoint drawPt)
             //  LOADER.GetPlayerImage("rom_bobs", 1787+(7+wheel_steps)%6)->Draw(x-7,y-19);
         }
         break;
-        case STATE_CATAPULT_BACKOFF:
+        case State::CatapultBackoff:
         {
             int step = GAMECLIENT.Interpolate((std::abs(wheel_steps) + 3) * 2, current_ev);
 
@@ -113,25 +100,26 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
     switch(state)
     {
         default: break;
-        case STATE_WAITING1:
+        case State::Waiting1:
         {
             // Fertig mit warten --> anfangen zu arbeiten
 
             // Liste von potentiellen Zielen
             std::vector<PossibleTarget> possibleTargets;
 
-            sortedMilitaryBlds buildings = gwg->LookForMilitaryBuildings(pos, 3);
-            for(auto& building : buildings)
+            sortedMilitaryBlds buildings = world->LookForMilitaryBuildings(pos, 3);
+            for(auto* building : buildings)
             {
                 // Auch ein richtiges Militärgebäude (kein HQ usw.),
-                if(building->GetGOT() == GOT_NOB_MILITARY && gwg->GetPlayer(player).IsAttackable(building->GetPlayer()))
+                if(building->GetGOT() == GO_Type::NobMilitary
+                   && world->GetPlayer(player).IsAttackable(building->GetPlayer()))
                 {
                     // Was nicht im Nebel liegt und auch schon besetzt wurde (nicht neu gebaut)?
-                    if(gwg->GetNode(building->GetPos()).fow[player].visibility == VIS_VISIBLE
+                    if(world->GetNode(building->GetPos()).fow[player].visibility == Visibility::Visible
                        && !static_cast<nobMilitary*>(building)->IsNewBuilt())
                     {
                         // Entfernung ausrechnen
-                        unsigned distance = gwg->CalcDistance(pos, building->GetPos());
+                        unsigned distance = world->CalcDistance(pos, building->GetPos());
 
                         // Entfernung nicht zu hoch?
                         if(distance < CATAPULT_ATTACK_RANGE)
@@ -156,7 +144,7 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
             workplace->ConsumeWares();
 
             // Eins zufällig auswählen
-            target = possibleTargets[RANDOM.Rand(__FILE__, __LINE__, GetObjId(), possibleTargets.size())];
+            target = RANDOM_ELEMENT(possibleTargets);
 
             // Get distance and direction
             int distX;
@@ -171,9 +159,9 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
                 targetIsRight = false;
             }
             // Distance over map border is closer (max distance is size/2 due to wrap around)
-            if(distX > gwg->GetWidth() / 2)
+            if(distX > world->GetWidth() / 2)
             {
-                distX -= gwg->GetWidth() / 2;
+                distX -= world->GetWidth() / 2;
                 targetIsRight = !targetIsRight; // Reverse direction
             }
 
@@ -190,9 +178,9 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
                 targetIsDown = false;
             }
             // Distance over map border is closer (max distance is size/2 due to wrap around)
-            if(distY > gwg->GetHeight() / 2)
+            if(distY > world->GetHeight() / 2)
             {
-                distY -= gwg->GetHeight() / 2;
+                distY -= world->GetHeight() / 2;
                 targetIsDown = !targetIsDown; // Reverse direction
             }
 
@@ -201,14 +189,14 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
 
             // Y-Abstand nur unwesentlich klein --> Richtung 0 und 3 (direkt gegenüber) nehmen
             if(distY <= distX / 5)
-                shooting_dir = (targetIsRight) ? Direction::EAST : Direction::WEST;
+                shooting_dir = (targetIsRight) ? Direction::East : Direction::West;
             else
             {
                 // Ansonsten noch y mit berücksichtigen und je einen der 4 Quadranten nehmen
                 if(targetIsDown)
-                    shooting_dir = (targetIsRight) ? Direction::SOUTHEAST : Direction::SOUTHWEST;
+                    shooting_dir = (targetIsRight) ? Direction::SouthEast : Direction::SouthWest;
                 else
-                    shooting_dir = (targetIsRight) ? Direction::NORTHEAST : Direction::NORTHWEST;
+                    shooting_dir = (targetIsRight) ? Direction::NorthEast : Direction::NorthWest;
             }
 
             // "Drehschritte" ausrechnen, da von Richtung 4 aus gedreht wird
@@ -218,18 +206,18 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
 
             current_ev = GetEvMgr().AddEvent(this, 15 * (std::abs(wheel_steps) + 1), 1);
 
-            state = STATE_CATAPULT_TARGETBUILDING;
+            state = State::CatapultTargetBuilding;
 
             // wir arbeiten
             workplace->is_working = true;
         }
         break;
-        case STATE_CATAPULT_TARGETBUILDING:
+        case State::CatapultTargetBuilding:
         {
             // Stein in Bewegung setzen
 
             // Soll das Gebäude getroffen werden (70%)
-            bool hit = (RANDOM.Rand(__FILE__, __LINE__, GetObjId(), 99) < 70);
+            bool hit = (RANDOM_RAND(99) < 70);
 
             // Radius fürs Treffen und Nicht-Treffen,  (in Pixeln), nur visuell
             const int RADIUS_HIT = 15; // nicht nach unten hin!
@@ -244,21 +232,19 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
             } else
             {
                 // Ansonsten zufälligen Punkt rundrum heraussuchen
-                unsigned d = RANDOM.Rand(__FILE__, __LINE__, GetObjId(), Direction::COUNT);
-
-                destMap = gwg->GetNeighbour(target.pos, Direction::fromInt(d));
+                destMap = world->GetNeighbour(target.pos, RANDOM_ENUM(Direction));
             }
 
             unsigned shooting_dir = (7 + wheel_steps) % 6;
 
             // Größe der Welt in Pixeln bestimmen
-            int worldWidth = gwg->GetWidth() * TR_W;
-            int worldHeight = gwg->GetHeight() * TR_H;
+            int worldWidth = world->GetWidth() * TR_W;
+            int worldHeight = world->GetHeight() * TR_H;
 
             // Startpunkt bestimmen
-            Position start = gwg->GetNodePos(pos) + STONE_STARTS[shooting_dir]; //-V557
+            Position start = world->GetNodePos(pos) + STONE_STARTS[shooting_dir]; //-V557
             // (Visuellen) Aufschlagpunkt bestimmen
-            Position dest = gwg->GetNodePos(destMap);
+            Position dest = world->GetNodePos(destMap);
 
             // Kartenränder beachten
             // Wenn Abstand kleiner is, den kürzeren Abstand über den Kartenrand wählen
@@ -274,22 +260,22 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
             // Bei getroffenen den Aufschlagspunkt am Gebäude ein bisschen variieren
             if(hit)
             {
-                dest.x += (RANDOM.Rand(__FILE__, __LINE__, GetObjId(), RADIUS_HIT * 2) - RADIUS_HIT);
+                dest.x += (RANDOM_RAND(RADIUS_HIT * 2) - RADIUS_HIT);
                 // hier nicht nach unten gehen, da die Tür (also Nullpunkt
                 // ja schon ziemlich weit unten ist!
-                dest.y -= RANDOM.Rand(__FILE__, __LINE__, GetObjId(), RADIUS_HIT);
+                dest.y -= RANDOM_RAND(RADIUS_HIT);
             }
 
             // Stein erzeugen
-            gwg->AddCatapultStone(new CatapultStone(target.pos, destMap, start, dest, 80));
+            world->AddCatapultStone(new CatapultStone(target.pos, destMap, start, dest, 80));
 
             // Katapult wieder in Ausgangslage zurückdrehen
             current_ev = GetEvMgr().AddEvent(this, 15 * (std::abs(wheel_steps) + 3), 1);
 
-            state = STATE_CATAPULT_BACKOFF;
+            state = State::CatapultBackoff;
         }
         break;
-        case STATE_CATAPULT_BACKOFF:
+        case State::CatapultBackoff:
         {
             current_ev = nullptr;
             // wir arbeiten nicht mehr

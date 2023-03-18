@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/GameWorldBase.h"
 #include "BQCalculator.h"
@@ -21,10 +8,13 @@
 #include "GlobalGameSettings.h"
 #include "MapGeometry.h"
 #include "RttrForeachPt.h"
+#include "SoundManager.h"
+#include "TradePathCache.h"
 #include "addons/const_addons.h"
 #include "buildings/nobHarborBuilding.h"
 #include "buildings/nobMilitary.h"
 #include "figures/nofPassiveSoldier.h"
+#include "helpers/EnumRange.h"
 #include "helpers/containerUtils.h"
 #include "lua/LuaInterfaceGame.h"
 #include "notifications/NodeNote.h"
@@ -41,7 +31,7 @@
 
 GameWorldBase::GameWorldBase(std::vector<GamePlayer> players, const GlobalGameSettings& gameSettings, EventManager& em)
     : roadPathFinder(new RoadPathFinder(*this)), freePathFinder(new FreePathFinder(*this)), players(std::move(players)),
-      gameSettings(gameSettings), em(em), gi(nullptr)
+      gameSettings(gameSettings), em(em), soundManager(std::make_unique<SoundManager>()), lua(nullptr), gi(nullptr)
 {}
 
 GameWorldBase::~GameWorldBase() = default;
@@ -49,7 +39,6 @@ GameWorldBase::~GameWorldBase() = default;
 void GameWorldBase::Init(const MapExtent& mapSize, DescIdx<LandscapeDesc> lt)
 {
     RTTR_Assert(GetDescription().terrain.size() > 0); // Must have game data initialized
-    BuildingProperties::Init();
     World::Init(mapSize, lt);
     freePathFinder->Init(mapSize);
 }
@@ -82,7 +71,7 @@ bool GameWorldBase::IsSinglePlayer() const
     bool foundPlayer = false;
     for(const PlayerInfo& player : players)
     {
-        if(player.ps == PS_OCCUPIED)
+        if(player.ps == PlayerState::Occupied)
         {
             if(foundPlayer)
                 return false;
@@ -123,12 +112,12 @@ bool GameWorldBase::IsRoadAvailable(const bool boat_road, const MapPoint pt) con
     {
         bool flagPossible = false;
 
-        for(const auto dir : helpers::EnumRange<Direction>{})
+        for(const DescIdx<TerrainDesc> tIdx : GetTerrainsAround(pt))
         {
-            TerrainBQ bq = GetDescription().get(GetRightTerrain(pt, dir)).GetBQ();
-            if(bq == TerrainBQ::DANGER)
+            const TerrainBQ bq = GetDescription().get(tIdx).GetBQ();
+            if(bq == TerrainBQ::Danger)
                 return false;
-            else if(bq != TerrainBQ::NOTHING)
+            else if(bq != TerrainBQ::Nothing)
                 flagPossible = true;
         }
 
@@ -193,9 +182,9 @@ bool GameWorldBase::IsPlantSpace(const MapPoint& pt) const
 
 bool GameWorldBase::IsFlagAround(const MapPoint& pt) const
 {
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const MapPoint nb : GetNeighbours(pt))
     {
-        if(GetNO(GetNeighbour(pt, dir))->GetBM() == BlockingManner::Flag)
+        if(GetNO(nb)->GetBM() == BlockingManner::Flag)
             return true;
     }
     return false;
@@ -205,7 +194,7 @@ void GameWorldBase::RecalcBQForRoad(const MapPoint pt)
 {
     RecalcBQ(pt);
 
-    for(const Direction dir : {Direction::EAST, Direction::SOUTHEAST, Direction::SOUTHWEST})
+    for(const Direction dir : {Direction::East, Direction::SouthEast, Direction::SouthWest})
         RecalcBQ(GetNeighbour(pt, dir));
 }
 
@@ -226,12 +215,13 @@ bool GameWorldBase::IsMilitaryBuildingNearNode(const MapPoint nPt, const unsigne
 bool GameWorldBase::IsMilitaryBuildingOnNode(const MapPoint pt, bool attackBldsOnly) const
 {
     const noBase* obj = GetNO(pt);
-    if(obj->GetType() == NOP_BUILDING || obj->GetType() == NOP_BUILDINGSITE)
+    if(obj->GetType() == NodalObjectType::Building || obj->GetType() == NodalObjectType::Buildingsite)
     {
         BuildingType buildingType = static_cast<const noBaseBuilding*>(obj)->GetBuildingType();
         if(BuildingProperties::IsMilitary(buildingType))
             return true;
-        if(!attackBldsOnly && (buildingType == BLD_HEADQUARTERS || buildingType == BLD_HARBORBUILDING))
+        if(!attackBldsOnly
+           && (buildingType == BuildingType::Headquarters || buildingType == BuildingType::HarborBuilding))
             return true;
     }
 
@@ -272,7 +262,7 @@ const noFlag* GameWorldBase::GetRoadFlag(MapPoint pt, Direction& dir, helpers::O
         pt = GetNeighbour(pt, *nextDir);
 
         // endlich am Ende des Weges und an einer Flagge angekommen?
-        if(GetNO(pt)->GetType() == NOP_FLAG)
+        if(GetNO(pt)->GetType() == NodalObjectType::Flag)
         {
             dir = *nextDir + 3u;
             return GetSpecObj<noFlag>(pt);
@@ -301,8 +291,8 @@ void GameWorldBase::AltitudeChanged(const MapPoint pt)
 void GameWorldBase::RecalcBQAroundPoint(const MapPoint pt)
 {
     RecalcBQ(pt);
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        RecalcBQ(GetNeighbour(pt, dir));
+    for(const MapPoint nb : GetNeighbours(pt))
+        RecalcBQ(nb);
 }
 
 void GameWorldBase::RecalcBQAroundPointBig(const MapPoint pt)
@@ -319,7 +309,7 @@ Visibility GameWorldBase::CalcVisiblityWithAllies(const MapPoint pt, const unsig
     const MapNode& node = GetNode(pt);
     Visibility best_visibility = node.fow[player].visibility;
 
-    if(best_visibility == VIS_VISIBLE)
+    if(best_visibility == Visibility::Visible)
         return best_visibility;
 
     /// Teamsicht aktiviert?
@@ -392,7 +382,6 @@ unsigned GameWorldBase::GetHarborInDir(const MapPoint pt, const unsigned origin_
 /// Functor that returns true, when the owner of a point is set and different than the player
 struct IsPointOwnerDifferent
 {
-    using result_type = unsigned char;
     const GameWorldBase& gwb;
     // Owner to compare. Note that owner=0 --> No owner => owner=player+1
     const unsigned char cmpOwner;
@@ -413,14 +402,14 @@ bool GameWorldBase::IsHarborPointFree(const unsigned harborId, const unsigned ch
 
     // Überprüfen, ob das Gebiet in einem bestimmten Radius entweder vom Spieler oder gar nicht besetzt ist außer wenn
     // der Hafen und die Flagge im Spielergebiet liegen
-    MapPoint flagPos = GetNeighbour(hbPos, Direction::SOUTHEAST);
+    MapPoint flagPos = GetNeighbour(hbPos, Direction::SouthEast);
     if(GetNode(hbPos).owner != player + 1 || GetNode(flagPos).owner != player + 1)
     {
         if(CheckPointsInRadius(hbPos, 4, IsPointOwnerDifferent(*this, player), false))
             return false;
     }
 
-    return GetNode(hbPos).bq == BQ_HARBOR;
+    return GetNode(hbPos).bq == BuildingQuality::Harbor;
 }
 
 /// Sucht freie Hafenpunkte, also wo noch ein Hafen gebaut werden kann
@@ -461,7 +450,7 @@ std::vector<unsigned> GameWorldBase::GetUsableTargetHarborsForAttack(const MapPo
 {
     // Walk to the flag of the bld/harbor. Important to check because in some locations where the coast is north of the
     // harbor this might be blocked
-    const MapPoint flagPt = GetNeighbour(targetPt, Direction::SOUTHEAST);
+    const MapPoint flagPt = GetNeighbour(targetPt, Direction::SouthEast);
     std::vector<unsigned> harbor_points;
     // Check each possible harbor
     for(unsigned curHbId = 1; curHbId <= GetNumHarborPoints(); ++curHbId)
@@ -482,7 +471,7 @@ std::vector<unsigned> GameWorldBase::GetUsableTargetHarborsForAttack(const MapPo
 
         // add seaIds from which we can actually attack the harbor
         bool harborinlist = false;
-        for(const auto dir : helpers::EnumRange<Direction>{})
+        for(const auto dir : helpers::enumRange<Direction>())
         {
             const unsigned short seaId = GetSeaId(curHbId, dir);
             if(!seaId)
@@ -491,7 +480,7 @@ std::vector<unsigned> GameWorldBase::GetUsableTargetHarborsForAttack(const MapPo
             bool previouslytested = false;
             for(unsigned k = 0; k < rttr::enum_cast(dir); k++)
             {
-                if(seaId == GetSeaId(curHbId, Direction::fromInt(k)))
+                if(seaId == GetSeaId(curHbId, Direction(k)))
                 {
                     previouslytested = true;
                     break;
@@ -522,7 +511,7 @@ std::vector<unsigned short> GameWorldBase::GetFilteredSeaIDsForAttack(const MapP
 {
     // Walk to the flag of the bld/harbor. Important to check because in some locations where the coast is north of the
     // harbor this might be blocked
-    const MapPoint flagPt = GetNeighbour(targetPt, Direction::SOUTHEAST);
+    const MapPoint flagPt = GetNeighbour(targetPt, Direction::SouthEast);
     std::vector<unsigned short> confirmedSeaIds;
     // Check each possible harbor
     for(unsigned curHbId = 1; curHbId <= GetNumHarborPoints(); ++curHbId)
@@ -541,7 +530,7 @@ std::vector<unsigned short> GameWorldBase::GetFilteredSeaIDsForAttack(const MapP
                 continue;
         }
 
-        for(const auto dir : helpers::EnumRange<Direction>{})
+        for(const auto dir : helpers::enumRange<Direction>())
         {
             const unsigned short seaId = GetSeaId(curHbId, dir);
             if(!seaId)
@@ -554,7 +543,7 @@ std::vector<unsigned short> GameWorldBase::GetFilteredSeaIDsForAttack(const MapP
             bool previouslytested = false;
             for(unsigned k = 0; k < rttr::enum_cast(dir); k++)
             {
-                if(seaId == GetSeaId(curHbId, Direction::fromInt(k)))
+                if(seaId == GetSeaId(curHbId, Direction(k)))
                 {
                     previouslytested = true;
                     break;
@@ -647,7 +636,7 @@ GameWorldBase::GetSoldiersForSeaAttack(const unsigned char player_attacker, cons
 {
     std::vector<GameWorldBase::PotentialSeaAttacker> attackers;
     // sea attack abgeschaltet per addon?
-    if(GetGGS().getSelection(AddonId::SEA_ATTACK) == 2)
+    if(!GetGGS().isEnabled(AddonId::SEA_ATTACK))
         return attackers;
     // Do we have an attackble military building?
     const auto* milBld = GetSpecObj<nobBaseMilitary>(pt);

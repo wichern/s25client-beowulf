@@ -1,3 +1,7 @@
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 version: 0.8.3.{build}
 
 branches:
@@ -17,7 +21,7 @@ platform:
   - x64
 
 environment:
-  BOOST_ROOT: C:\Libraries\boost_1_71_0
+  BOOST_ROOT: C:\Libraries\boost_1_73_0
   GENERATOR: Visual Studio 16 2019
   RTTR_DISABLE_ASSERT_BREAKPOINT: 1
 
@@ -33,7 +37,7 @@ for:
       only:
         - image: Visual Studio 2017
     environment:
-      BOOST_ROOT: C:\Libraries\boost_1_67_0
+      BOOST_ROOT: C:\Libraries\boost_1_69_0
       GENERATOR: Visual Studio 15 2017
 
 install:
@@ -50,7 +54,7 @@ before_build:
   # Enable LTCG for release builds (speeds up linking as /GL compiled modules are used)
   - if %configuration% == Release (set "cmakeFlags=-DCMAKE_EXE_LINKER_FLAGS=/LTCG -DCMAKE_SHARED_LINKER_FLAGS=/LTCG")
   - echo "Configuring %GENERATOR% for %configuration% on %platform% with boost=%BOOST_ROOT%"
-  - cmake -G "%GENERATOR%" -A %platform% -DRTTR_ENABLE_WERROR=ON -DCMAKE_INSTALL_PREFIX=%INSTALL_DIR% -DRTTR_EXTERNAL_BUILD_TESTING=ON %cmakeFlags% ..
+  - cmake -G "%GENERATOR%" -A %platform% -DRTTR_ENABLE_WERROR=ON -DCMAKE_INSTALL_PREFIX=%INSTALL_DIR% -DRTTR_EXTERNAL_BUILD_TESTING=ON -DRTTR_ENABLE_BENCHMARKS=ON %cmakeFlags% ..
 
 build_script: cmake --build . --config %configuration% --parallel 4
 

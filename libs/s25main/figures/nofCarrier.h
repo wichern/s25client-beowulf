@@ -1,25 +1,12 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "figures/noFigure.h"
-#include "helpers/MaxEnumValue.h"
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 class RoadSegment;
@@ -27,21 +14,24 @@ class Ware;
 class noRoadNode;
 class SerializedGameData;
 
-enum CarrierState : uint8_t
+enum class CarrierState : uint8_t
 {
-    CARRS_FIGUREWORK = 0,           // Aufgaben der Figur
-    CARRS_WAITFORWARE,              // auf Weg auf Ware warten
-    CARRS_GOTOMIDDLEOFROAD,         // zur Mitte seines Weges gehen
-    CARRS_FETCHWARE,                // Ware holen
-    CARRS_CARRYWARE,                // Ware zur Flagge tragen
-    CARRS_CARRYWARETOBUILDING,      // Ware zum Gebäude schaffen
-    CARRS_LEAVEBUILDING,            // kommt aus Gebäude wieder raus (bzw kommt von Baustelle zurück) zum Weg
-    CARRS_WAITFORWARESPACE,         // wartet vor der Flagge auf einen freien Platz
-    CARRS_GOBACKFROMFLAG,           // geht von der Flagge zurück, weil kein Platz mehr frei war
-    CARRS_BOATCARRIER_WANDERONWATER // Rumirren der Bootsträger auf dem Wasser, d.h. Paddeln zum
+    FigureWork,              // Aufgaben der Figur
+    WaitForWare,             // auf Weg auf Ware warten
+    GotoMiddleOfRoad,        // zur Mitte seines Weges gehen
+    FetchWare,               // Ware holen
+    CarryWare,               // Ware zur Flagge tragen
+    CarryWareToBuilding,     // Ware zum Gebäude schaffen
+    LeaveBuilding,           // kommt aus Gebäude wieder raus (bzw kommt von Baustelle zurück) zum Weg
+    WaitForWareSpace,        // wartet vor der Flagge auf einen freien Platz
+    GoBackFromFlag,          // geht von der Flagge zurück, weil kein Platz mehr frei war
+    BoatcarrierWanderOnWater // Rumirren der Bootsträger auf dem Wasser, d.h. Paddeln zum
     // nächsten Ufer, nachdem der Wasserweg zerstört wurde
 };
-DEFINE_MAX_ENUM_VALUE(CarrierState, CarrierState::CARRS_BOATCARRIER_WANDERONWATER)
+constexpr auto maxEnumValue(CarrierState)
+{
+    return CarrierState::BoatcarrierWanderOnWater;
+}
 
 enum class CarrierType : uint8_t
 {
@@ -49,7 +39,10 @@ enum class CarrierType : uint8_t
     Donkey, // Esel
     Boat    // Träger mit Boot
 };
-DEFINE_MAX_ENUM_VALUE(CarrierType, CarrierType::Boat)
+constexpr auto maxEnumValue(CarrierType)
+{
+    return CarrierType::Boat;
+}
 
 class nofCarrier : public noFigure
 {
@@ -62,7 +55,7 @@ private:
     // Weg, auf dem er arbeitet
     RoadSegment* workplace;
     /// Ware, die er gerade trägt (0 = nichts)
-    Ware* carried_ware;
+    std::unique_ptr<Ware> carried_ware;
     /// Rechne-Produktivität-aus-Event
     const GameEvent* productivity_ev;
     // Letzte errechnete Produktivität
@@ -111,21 +104,11 @@ public:
 
     ~nofCarrier() override;
 
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofCarrier(SerializedGameData& sgd) const;
+    void Serialize(SerializedGameData& sgd) const override;
 
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofCarrier(sgd); }
+    void Destroy() override;
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofCarrier();
-
-public:
-    void Destroy() override { Destroy_nofCarrier(); }
-
-    GO_Type GetGOT() const override { return GOT_NOF_CARRIER; }
+    GO_Type GetGOT() const final { return GO_Type::NofCarrier; }
 
     /// Gibt Träger-Typ zurück
     CarrierType GetCarrierType() const { return ct; }

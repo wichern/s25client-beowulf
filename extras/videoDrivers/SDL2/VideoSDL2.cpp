@@ -1,24 +1,12 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "VideoSDL2.h"
 #include "driver/Interface.h"
 #include "driver/VideoDriverLoaderInterface.h"
 #include "driver/VideoInterface.h"
+#include "enum_cast.hpp"
 #include "helpers/LSANUtils.h"
 #include "helpers/containerUtils.h"
 #include "icon.h"
@@ -234,14 +222,14 @@ void VideoSDL2::HandlePaste()
     HANDLE hData = GetClipboardData(CF_UNICODETEXT);
     const wchar_t* pData = (const wchar_t*)GlobalLock(hData);
 
-    KeyEvent ke = {KT_INVALID, 0, false, false, false};
+    KeyEvent ke = {KeyType::Invalid, 0, false, false, false};
     while(pData && *pData)
     {
         ke.c = *(pData++);
         if(ke.c == L' ')
-            ke.kt = KT_SPACE;
+            ke.kt = KeyType::Space;
         else
-            ke.kt = KT_CHAR;
+            ke.kt = KeyType::Char;
         CallBack->Msg_KeyDown(ke);
     }
 
@@ -263,8 +251,6 @@ bool VideoSDL2::SwapBuffers()
 
 bool VideoSDL2::MessageLoop()
 {
-    static bool mouseMoved = false;
-
     SDL_Event ev;
     while(SDL_PollEvent(&ev))
     {
@@ -294,7 +280,7 @@ bool VideoSDL2::MessageLoop()
 
             case SDL_KEYDOWN:
             {
-                KeyEvent ke = {KT_INVALID, 0, false, false, false};
+                KeyEvent ke = {KeyType::Invalid, 0, false, false, false};
 
                 switch(ev.key.keysym.sym)
                 {
@@ -302,24 +288,24 @@ bool VideoSDL2::MessageLoop()
                     {
                         // Die 12 F-Tasten
                         if(ev.key.keysym.sym >= SDLK_F1 && ev.key.keysym.sym <= SDLK_F12)
-                            ke.kt = static_cast<KeyType>(KT_F1 + ev.key.keysym.sym - SDLK_F1);
+                            ke.kt = static_cast<KeyType>(rttr::enum_cast(KeyType::F1) + ev.key.keysym.sym - SDLK_F1);
                     }
                     break;
-                    case SDLK_RETURN: ke.kt = KT_RETURN; break;
-                    case SDLK_SPACE: ke.kt = KT_SPACE; break;
-                    case SDLK_LEFT: ke.kt = KT_LEFT; break;
-                    case SDLK_RIGHT: ke.kt = KT_RIGHT; break;
-                    case SDLK_UP: ke.kt = KT_UP; break;
-                    case SDLK_DOWN: ke.kt = KT_DOWN; break;
-                    case SDLK_BACKSPACE: ke.kt = KT_BACKSPACE; break;
-                    case SDLK_DELETE: ke.kt = KT_DELETE; break;
+                    case SDLK_RETURN: ke.kt = KeyType::Return; break;
+                    case SDLK_SPACE: ke.kt = KeyType::Space; break;
+                    case SDLK_LEFT: ke.kt = KeyType::Left; break;
+                    case SDLK_RIGHT: ke.kt = KeyType::Right; break;
+                    case SDLK_UP: ke.kt = KeyType::Up; break;
+                    case SDLK_DOWN: ke.kt = KeyType::Down; break;
+                    case SDLK_BACKSPACE: ke.kt = KeyType::Backspace; break;
+                    case SDLK_DELETE: ke.kt = KeyType::Delete; break;
                     case SDLK_LSHIFT:
-                    case SDLK_RSHIFT: ke.kt = KT_SHIFT; break;
-                    case SDLK_TAB: ke.kt = KT_TAB; break;
-                    case SDLK_HOME: ke.kt = KT_HOME; break;
-                    case SDLK_END: ke.kt = KT_END; break;
-                    case SDLK_ESCAPE: ke.kt = KT_ESCAPE; break;
-                    case SDLK_PRINTSCREEN: ke.kt = KT_PRINT; break;
+                    case SDLK_RSHIFT: ke.kt = KeyType::Shift; break;
+                    case SDLK_TAB: ke.kt = KeyType::Tab; break;
+                    case SDLK_HOME: ke.kt = KeyType::Home; break;
+                    case SDLK_END: ke.kt = KeyType::End; break;
+                    case SDLK_ESCAPE: ke.kt = KeyType::Escape; break;
+                    case SDLK_PRINTSCREEN: ke.kt = KeyType::Print; break;
                     // case SDLK_BACKQUOTE: ev.key.keysym.scancode = '^'; break;
                     case SDLK_v:
                         if(SDL_GetModState() & KMOD_CTRL)
@@ -330,7 +316,7 @@ bool VideoSDL2::MessageLoop()
                         break;
                 }
 
-                if(ke.kt == KT_INVALID)
+                if(ke.kt == KeyType::Invalid)
                     break;
 
                 /// Strg, Alt, usw gedrückt?
@@ -348,7 +334,8 @@ bool VideoSDL2::MessageLoop()
             {
                 const std::u32string text = s25util::utf8to32(ev.text.text);
                 SDL_Keymod mod = SDL_GetModState();
-                KeyEvent ke = {KT_CHAR, 0, (mod & KMOD_CTRL) != 0, (mod & KMOD_SHIFT) != 0, (mod & KMOD_ALT) != 0};
+                KeyEvent ke = {KeyType::Char, 0, (mod & KMOD_CTRL) != 0, (mod & KMOD_SHIFT) != 0,
+                               (mod & KMOD_ALT) != 0};
                 for(char32_t c : text)
                 {
                     ke.c = static_cast<unsigned>(c);
@@ -398,19 +385,12 @@ bool VideoSDL2::MessageLoop()
             }
             break;
             case SDL_MOUSEMOTION:
-                // Handle only 1st mouse move
-                if(!mouseMoved)
-                {
-                    mouse_xy.pos = Position(ev.button.x, ev.button.y);
-
-                    CallBack->Msg_MouseMove(mouse_xy);
-                    mouseMoved = true;
-                }
+                mouse_xy.pos = Position(ev.motion.x, ev.motion.y);
+                CallBack->Msg_MouseMove(mouse_xy);
                 break;
         }
     }
 
-    mouseMoved = false;
     return true;
 }
 
@@ -452,7 +432,7 @@ void VideoSDL2::SetMousePos(Position pos)
 KeyEvent VideoSDL2::GetModKeyState() const
 {
     const SDL_Keymod modifiers = SDL_GetModState();
-    const KeyEvent ke = {KT_INVALID, 0, ((modifiers & KMOD_CTRL) != 0), ((modifiers & KMOD_SHIFT) != 0),
+    const KeyEvent ke = {KeyType::Invalid, 0, ((modifiers & KMOD_CTRL) != 0), ((modifiers & KMOD_SHIFT) != 0),
                          ((modifiers & KMOD_ALT) != 0)};
     return ke;
 }

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "glSmartBitmap.h"
 #include "Loader.h"
@@ -62,27 +49,35 @@ Extent glSmartBitmap::getRequiredTexSize() const
     return texSize;
 }
 
-void glSmartBitmap::add(libsiedler2::ArchivItem_Bitmap_Player* bmp, bool transferOwnership /*= false*/)
+void glSmartBitmap::add(libsiedler2::ArchivItem_Bitmap_Player* bmp)
 {
     if(!bmp)
         return;
-    items.push_back(glBitmapItem(bmp, transferOwnership));
+    items.push_back(glBitmapItem(bmp));
     calcDimensions();
 }
 
-void glSmartBitmap::add(libsiedler2::baseArchivItem_Bitmap* bmp, bool transferOwnership /*= false*/)
+void glSmartBitmap::add(libsiedler2::baseArchivItem_Bitmap* bmp)
 {
     if(!bmp)
         return;
-    items.push_back(glBitmapItem(bmp, false, transferOwnership));
+    items.push_back(glBitmapItem(bmp));
     calcDimensions();
 }
 
-void glSmartBitmap::addShadow(libsiedler2::baseArchivItem_Bitmap* bmp, bool transferOwnership /*= false*/)
+void glSmartBitmap::add(std::unique_ptr<libsiedler2::baseArchivItem_Bitmap> bmp)
 {
     if(!bmp)
         return;
-    items.push_back(glBitmapItem(bmp, true, transferOwnership));
+    items.push_back(glBitmapItem(bmp.release(), false, true));
+    calcDimensions();
+}
+
+void glSmartBitmap::addShadow(libsiedler2::baseArchivItem_Bitmap* bmp)
+{
+    if(!bmp)
+        return;
+    items.push_back(glBitmapItem(bmp, true));
     calcDimensions();
 }
 
@@ -102,7 +97,7 @@ void glSmartBitmap::calcDimensions()
 
     for(const glBitmapItem& bmpItem : items)
     {
-        if(bmpItem.type == TYPE_ARCHIVITEM_BITMAP_PLAYER)
+        if(bmpItem.type == glBitmapItemType::PlayerBitmap)
             hasPlayer = true;
 
         origin_ = elMax(origin_, bmpItem.origin);
@@ -124,7 +119,7 @@ void glSmartBitmap::drawTo(libsiedler2::PixelBufferBGRA& buffer, const Extent& b
 
         DrawPoint offset = origin_ - bmpItem.origin;
 
-        if(bmpItem.type == TYPE_ARCHIVITEM_BITMAP_SHADOW)
+        if(bmpItem.type == glBitmapItemType::ShadowBitmap)
         {
             libsiedler2::PixelBufferBGRA tmp(size_.x, size_.y);
 
@@ -146,7 +141,7 @@ void glSmartBitmap::drawTo(libsiedler2::PixelBufferBGRA& buffer, const Extent& b
         } else if(!hasPlayer)
         {
             // No player bitmap -> Just (over)write the data
-            RTTR_Assert(bmpItem.type == TYPE_ARCHIVITEM_BITMAP);
+            RTTR_Assert(bmpItem.type == glBitmapItemType::Normal);
             dynamic_cast<libsiedler2::baseArchivItem_Bitmap*>(bmpItem.bmp)
               ->print(buffer, p_5, offset.x + bufOffset.x, offset.y + bufOffset.y, bmpItem.pos.x, bmpItem.pos.y,
                       bmpItem.size.x, bmpItem.size.y);
@@ -154,7 +149,7 @@ void glSmartBitmap::drawTo(libsiedler2::PixelBufferBGRA& buffer, const Extent& b
         {
             // There is a player bitmap -> First write to temp buffer
             libsiedler2::PixelBufferBGRA tmp(size_.x, size_.y);
-            if(bmpItem.type == TYPE_ARCHIVITEM_BITMAP)
+            if(bmpItem.type == glBitmapItemType::Normal)
             {
                 dynamic_cast<libsiedler2::baseArchivItem_Bitmap*>(bmpItem.bmp)
                   ->print(tmp, p_5, offset.x, offset.y, bmpItem.pos.x, bmpItem.pos.y, bmpItem.size.x, bmpItem.size.y);
@@ -187,7 +182,7 @@ void glSmartBitmap::drawTo(libsiedler2::PixelBufferBGRA& buffer, const Extent& b
                 }
             }
             // Finally write the player color part if it has one
-            if(bmpItem.type == TYPE_ARCHIVITEM_BITMAP_PLAYER)
+            if(bmpItem.type == glBitmapItemType::PlayerBitmap)
             {
                 dynamic_cast<libsiedler2::ArchivItem_Bitmap_Player*>(bmpItem.bmp)
                   ->print(buffer, p_colors, 128, offset.x + size_.x + bufOffset.x, offset.y + bufOffset.y,

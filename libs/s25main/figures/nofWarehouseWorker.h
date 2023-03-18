@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "figures/noFigure.h"
+#include <memory>
 
 class Ware;
 class SerializedGameData;
@@ -30,7 +18,7 @@ class nofWarehouseWorker : public noFigure
 
 private:
     /// Ware currently being carried or nullptr
-    Ware* carried_ware;
+    std::unique_ptr<Ware> carried_ware;
 
     // Aufgabe, die der Warenhaustyp hat (Ware raustragen (0) oder reinholen)
     const bool shouldBringWareIn;
@@ -48,26 +36,15 @@ private:
     void HandleDerivedEvent(unsigned id) override;
 
 public:
-    nofWarehouseWorker(MapPoint pos, unsigned char player, Ware* ware, bool task);
+    nofWarehouseWorker(MapPoint pos, unsigned char player, std::unique_ptr<Ware> ware, bool task);
     nofWarehouseWorker(SerializedGameData& sgd, unsigned obj_id);
 
     ~nofWarehouseWorker() override;
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofWarehouseWorker();
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
-public:
-    void Destroy() override { Destroy_nofWarehouseWorker(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofWarehouseWorker(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofWarehouseWorker(sgd); }
-
-    GO_Type GetGOT() const override { return GOT_NOF_WAREHOUSEWORKER; }
+    GO_Type GetGOT() const final { return GO_Type::NofWarehouseworker; }
 
     void Draw(DrawPoint drawPt) override;
 

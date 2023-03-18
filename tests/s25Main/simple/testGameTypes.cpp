@@ -1,93 +1,154 @@
-// Copyright (c) 2017 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "ai/AIResource.h"
+#include "helpers/EnumRange.h"
+#include "gameTypes/GameTypesOutput.h"
 #include "gameTypes/Resource.h"
-#include "gameData/JobConsts.h"
+#include <boost/preprocessor/seq/for_each.hpp>
+#include <boost/preprocessor/stringize.hpp>
+#include <boost/preprocessor/variadic/to_seq.hpp>
 #include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(GameTypes)
 
 BOOST_AUTO_TEST_CASE(ResourceValues)
 {
+    {
+        Resource res;
+        BOOST_TEST(res.getType() == ResourceType::Nothing);
+        BOOST_TEST(res.getAmount() == 0u);
+    }
+    {
+        Resource res(ResourceType::Nothing, 5);
+        BOOST_TEST(res.getType() == ResourceType::Nothing);
+        BOOST_TEST(res.getAmount() == 0u);
+    }
+
     // Basic value
-    Resource res(Resource::Gold, 10);
-    BOOST_REQUIRE_EQUAL(res.getType(), Resource::Gold);
-    BOOST_REQUIRE_EQUAL(res.getAmount(), 10u);
+    Resource res(ResourceType::Gold, 10);
+    BOOST_TEST(res.getType() == ResourceType::Gold);
+    BOOST_TEST(res.getAmount() == 10u);
     // Change type
-    res.setType(Resource::Iron);
-    BOOST_REQUIRE_EQUAL(res.getType(), Resource::Iron);
-    BOOST_REQUIRE_EQUAL(res.getAmount(), 10u);
+    res.setType(ResourceType::Iron);
+    BOOST_TEST(res.getType() == ResourceType::Iron);
+    BOOST_TEST(res.getAmount() == 10u);
     // Amount
     res.setAmount(5);
-    BOOST_REQUIRE_EQUAL(res.getType(), Resource::Iron);
-    BOOST_REQUIRE_EQUAL(res.getAmount(), 5u);
+    BOOST_TEST(res.getType() == ResourceType::Iron);
+    BOOST_TEST(res.getAmount() == 5u);
     // Copy value
     Resource res2(res.getValue());
-    BOOST_REQUIRE_EQUAL(res.getType(), Resource::Iron);
-    BOOST_REQUIRE_EQUAL(res.getAmount(), 5u);
+    BOOST_TEST(res.getType() == ResourceType::Iron);
+    BOOST_TEST(res.getAmount() == 5u);
     // Set 0
     res2.setAmount(0);
-    BOOST_REQUIRE_EQUAL(res2.getType(), Resource::Iron);
-    BOOST_REQUIRE_EQUAL(res2.getAmount(), 0u);
+    BOOST_TEST(res2.getType() == ResourceType::Iron);
+    BOOST_TEST(res2.getAmount() == 0u);
     // Has
-    BOOST_REQUIRE(res.has(Resource::Iron));
-    BOOST_REQUIRE(!res.has(Resource::Gold));
-    BOOST_REQUIRE(!res2.has(Resource::Iron));
-    BOOST_REQUIRE(!res.has(Resource::Nothing));
-    BOOST_REQUIRE(!res2.has(Resource::Nothing));
+    BOOST_TEST(res.has(ResourceType::Iron));
+    BOOST_TEST(!res.has(ResourceType::Gold));
+    BOOST_TEST(!res2.has(ResourceType::Iron));
+    BOOST_TEST(!res.has(ResourceType::Nothing));
+    BOOST_TEST(!res2.has(ResourceType::Nothing));
     // Nothing -> 0
-    BOOST_REQUIRE_NE(res.getAmount(), 0u);
-    res.setType(Resource::Nothing);
-    BOOST_REQUIRE_EQUAL(res.getType(), Resource::Nothing);
-    BOOST_REQUIRE_EQUAL(res.getAmount(), 0u);
+    BOOST_TEST_REQUIRE(res.getAmount() != 0u);
+    res.setType(ResourceType::Nothing);
+    BOOST_TEST(res.getType() == ResourceType::Nothing);
+    BOOST_TEST(res.getAmount() == 0u);
     // And stays 0
     res.setAmount(10);
-    BOOST_REQUIRE_EQUAL(res.getType(), Resource::Nothing);
-    BOOST_REQUIRE_EQUAL(res.getAmount(), 0u);
-    BOOST_REQUIRE(!res.has(Resource::Iron));
-    BOOST_REQUIRE(!res.has(Resource::Nothing));
+    BOOST_TEST(res.getType() == ResourceType::Nothing);
+    BOOST_TEST(res.getAmount() == 0u);
+    BOOST_TEST(!res.has(ResourceType::Iron));
+    BOOST_TEST(!res.has(ResourceType::Nothing));
     // Overflow check
     res2.setAmount(15);
-    BOOST_REQUIRE_EQUAL(res2.getType(), Resource::Iron);
-    BOOST_REQUIRE_EQUAL(res2.getAmount(), 15u);
+    BOOST_TEST(res2.getType() == ResourceType::Iron);
+    BOOST_TEST(res2.getAmount() == 15u);
     res2.setAmount(17);
-    BOOST_REQUIRE_EQUAL(res2.getType(), Resource::Iron);
+    BOOST_TEST(res2.getType() == ResourceType::Iron);
     // Unspecified
-    BOOST_REQUIRE_LT(res2.getAmount(), 17u);
+    BOOST_TEST(res2.getAmount() < 17u);
 }
 
-BOOST_AUTO_TEST_CASE(NationSpecificJobBobs)
+BOOST_AUTO_TEST_CASE(ResourceConvertToFromUInt8)
 {
-    // Helper is not nation specific
-    BOOST_TEST(JOB_SPRITE_CONSTS[JOB_HELPER].getBobId(NAT_VIKINGS)
-               == JOB_SPRITE_CONSTS[JOB_HELPER].getBobId(NAT_AFRICANS));
-    BOOST_TEST(JOB_SPRITE_CONSTS[JOB_HELPER].getBobId(NAT_VIKINGS)
-               == JOB_SPRITE_CONSTS[JOB_HELPER].getBobId(NAT_BABYLONIANS));
-    // Soldiers are
-    BOOST_TEST(JOB_SPRITE_CONSTS[JOB_PRIVATE].getBobId(NAT_VIKINGS)
-               != JOB_SPRITE_CONSTS[JOB_PRIVATE].getBobId(NAT_AFRICANS));
-    // Non native nations come after native ones
-    BOOST_TEST(JOB_SPRITE_CONSTS[JOB_PRIVATE].getBobId(NAT_VIKINGS)
-               < JOB_SPRITE_CONSTS[JOB_PRIVATE].getBobId(NAT_BABYLONIANS));
-    // Same for scouts
-    BOOST_TEST(JOB_SPRITE_CONSTS[JOB_SCOUT].getBobId(NAT_VIKINGS)
-               != JOB_SPRITE_CONSTS[JOB_SCOUT].getBobId(NAT_AFRICANS));
-    BOOST_TEST(JOB_SPRITE_CONSTS[JOB_SCOUT].getBobId(NAT_VIKINGS)
-               < JOB_SPRITE_CONSTS[JOB_SCOUT].getBobId(NAT_BABYLONIANS));
+    for(const auto type : helpers::enumRange<ResourceType>())
+    {
+        for(auto amount : {1u, 5u, 15u})
+        {
+            const Resource res(type, amount);
+            const Resource res2(static_cast<uint8_t>(res));
+            BOOST_TEST(res2.getType() == type);
+            if(type == ResourceType::Nothing)
+                amount = 0u;
+            BOOST_TEST(res2.getAmount() == amount);
+        }
+    }
+    // Out of bounds -> Validated
+    const Resource res(0xFF);
+    BOOST_TEST(res.getType() == ResourceType::Nothing);
+    BOOST_TEST(res.getAmount() == 0u);
+}
+
+BOOST_AUTO_TEST_CASE(AIResourcesMatchValues)
+{
+    // This simply tests that the convertToNodeResource function works, which is enough to verify the correctness of the
+    // enumerator values
+
+#define TEST_AIRESOURCE_SINGLE(s, EnumName, Enumerator)                                      \
+    static_assert(convertToNodeResource(EnumName::Enumerator) == AINodeResource::Enumerator, \
+                  "Mismatch for " BOOST_PP_STRINGIZE(EnumName) "::" BOOST_PP_STRINGIZE(Enumerator));
+
+    // Generate a static assert for each enumerator
+#define TEST_AIRESOURCE(EnumName, ...) \
+    BOOST_PP_SEQ_FOR_EACH(TEST_AIRESOURCE_SINGLE, EnumName, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))
+
+    TEST_AIRESOURCE(AIResource, Gold, Ironore, Coal, Granite, Fish, Wood, Stones, Plantspace, Borderland)
+
+    TEST_AIRESOURCE(AISurfaceResource, Wood, Stones, Blocked, Nothing)
+
+    TEST_AIRESOURCE(AISubSurfaceResource, Gold, Ironore, Coal, Granite, Fish, Nothing)
+
+    BOOST_TEST(true);
+}
+
+BOOST_AUTO_TEST_CASE(CanUseBqWOrks)
+{
+    helpers::EnumArray<helpers::EnumArray<bool, BuildingQuality>, BuildingQuality> bqAllowed{};
+    // Mapping: Is, Wanted
+    for(const auto bq : helpers::EnumRange<BuildingQuality>{})
+    {
+        bqAllowed[bq][bq] = true;                       // Can use same BQ
+        bqAllowed[bq][BuildingQuality::Nothing] = true; // If nothing required, allow
+    }
+    // Small spot
+    bqAllowed[BuildingQuality::Hut][BuildingQuality::Flag] = true;
+    // Medium spot
+    bqAllowed[BuildingQuality::House][BuildingQuality::Flag] = true;
+    bqAllowed[BuildingQuality::House][BuildingQuality::Hut] = true;
+    // Large spot
+    bqAllowed[BuildingQuality::Castle][BuildingQuality::Flag] = true;
+    bqAllowed[BuildingQuality::Castle][BuildingQuality::Hut] = true;
+    bqAllowed[BuildingQuality::Castle][BuildingQuality::House] = true;
+    // Harbor spot is a large spot which also allows harbors
+    bqAllowed[BuildingQuality::Harbor] = bqAllowed[BuildingQuality::Castle];
+    bqAllowed[BuildingQuality::Harbor][BuildingQuality::Harbor] = true;
+    // Mine only allows mine and flag
+    bqAllowed[BuildingQuality::Mine][BuildingQuality::Flag] = true;
+    // Nothing allows nothing, same BQ already set
+
+    for(const auto bqIs : helpers::EnumRange<BuildingQuality>{})
+        BOOST_TEST_CONTEXT("bqIs=" << bqIs)
+        {
+            for(const auto bqWanted : helpers::EnumRange<BuildingQuality>{})
+                BOOST_TEST_CONTEXT("bqWanted=" << bqWanted)
+                {
+                    BOOST_TEST(canUseBq(bqIs, bqWanted) == bqAllowed[bqIs][bqWanted]);
+                }
+        }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "pathfinding/FreePathFinder.h"
 #include "EventManager.h"
@@ -49,7 +36,6 @@ void FreePathFinder::Init(const MapExtent& mapSize)
         nodes[idx].mapPt = pt;
         fpNodes[idx].lastVisited = 0;
         fpNodes[idx].mapPt = pt;
-        fpNodes[idx].idx = idx;
     }
 }
 
@@ -92,7 +78,7 @@ bool FreePathFinder::FindPathAlternatingConditions(const MapPoint start, const M
         if(length)
             *length = 0;
         if(firstDir)
-            *firstDir = Direction::EAST;
+            *firstDir = Direction::East;
         return true;
     }
 
@@ -115,7 +101,8 @@ bool FreePathFinder::FindPathAlternatingConditions(const MapPoint start, const M
     // LOG.write(("pf: from %i, %i to %i, %i \n", x_start, y_start, x_dest, y_dest);
 
     // Start at random dir (so different jobs may use different roads)
-    const unsigned startDir = randomRoute ? (gwb_.GetIdx(start)) * gwb_.GetEvMgr().GetCurrentGF() % 6 : 0;
+    const Direction startDir =
+      randomRoute ? convertToDirection(gwb_.GetIdx(start) * gwb_.GetEvMgr().GetCurrentGF()) : Direction::West;
 
     while(!todo.empty())
     {
@@ -180,10 +167,8 @@ bool FreePathFinder::FindPathAlternatingConditions(const MapPoint start, const M
 
         // LOG.write(("pf get neighbor nodes %i, %i id: %i \n", best.x, best.y, best_id);
         // Knoten in alle 6 Richtungen bilden
-        for(unsigned z = startDir + 3; z < startDir + 9; ++z)
+        for(const auto dir : helpers::enumRange(startDir))
         {
-            Direction dir(z);
-
             // Koordinaten des entsprechenden umliegenden Punktes bilden
             MapPoint neighbourPos = gwb_.GetNeighbour(nodes[bestId].mapPt, dir);
 

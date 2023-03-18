@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMapDebug.h"
 #include "GamePlayer.h"
@@ -31,9 +18,11 @@
 #include "world/GameWorldView.h"
 #include "world/NodeMapBase.h"
 #include "world/TerritoryRegion.h"
+#include "gameTypes/GameTypesOutput.h"
 #include "gameTypes/TextureColor.h"
 #include "gameData/const_gui_ids.h"
 #include <boost/nowide/iostream.hpp>
+#include <chrono>
 
 namespace {
 enum
@@ -151,7 +140,8 @@ private:
     Subscription nodeSub;
 };
 
-static const std::array<unsigned, 6> BQ_CHECK_INTERVALS = {10000, 1000, 500, 250, 100, 50};
+using namespace std::chrono_literals;
+static const std::array<std::chrono::milliseconds, 6> BQ_CHECK_INTERVALS = {10s, 1s, 500ms, 250ms, 100ms, 50ms};
 
 iwMapDebug::iwMapDebug(GameWorldView& gwv, bool allowCheating)
     : IngameWindow(CGI_MAP_DEBUG, IngameWindow::posLastOrCenter, Extent(230, 135), _("Map Debug"),
@@ -160,22 +150,24 @@ iwMapDebug::iwMapDebug(GameWorldView& gwv, bool allowCheating)
 {
     gwv.AddDrawNodeCallback(printer.get());
 
-    ctrlCheck* cbShowCoords =
-      AddCheckBox(ID_cbShowCoordinates, DrawPoint(15, 25), Extent(200, 20), TC_GREY, _("Show coordinates"), NormalFont);
-    cbShowCoords->SetCheck(true);
+    ctrlCheck* cbShowCoords = AddCheckBox(ID_cbShowCoordinates, DrawPoint(15, 25), Extent(200, 20), TextureColor::Grey,
+                                          _("Show coordinates"), NormalFont);
+    cbShowCoords->setChecked(true);
     ctrlComboBox* cbCheckEvents =
-      AddComboBox(ID_cbCheckEventForPlayer, DrawPoint(15, 50), Extent(200, 20), TC_GREY, NormalFont, 100);
+      AddComboBox(ID_cbCheckEventForPlayer, DrawPoint(15, 50), Extent(200, 20), TextureColor::Grey, NormalFont, 100);
     cbCheckEvents->AddString(_("BQ check disabled"));
-    for(unsigned ms : BQ_CHECK_INTERVALS)
+    for(const std::chrono::milliseconds ms : BQ_CHECK_INTERVALS)
     {
-        cbCheckEvents->AddString((boost::format(_("BQ check every %1%ms")) % ms).str());
+        cbCheckEvents->AddString((boost::format(_("BQ check every %1%ms")) % ms.count()).str());
     }
     cbCheckEvents->SetSelection(0);
-    AddTimer(ID_tmrCheckEvents, 500)->Stop();
+    using namespace std::chrono_literals;
+    AddTimer(ID_tmrCheckEvents, 500ms)->Stop();
 
     if(allowCheating)
     {
-        ctrlComboBox* data = AddComboBox(ID_cbShowWhat, DrawPoint(15, 75), Extent(200, 20), TC_GREY, NormalFont, 100);
+        ctrlComboBox* data =
+          AddComboBox(ID_cbShowWhat, DrawPoint(15, 75), Extent(200, 20), TextureColor::Grey, NormalFont, 100);
         data->AddString(_("Nothing"));
         data->AddString(_("Reserved"));
         data->AddString(_("Altitude"));
@@ -185,7 +177,7 @@ iwMapDebug::iwMapDebug(GameWorldView& gwv, bool allowCheating)
         data->AddString(_("Restricted area"));
         data->SetSelection(1);
         ctrlComboBox* players =
-          AddComboBox(ID_cbShowForPlayer, DrawPoint(15, 100), Extent(200, 20), TC_GREY, NormalFont, 100);
+          AddComboBox(ID_cbShowForPlayer, DrawPoint(15, 100), Extent(200, 20), TextureColor::Grey, NormalFont, 100);
         for(unsigned pIdx = 0; pIdx < gwv.GetWorld().GetNumPlayers(); pIdx++)
         {
             const GamePlayer& p = gwv.GetWorld().GetPlayer(pIdx);
@@ -206,7 +198,7 @@ iwMapDebug::iwMapDebug(GameWorldView& gwv, bool allowCheating)
         SetIwSize(iwSize);
     }
 
-    printer->showCoords = cbShowCoords->GetCheck();
+    printer->showCoords = cbShowCoords->isChecked();
 }
 
 iwMapDebug::~iwMapDebug()

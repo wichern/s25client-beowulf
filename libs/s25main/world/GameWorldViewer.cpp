@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/GameWorldViewer.h"
 #include "GamePlayer.h"
@@ -33,6 +20,17 @@
 GameWorldViewer::GameWorldViewer(unsigned playerId, GameWorldBase& gwb) : playerId_(playerId), gwb(gwb)
 {
     InitVisualData();
+    maxNodeAltitude_ = 0;
+    RTTR_FOREACH_PT(MapPoint, gwb.GetSize())
+    {
+        maxNodeAltitude_ = std::max(maxNodeAltitude_, gwb.GetNode(pt).altitude);
+    }
+    evAltitudeChanged = gwb.GetNotifications().subscribe<NodeNote>([this](const NodeNote& note) {
+        if(note.type == NodeNote::Altitude)
+        {
+            maxNodeAltitude_ = std::max(maxNodeAltitude_, this->gwb.GetNode(note.pos).altitude);
+        }
+    });
 }
 
 void GameWorldViewer::InitVisualData()
@@ -60,13 +58,21 @@ void GameWorldViewer::InitTerrainRenderer()
     // Notify renderer about altitude changes
     evAltitudeChanged = gwb.GetNotifications().subscribe<NodeNote>([this](const NodeNote& note) {
         if(note.type == NodeNote::Altitude)
+        {
+            maxNodeAltitude_ = std::max(maxNodeAltitude_, gwb.GetNode(note.pos).altitude);
             tr.AltitudeChanged(note.pos, *this);
+        }
     });
     // And visibility changes
     evVisibilityChanged = gwb.GetNotifications().subscribe<PlayerNodeNote>([this](const PlayerNodeNote& note) {
         if(note.type == PlayerNodeNote::Visibility)
             VisibilityChanged(note.pt, note.player);
     });
+}
+
+SoundManager& GameWorldViewer::GetSoundMgr()
+{
+    return gwb.GetSoundMgr();
 }
 
 const GamePlayer& GameWorldViewer::GetPlayer() const
@@ -109,11 +115,11 @@ Visibility GameWorldViewer::GetVisibility(const MapPoint pt) const
 {
     /// Replaymodus und FoW aus? Dann alles sichtbar
     if(GAMECLIENT.IsReplayModeOn() && GAMECLIENT.IsReplayFOWDisabled())
-        return VIS_VISIBLE;
+        return Visibility::Visible;
 
     // Spieler schon tot? Dann auch alles sichtbar?
     if(GetPlayer().IsDefeated())
-        return VIS_VISIBLE;
+        return Visibility::Visible;
 
     return GetWorld().CalcVisiblityWithAllies(pt, playerId_);
 }
@@ -146,9 +152,9 @@ void GameWorldViewer::RecalcAllColors()
 /// liefert sichtbare Straße, im FoW entsprechend die FoW-Straße
 PointRoad GameWorldViewer::GetVisibleRoad(const MapPoint pt, RoadDir roadDir, const Visibility visibility) const
 {
-    if(visibility == VIS_VISIBLE)
+    if(visibility == Visibility::Visible)
         return GetVisibleRoad(pt, roadDir);
-    else if(visibility == VIS_FOW)
+    else if(visibility == Visibility::FogOfWar)
         return GetYoungestFOWNode(pt).roads[roadDir];
     else
         return PointRoad::None;
@@ -207,10 +213,9 @@ const noShip* GameWorldViewer::GetShip(const MapPoint pt) const
     };
     const auto& world = GetWorld();
     auto checkPointForShips = [&world, checkShip](const MapPoint curPt, auto /*radius*/) {
-        const std::list<noBase*>& figures = world.GetFigures(curPt);
-        for(const auto* figure : figures)
+        for(const auto& figure : world.GetFigures(curPt))
         {
-            if(figure->GetGOT() == GOT_SHIP && checkShip(static_cast<const noShip&>(*figure)))
+            if(figure.GetGOT() == GO_Type::Ship && checkShip(static_cast<const noShip&>(figure)))
                 return true;
         }
         return false;
@@ -236,6 +241,11 @@ void GameWorldViewer::ChangePlayer(unsigned player, bool updateVisualData /* = t
         RecalcAllColors();
         InitVisualData();
     }
+}
+
+helpers::EnumArray<MapPoint, Direction> GameWorldViewer::GetNeighbours(const MapPoint pt) const
+{
+    return GetWorld().GetNeighbours(pt);
 }
 
 void GameWorldViewer::VisibilityChanged(const MapPoint& pt, unsigned player)
@@ -264,7 +274,7 @@ void GameWorldViewer::RecalcBQForRoad(const MapPoint& pt)
 {
     RecalcBQ(pt);
 
-    for(const Direction dir : {Direction::EAST, Direction::SOUTHEAST, Direction::SOUTHWEST})
+    for(const Direction dir : {Direction::East, Direction::SouthEast, Direction::SouthWest})
         RecalcBQ(GetNeighbour(pt, dir));
 }
 
@@ -288,7 +298,7 @@ bool GameWorldViewer::IsRoadAvailable(bool isWaterRoad, const MapPoint& pt) cons
 /// Get the "youngest" FOWObject of all players who share the view with the local player
 const FOWObject* GameWorldViewer::GetYoungestFOWObject(const MapPoint pos) const
 {
-    return GetYoungestFOWNode(pos).object;
+    return GetYoungestFOWNode(pos).object.get();
 }
 
 /// Gets the youngest fow node of all visible objects of all players who are connected
@@ -310,7 +320,7 @@ const FoWNode& GameWorldViewer::GetYoungestFOWNode(const MapPoint pos) const
                 continue;
             // Has the player FOW at this point at all?
             const FoWNode* curNode = &node.fow[i];
-            if(curNode->visibility == VIS_FOW)
+            if(curNode->visibility == Visibility::FogOfWar)
             {
                 // Younger than the youngest or no object at all?
                 if(curNode->last_update_time > youngest_time)

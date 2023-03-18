@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -28,13 +15,14 @@ protected:
     /// Arbeitsziel, das der Arbeiter ansteuert
     MapPoint dest;
 
-    enum PointQuality
+    enum class PointQuality
     {
-        PQ_NOTPOSSIBLE, // Work is not possible at this position
-        PQ_CLASS1,      /// Work is possible, points are prefered to other points
-        PQ_CLASS2,      /// Work is possible, points are prefered to other points class 2
-        PQ_CLASS3       /// Work is possible, points are only chosen if there are no other class 1/2's
+        NotPossible, // Work is not possible at this position
+        Class1,      /// Work is possible, points are prefered to other points
+        Class2,      /// Work is possible, points are prefered to other points class 2
+        Class3       /// Work is possible, points are only chosen if there are no other class 1/2's
     };
+    friend constexpr auto maxEnumValue(PointQuality) { return PointQuality::Class3; }
 
     /// Funktionen, die nur von der Basisklasse (noFigure) aufgerufen werden, wenn...
     void WalkedDerived() override;
@@ -64,19 +52,7 @@ public:
     nofFarmhand(Job job, MapPoint pos, unsigned char player, nobUsual* workplace);
     nofFarmhand(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofFarmhand() { Destroy_nofBuildingWorker(); }
-
-public:
-    void Destroy() override { Destroy_nofFarmhand(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofFarmhand(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofFarmhand(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
     void HandleDerivedEvent(unsigned id) override;
     /// Findet heraus, ob der Beruf an diesem Punkt arbeiten kann

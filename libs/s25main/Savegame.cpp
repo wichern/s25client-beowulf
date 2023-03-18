@@ -1,22 +1,12 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Savegame.h"
+#include "gameTypes/CompressedData.h"
 #include "s25util/BinaryFile.h"
+#include <boost/filesystem/operations.hpp>
+#include <boost/nowide/fstream.hpp>
 
 std::string Savegame::GetSignature() const
 {
@@ -26,6 +16,7 @@ std::string Savegame::GetSignature() const
 uint16_t Savegame::GetVersion() const
 {
     // Note: If you increase the version, reset currentGameDataVersion in SerializedGameData.cpp (see note there)
+    // Note2: Also remove the workaround for the team in BasePlayerInfo & CompressedFlag here
     return 4; // SaveGameVersion -- Updater signature, do NOT remove
 }
 
@@ -103,11 +94,40 @@ bool Savegame::ReadExtHeader(BinaryFile& file)
 
 void Savegame::WriteGameData(BinaryFile& file)
 {
-    sgd.WriteToFile(file);
+    file.WriteUnsignedInt(1); // Compressed flag for compatibility
+    std::vector<char> data(sgd.GetData(), sgd.GetData() + sgd.GetLength());
+    const unsigned uncompressedLength = data.size();
+    data = CompressedData::compress(data);
+    file.WriteUnsignedInt(uncompressedLength);
+    file.WriteUnsignedInt(data.size());
+    file.WriteRawData(data.data(), data.size());
 }
 
 bool Savegame::ReadGameData(BinaryFile& file)
 {
-    sgd.ReadFromFile(file);
+    std::vector<char> data;
+    const auto compressedFlagOrSize = file.ReadUnsignedInt();
+    if(compressedFlagOrSize == 1u)
+    {
+        const auto uncompressedLength = file.ReadUnsignedInt();
+        const auto compressedLength = file.ReadUnsignedInt();
+        data.resize(compressedLength);
+        file.ReadRawData(data.data(), data.size());
+        data = CompressedData::decompress(data, uncompressedLength);
+#ifndef NDEBUG
+        // In debug builds write uncompressed game data to temporary file
+        const auto gameDataPath = boost::filesystem::temp_directory_path() / "rttrGameData.raw";
+        boost::nowide::ofstream f(gameDataPath, std::ios::binary);
+        f.write(data.data(), data.size());
+#endif
+    } else
+    { // Old savegames have a size here which is always bigger than 1
+        RTTR_Assert(compressedFlagOrSize > 1u);
+        data.resize(compressedFlagOrSize);
+        file.ReadRawData(data.data(), data.size());
+    }
+
+    sgd.Clear();
+    sgd.PushRawData(data.data(), data.size());
     return true;
 }

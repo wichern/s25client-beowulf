@@ -1,23 +1,12 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "noBase.h"
+#include <array>
+#include <memory>
 
 class nofActiveSoldier;
 class SerializedGameData;
@@ -27,7 +16,7 @@ class GameEvent;
 class noFighting : public noBase
 {
     /// die kämpfenden Soldaten
-    nofActiveSoldier* soldiers[2];
+    std::array<std::unique_ptr<nofActiveSoldier>, 2> soldiers;
     // Wer ist an der Reihe mit angreifen (2 = Beginn des Kampfes)
     unsigned char turn;
     /// Verteidigungsanimation (3 = keine Verteidigung,  Treffer)
@@ -43,32 +32,21 @@ private:
     void StartAttack();
 
 public:
-    noFighting(nofActiveSoldier* soldier1, nofActiveSoldier* soldier2);
+    noFighting(nofActiveSoldier& soldier1, nofActiveSoldier& soldier2);
     noFighting(SerializedGameData& sgd, unsigned obj_id);
     ~noFighting() override;
 
-    /// Aufräummethoden
-protected:
-    void Destroy_noFighting();
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
-public:
-    void Destroy() override { Destroy_noFighting(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_noFighting(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_noFighting(sgd); }
-
-    GO_Type GetGOT() const override { return GOT_FIGHTING; }
+    GO_Type GetGOT() const final { return GO_Type::Fighting; }
 
     void Draw(DrawPoint drawPt) override;
     void HandleEvent(unsigned id) override;
 
     /// Dürfen andern Figuren diesen Kampf schon durchqueren?
     bool IsActive() const;
-    bool IsFighter(nofActiveSoldier* as) { return as == soldiers[0] || as == soldiers[1]; }
+    bool IsFighter(const nofActiveSoldier& as) const { return &as == soldiers[0].get() || &as == soldiers[1].get(); }
 
     /// Prüfen, ob ein Soldat von einem bestimmten Spieler in den Kampf verwickelt ist
     bool IsSoldierOfPlayer(unsigned char player) const;

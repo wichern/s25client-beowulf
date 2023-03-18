@@ -1,59 +1,62 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2022 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "IngameWindow.h"
+#include "mapGenerator/MapSettings.h"
 
-struct MapSettings;
-
-/**
- * The iwMapGenerator is an ingame window for the user to configure parameters used
- * for random map generation (when pressing the "Random" button on map selection).
- */
+/// Window to configure parameters used for random map generation
 class iwMapGenerator : public IngameWindow
 {
 public:
+    enum
+    {
+        ID_btBack,
+        ID_btApply,
+        ID_txtLandscape,
+        ID_txtGold,
+        ID_txtIron,
+        ID_txtCoal,
+        ID_txtGranite,
+        ID_txtRivers,
+        ID_txtMountainDist,
+        ID_txtTrees,
+        ID_txtStonePiles,
+        ID_txtIslands,
+        ID_cbNumPlayers,
+        ID_txtMapStyle,
+        ID_cbMapStyle,
+        ID_txtMapSize,
+        ID_txtMapSizeX,
+        ID_cbMapSizeX,
+        ID_cbMapSizeY,
+        ID_cbMapType,
+        ID_pgGoldRatio,
+        ID_pgIronRatio,
+        ID_pgCoalRatio,
+        ID_pgGraniteRatio,
+        ID_pgRivers,
+        ID_cbMountainDist,
+        ID_pgTrees,
+        ID_pgStonePiles,
+        ID_cbIslands
+    };
+
     /**
      * Creates a new ingame window to configure the random map generator.
      * @param settings reference to the settings to be manipulated
      */
-    iwMapGenerator(MapSettings& settings);
+    iwMapGenerator(rttr::mapGenerator::MapSettings& settings);
 
-    ~iwMapGenerator() override;
-
-protected:
     void Msg_ButtonClick(unsigned ctrl_id) override;
 
 private:
-    /**
-     * Actual settings used for map generation. After pressing the "apply" button in the
-     * UI mapSettings are updated with the values configured in the UI.
-     */
-    MapSettings& mapSettings;
+    rttr::mapGenerator::MapSettings& mapSettings;
 
-    /**
-     * Resets the map generation settings to the original value.
-     * Also updates the UI accordingly.
-     */
+    /// Reset the UI to the values of @ref mapSettings
     void Reset();
-
-    /**
-     * Updates the mapSettings with the values currently configured in the UI.
-     */
+    /// Updates @ref mapSettings with the values currently configured in the UI.
     void Apply();
 };

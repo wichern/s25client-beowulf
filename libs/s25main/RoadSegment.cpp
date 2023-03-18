@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "RoadSegment.h"
 #include "EventManager.h"
@@ -22,7 +9,7 @@
 #include "buildings/nobBaseWarehouse.h"
 #include "figures/nofCarrier.h"
 #include "random/Random.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "nodeObjs/noFlag.h"
 #include "nodeObjs/noRoadNode.h"
 #include "gameData/BuildingProperties.h"
@@ -39,14 +26,18 @@ RoadSegment::RoadSegment(const RoadType rt, noRoadNode* const f1, noRoadNode* co
 }
 
 RoadSegment::RoadSegment(SerializedGameData& sgd, const unsigned obj_id)
-    : GameObject(sgd, obj_id), rt(sgd.Pop<RoadType>()), f1(sgd.PopObject<noRoadNode>(GOT_UNKNOWN)),
-      f2(sgd.PopObject<noRoadNode>(GOT_UNKNOWN)), route(sgd.PopUnsignedShort())
+    : GameObject(sgd, obj_id), rt(sgd.Pop<RoadType>()), f1(sgd.PopObject<noRoadNode>()), f2(sgd.PopObject<noRoadNode>())
 {
-    carriers_[0] = sgd.PopObject<nofCarrier>(GOT_NOF_CARRIER);
-    carriers_[1] = sgd.PopObject<nofCarrier>(GOT_NOF_CARRIER);
+    if(sgd.GetGameDataVersion() < 7)
+        route.resize(sgd.PopUnsignedShort());
+    else
+        helpers::popContainer(sgd, route);
 
-    for(auto& i : route)
-        i = sgd.Pop<Direction>();
+    carriers_[0] = sgd.PopObject<nofCarrier>(GO_Type::NofCarrier);
+    carriers_[1] = sgd.PopObject<nofCarrier>(GO_Type::NofCarrier);
+
+    if(sgd.GetGameDataVersion() < 7)
+        helpers::popContainer(sgd, route, true);
 
     // tell the noRoadNodes about our existance
     f1->SetRoute(route.front(), this);
@@ -60,13 +51,13 @@ bool RoadSegment::GetNodeID(const noRoadNode& rn) const
     return (&rn == f2);
 }
 
-void RoadSegment::Destroy_RoadSegment()
+void RoadSegment::Destroy()
 {
     // This can be the road segment from the flag to the building (always in this order!)
     // Those are not considered "roads" and therefore never registered
-    RTTR_Assert(f1->GetGOT() == GOT_FLAG);
-    if(f2->GetGOT() == GOT_FLAG)
-        gwg->GetPlayer(f1->GetPlayer()).DeleteRoad(this);
+    RTTR_Assert(f1->GetGOT() == GO_Type::Flag);
+    if(f2->GetGOT() == GO_Type::Flag)
+        world->GetPlayer(f1->GetPlayer()).DeleteRoad(this);
 
     if(carriers_[0])
         carriers_[0]->LostWork();
@@ -81,23 +72,24 @@ void RoadSegment::Destroy_RoadSegment()
         for(unsigned short i = 0; i < route.size() + 1; ++i)
         {
             // Figuren sammeln
-            for(noBase* object : gwg->GetFigures(pt))
+            for(noBase& object : world->GetFigures(pt))
             {
-                if(object->GetType() == NOP_FIGURE)
+                if(object.GetType() == NodalObjectType::Figure)
                 {
-                    if(static_cast<noFigure*>(object)->GetCurrentRoad() == this)
+                    auto& figure = static_cast<noFigure&>(object);
+                    if(figure.GetCurrentRoad() == this)
                     {
-                        static_cast<noFigure*>(object)->Abrogate();
-                        static_cast<noFigure*>(object)->StartWandering();
+                        figure.Abrogate();
+                        figure.StartWandering();
                     }
                 }
             }
 
-            gwg->RoadNodeAvailable(pt);
+            world->RoadNodeAvailable(pt);
 
             if(i != route.size())
             {
-                pt = gwg->GetNeighbour(pt, route[i]);
+                pt = world->GetNeighbour(pt, route[i]);
             }
         }
 
@@ -107,19 +99,14 @@ void RoadSegment::Destroy_RoadSegment()
     }
 }
 
-void RoadSegment::Serialize_RoadSegment(SerializedGameData& sgd) const
+void RoadSegment::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_GameObject(sgd);
-
     sgd.PushEnum<uint8_t>(rt);
-    sgd.PushObject(f1, false);
-    sgd.PushObject(f2, false);
-    sgd.PushUnsignedShort(route.size());
+    sgd.PushObject(f1);
+    sgd.PushObject(f2);
+    helpers::pushContainer(sgd, route);
     sgd.PushObject(carriers_[0], true);
     sgd.PushObject(carriers_[1], true);
-
-    for(auto i : route)
-        sgd.PushEnum<uint8_t>(i);
 }
 
 /**
@@ -141,7 +128,7 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
         if(t == splitflag->GetPos())
             break;
 
-        t = gwg->GetNeighbour(t, route[length1]);
+        t = world->GetNeighbour(t, route[length1]);
     }
 
     length2 = this->route.size() - length1;
@@ -175,23 +162,23 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
 
     for(unsigned short i = 0; i < old_route.size() + 1; ++i)
     {
-        const std::list<noBase*>& figures = gwg->GetFigures(t);
-        for(auto* figure : figures)
+        for(noBase& object : world->GetFigures(t))
         {
-            if(figure->GetType() == NOP_FIGURE)
+            if(object.GetType() == NodalObjectType::Figure)
             {
-                if(static_cast<noFigure*>(figure)->GetCurrentRoad() == this)
-                    static_cast<noFigure*>(figure)->CorrectSplitData(second);
+                auto& figure = static_cast<noFigure&>(object);
+                if(figure.GetCurrentRoad() == this)
+                    figure.CorrectSplitData(second);
             }
         }
 
         if(i != old_route.size())
         {
-            t = gwg->GetNeighbour(t, old_route[i]);
+            t = world->GetNeighbour(t, old_route[i]);
         }
     }
 
-    gwg->GetPlayer(f1->GetPlayer()).AddRoad(second);
+    world->GetPlayer(f1->GetPlayer()).AddRoad(second);
 
     for(unsigned char i = 0; i < 2; ++i)
     {
@@ -200,7 +187,7 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
         else if(i == 0)
             // Die Straße war vorher unbesetzt? Dann 2. Straßenteil zu den unoccupied rodes
             // (1. ist ja schon drin)
-            gwg->GetPlayer(f1->GetPlayer()).FindCarrierForRoad(second);
+            world->GetPlayer(f1->GetPlayer()).FindCarrierForRoad(second);
     }
 }
 
@@ -228,18 +215,18 @@ bool RoadSegment::AreWareJobs(const bool flag, CarrierType ct, const bool take_w
         switch(carriers_[otherCarrier]->GetCarrierState())
         {
             default: break;
-            case CARRS_FETCHWARE:
-            case CARRS_CARRYWARE:
-            case CARRS_WAITFORWARESPACE:
-            case CARRS_GOBACKFROMFLAG:
+            case CarrierState::FetchWare:
+            case CarrierState::CarryWare:
+            case CarrierState::WaitForWareSpace:
+            case CarrierState::GoBackFromFlag:
             {
                 // Läuft der in die Richtung, holt eine Ware bzw. ist schon fast da, braucht der hier nicht hinlaufen
                 if(carriers_[otherCarrier]->GetRoadDir() == !flag)
                     return false;
             }
             break;
-            case CARRS_CARRYWARETOBUILDING:
-            case CARRS_LEAVEBUILDING:
+            case CarrierState::CarryWareToBuilding:
+            case CarrierState::LeaveBuilding:
             {
                 // Wenn an die Flagge ein Gebäude angrenzt und der Träger da was reinträgt, kann der auch die Ware
                 // gleich mitnehmen, der zweite muss hier also nicht kommen
@@ -264,7 +251,7 @@ void RoadSegment::AddWareJob(const noRoadNode* rn)
     // nur Lagerhäuser!)
     if(route.size() == 1)
     {
-        if(f2->GetType() == NOP_BUILDING)
+        if(f2->GetType() == NodalObjectType::Building)
         {
             if(BuildingProperties::IsWareHouse(static_cast<noBuilding*>(f2)->GetBuildingType()))
                 static_cast<nobBaseWarehouse*>(f2)->FetchWare();
@@ -277,7 +264,7 @@ void RoadSegment::AddWareJob(const noRoadNode* rn)
     }
 
     // Zufällig Esel oder Träger zuerst fragen, ob er Zeit hat
-    unsigned char first = RANDOM.Rand(__FILE__, __LINE__, GetObjId(), 2);
+    unsigned char first = RANDOM_RAND(2);
     for(unsigned char i = 0; i < 2; ++i)
     {
         if(carriers_[(i + first) % 2])
@@ -317,13 +304,13 @@ void RoadSegment::UpgradeDonkeyRoad()
     MapPoint pt = f1->GetPos();
     for(auto i : route)
     {
-        gwg->SetPointRoad(pt, i, PointRoad::Donkey);
-        pt = gwg->GetNeighbour(pt, i);
+        world->SetPointRoad(pt, i, PointRoad::Donkey);
+        pt = world->GetNeighbour(pt, i);
     }
 
     // Flaggen auf beiden Seiten upgraden
-    RTTR_Assert(f1->GetGOT() == GOT_FLAG);
-    RTTR_Assert(f2->GetGOT() == GOT_FLAG);
+    RTTR_Assert(f1->GetGOT() == GO_Type::Flag);
+    RTTR_Assert(f2->GetGOT() == GO_Type::Flag);
 
     static_cast<noFlag*>(f1)->Upgrade();
     static_cast<noFlag*>(f2)->Upgrade();
@@ -339,7 +326,7 @@ void RoadSegment::TryGetDonkey()
 {
     // Nur rufen, falls es eine Eselstraße ist, noch kein Esel da ist, aber schon ein Träger da ist
     if(NeedDonkey())
-        carriers_[1] = gwg->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
+        carriers_[1] = world->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
 }
 
 /**
@@ -352,11 +339,11 @@ void RoadSegment::CarrierAbrogated(nofCarrier* carrier)
     {
         // Straße wieder unbesetzt, bzw. nur noch Esel
         this->carriers_[0] = nullptr;
-        gwg->GetPlayer(f1->GetPlayer()).FindCarrierForRoad(this);
+        world->GetPlayer(f1->GetPlayer()).FindCarrierForRoad(this);
     } else
     {
         // Kein Esel mehr da, versuchen, neuen zu bestellen
-        this->carriers_[1] = gwg->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
+        this->carriers_[1] = world->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
     }
 }
 /**

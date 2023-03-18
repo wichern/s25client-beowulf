@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwBuildings.h"
 #include "GamePlayer.h"
@@ -40,13 +27,17 @@
 
 /// Reihenfolge der Gebäude
 const std::array<BuildingType, 32> bts = {
-  BLD_BARRACKS,       BLD_GUARDHOUSE,   BLD_WATCHTOWER, BLD_FORTRESS,   BLD_GRANITEMINE, BLD_COALMINE,    BLD_IRONMINE,
-  BLD_GOLDMINE,       BLD_LOOKOUTTOWER, BLD_CATAPULT,   BLD_WOODCUTTER, BLD_FISHERY,     BLD_QUARRY,      BLD_FORESTER,
-  BLD_SLAUGHTERHOUSE, BLD_HUNTER,       BLD_BREWERY,    BLD_ARMORY,     BLD_METALWORKS,  BLD_IRONSMELTER, BLD_PIGFARM,
-  BLD_STOREHOUSE, // entry 21
-  BLD_MILL,           BLD_BAKERY,       BLD_SAWMILL,    BLD_MINT,       BLD_WELL,        BLD_SHIPYARD,    BLD_FARM,
-  BLD_DONKEYBREEDER,  BLD_CHARBURNER,
-  BLD_HARBORBUILDING // entry 31
+  BuildingType::Barracks,      BuildingType::Guardhouse, BuildingType::Watchtower,     BuildingType::Fortress,
+  BuildingType::GraniteMine,   BuildingType::CoalMine,   BuildingType::IronMine,       BuildingType::GoldMine,
+  BuildingType::LookoutTower,  BuildingType::Catapult,   BuildingType::Woodcutter,     BuildingType::Fishery,
+  BuildingType::Quarry,        BuildingType::Forester,   BuildingType::Slaughterhouse, BuildingType::Hunter,
+  BuildingType::Brewery,       BuildingType::Armory,     BuildingType::Metalworks,     BuildingType::Ironsmelter,
+  BuildingType::PigFarm,
+  BuildingType::Storehouse, // entry 21
+  BuildingType::Mill,          BuildingType::Bakery,     BuildingType::Sawmill,        BuildingType::Mint,
+  BuildingType::Well,          BuildingType::Shipyard,   BuildingType::Farm,           BuildingType::DonkeyBreeder,
+  BuildingType::Charburner,
+  BuildingType::HarborBuilding // entry 31
 };
 
 // Abstand des ersten Icons vom linken oberen Fensterrand
@@ -69,20 +60,17 @@ iwBuildings::iwBuildings(GameWorldView& gwv, GameCommandFactory& gcFactory)
         {
             if(y * 4 + x >= bts.size()) //-V547
                 break;
-            glArchivItem_Bitmap* img;
-            if(bts[y * 4 + x] != BLD_CHARBURNER)
-                img = LOADER.GetNationIcon(playerNation, bts[y * 4 + x]);
-            else
-                img = LOADER.GetImageN("charburner", playerNation * 8 + 8);
             Extent btSize = Extent(32, 32);
             DrawPoint btPos = iconPadding - btSize / 2 + iconSpacing * DrawPoint(x, y);
-            AddImageButton(y * 4 + x, btPos, btSize, TC_GREY, img, _(BUILDING_NAMES[bts[y * 4 + x]]));
+            AddImageButton(y * 4 + x, btPos, btSize, TextureColor::Grey,
+                           LOADER.GetNationIcon(playerNation, bts[y * 4 + x]), _(BUILDING_NAMES[bts[y * 4 + x]]));
         }
     }
 
     // Hilfe-Button
     Extent btSize = Extent(30, 32);
-    AddImageButton(32, GetSize() - DrawPoint(14, 20) - btSize, btSize, TC_GREY, LOADER.GetImageN("io", 225), _("Help"));
+    AddImageButton(32, GetSize() - DrawPoint(14, 20) - btSize, btSize, TextureColor::Grey, LOADER.GetImageN("io", 225),
+                   _("Help"));
 }
 
 /// Anzahlen der Gebäude zeichnen
@@ -130,7 +118,7 @@ void iwBuildings::Msg_ButtonClick(const unsigned ctrl_id)
     BuildingType bldType = bts[ctrl_id];
     if(BuildingProperties::IsMilitary(bldType))
         GoToFirstMatching<iwMilitaryBuilding>(bldType, buildingRegister.GetMilitaryBuildings());
-    else if(bldType == BLD_HARBORBUILDING)
+    else if(bldType == BuildingType::HarborBuilding)
         GoToFirstMatching<iwHarborBuilding>(bldType, buildingRegister.GetHarbors());
     else if(BuildingProperties::IsWareHouse(bldType))
         GoToFirstMatching<iwBaseWarehouse>(bldType, buildingRegister.GetStorehouses());

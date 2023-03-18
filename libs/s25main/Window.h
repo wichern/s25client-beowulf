@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -29,6 +16,7 @@
 #include "s25util/colors.h"
 #include <boost/optional/optional_fwd.hpp>
 #include <boost/range/adaptor/map.hpp>
+#include <chrono>
 #include <map>
 #include <vector>
 
@@ -42,10 +30,11 @@ class ctrlEdit;
 class ctrlGroup;
 class ctrlImage;
 class ctrlList;
-class ctrlPreviewMinimap;
 class ctrlMultiline;
+class ctrlMultiSelectGroup;
 class ctrlOptionGroup;
 class ctrlPercent;
+class ctrlPreviewMinimap;
 class ctrlProgress;
 class ctrlScrollBar;
 class ctrlTab;
@@ -54,17 +43,18 @@ class ctrlText;
 class ctrlTimer;
 class ctrlVarDeepening;
 class ctrlVarText;
-class ctrlMultiSelectGroup;
-struct TableColumn;
-
 class glArchivItem_Bitmap;
-class glArchivItem_Map;
 class glFont;
 class ITexture;
-
-struct KeyEvent;
 class MouseCoords;
+enum class GroupSelectType : unsigned;
+struct KeyEvent;
 struct ScreenResizeEvent;
+struct TableColumn;
+
+namespace libsiedler2 {
+class ArchivItem_Map;
+}
 
 /// Die Basisklasse der Fenster.
 class Window
@@ -170,8 +160,8 @@ public:
     ctrlList* AddList(unsigned id, const DrawPoint& pos, const Extent& size, TextureColor tc, const glFont* font);
     ctrlMultiline* AddMultiline(unsigned id, const DrawPoint& pos, const Extent& size, TextureColor tc,
                                 const glFont* font, FontStyle format = {});
-    ctrlOptionGroup* AddOptionGroup(unsigned id, int select_type);
-    ctrlMultiSelectGroup* AddMultiSelectGroup(unsigned id, int select_type);
+    ctrlOptionGroup* AddOptionGroup(unsigned id, GroupSelectType select_type);
+    ctrlMultiSelectGroup* AddMultiSelectGroup(unsigned id, GroupSelectType select_type);
     ctrlPercent* AddPercent(unsigned id, const DrawPoint& pos, const Extent& size, TextureColor tc, unsigned text_color,
                             const glFont* font, const unsigned short* percentage);
     ctrlProgress* AddProgress(unsigned id, const DrawPoint& pos, const Extent& size, TextureColor tc,
@@ -188,7 +178,7 @@ public:
                       const glFont* font);
     TextFormatSetter AddFormattedText(unsigned id, const DrawPoint& pos, const std::string& text, unsigned color,
                                       FontStyle format, const glFont* font);
-    ctrlTimer* AddTimer(unsigned id, unsigned timeout);
+    ctrlTimer* AddTimer(unsigned id, std::chrono::milliseconds timeout);
     /// fügt ein vertieftes variables TextCtrl hinzu.
     /// var parameters are pointers to int, unsigned or const char and must be valid for the lifetime of the var text!
     ctrlVarDeepening* AddVarDeepening(unsigned id, const DrawPoint& pos, const Extent& size, TextureColor tc,
@@ -198,7 +188,8 @@ public:
     /// var parameters are pointers to int, unsigned or const char and must be valid for the lifetime of the var text!
     ctrlVarText* AddVarText(unsigned id, const DrawPoint& pos, const std::string& formatstr, unsigned color,
                             FontStyle format, const glFont* font, unsigned parameters, ...);
-    ctrlPreviewMinimap* AddPreviewMinimap(unsigned id, const DrawPoint& pos, const Extent& size, glArchivItem_Map* map);
+    ctrlPreviewMinimap* AddPreviewMinimap(unsigned id, const DrawPoint& pos, const Extent& size,
+                                          libsiedler2::ArchivItem_Map* map);
 
     /// Draw a 3D rectangle (e.g. button)
     static void Draw3D(const Rect& rect, TextureColor tc, bool elevated, bool highlighted = false,
@@ -271,12 +262,13 @@ public:
     {}
 
 protected:
-    enum ButtonState
+    enum class ButtonState
     {
-        BUTTON_UP = 0,
-        BUTTON_HOVER,
-        BUTTON_PRESSED
+        Up,
+        Hover,
+        Pressed
     };
+    friend constexpr auto maxEnumValue(ButtonState) { return ButtonState::Pressed; }
     using ControlMap = std::map<unsigned, Window*>;
 
     /// scales X- und Y values to fit the screen

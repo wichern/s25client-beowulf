@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskSinglePlayer.h"
 #include "ListDir.h"
@@ -26,9 +13,9 @@
 #include "dskMainMenu.h"
 #include "dskSelectMap.h"
 #include "files.h"
+#include "ingameWindows/iwConnecting.h"
 #include "ingameWindows/iwMsgbox.h"
 #include "ingameWindows/iwPlayReplay.h"
-#include "ingameWindows/iwPleaseWait.h"
 #include "ingameWindows/iwSave.h"
 #include "network/CreateServerInfo.h"
 #include "network/GameClient.h"
@@ -37,7 +24,7 @@ namespace bfs = boost::filesystem;
 
 static CreateServerInfo createLocalGameInfo(const std::string& name)
 {
-    return CreateServerInfo(ServerType::LOCAL, SETTINGS.server.localPort, name);
+    return CreateServerInfo(ServerType::Local, SETTINGS.server.localPort, name);
 }
 
 /** @class dskSinglePlayer
@@ -49,17 +36,17 @@ dskSinglePlayer::dskSinglePlayer()
 {
     RTTR_Assert(dskMenuBase::ID_FIRST_FREE <= 3);
 
-    AddTextButton(3, DrawPoint(115, 180), Extent(220, 22), TC_GREEN2, _("Resume last game"), NormalFont);
-    AddTextButton(7, DrawPoint(115, 210), Extent(220, 22), TC_GREEN2, _("Load game"), NormalFont);
+    AddTextButton(3, DrawPoint(115, 180), Extent(220, 22), TextureColor::Green2, _("Resume last game"), NormalFont);
+    AddTextButton(7, DrawPoint(115, 210), Extent(220, 22), TextureColor::Green2, _("Load game"), NormalFont);
 
-    AddTextButton(5, DrawPoint(115, 250), Extent(220, 22), TC_GREEN2,
+    AddTextButton(5, DrawPoint(115, 250), Extent(220, 22), TextureColor::Green2,
                   std::string(_("Campaign")) + " (" + _("Coming soon") + ")", NormalFont)
       ->SetEnabled(false);
-    AddTextButton(6, DrawPoint(115, 280), Extent(220, 22), TC_GREEN2, _("Unlimited Play"), NormalFont);
+    AddTextButton(6, DrawPoint(115, 280), Extent(220, 22), TextureColor::Green2, _("Unlimited Play"), NormalFont);
 
-    AddTextButton(4, DrawPoint(115, 320), Extent(220, 22), TC_GREEN2, _("Play Replay"), NormalFont);
+    AddTextButton(4, DrawPoint(115, 320), Extent(220, 22), TextureColor::Green2, _("Play Replay"), NormalFont);
 
-    AddTextButton(8, DrawPoint(115, 390), Extent(220, 22), TC_RED1, _("Back"), NormalFont);
+    AddTextButton(8, DrawPoint(115, 390), Extent(220, 22), TextureColor::Red1, _("Back"), NormalFont);
 
     AddImage(11, DrawPoint(20, 20), LOADER.GetImageN("logo", 0));
 }
@@ -101,16 +88,17 @@ void dskSinglePlayer::Msg_ButtonClick(const unsigned ctrl_id)
 
                 WINDOWMANAGER.Switch(std::make_unique<dskSelectMap>(csi));
 
-                if(GAMECLIENT.HostGame(csi, mostRecentFilepath, MAPTYPE_SAVEGAME))
-                    WINDOWMANAGER.ShowAfterSwitch(std::make_unique<iwPleaseWait>());
+                if(GAMECLIENT.HostGame(csi, mostRecentFilepath, MapType::Savegame))
+                    WINDOWMANAGER.ShowAfterSwitch(std::make_unique<iwConnecting>(csi.type, nullptr));
                 else
                 {
-                    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(
-                      _("Error"), _("The specified file couldn't be loaded!"), nullptr, MSB_OK, MSB_EXCLAMATIONRED));
+                    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"),
+                                                                  _("The specified file couldn't be loaded!"), nullptr,
+                                                                  MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
                 }
             } else
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("The specified file couldn't be loaded!"),
-                                                              nullptr, MSB_OK, MSB_EXCLAMATIONRED));
+                                                              nullptr, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
         }
         break;
         case 4: // "Replay abspielen"
@@ -122,8 +110,8 @@ void dskSinglePlayer::Msg_ButtonClick(const unsigned ctrl_id)
         {
             /// @todo Hier dann Auswahl zwischen Kampagne(n) und "Freies Spiel"
             WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(
-              _("Not available"), _("Please use \'Unlimited Play\' to create a Singleplayer game."), this, MSB_OK,
-              MSB_EXCLAMATIONGREEN));
+              _("Not available"), _("Please use \'Unlimited Play\' to create a Singleplayer game."), this,
+              MsgboxButton::Ok, MsgboxIcon::ExclamationGreen));
         }
         break;
         case 6: // "Freies Spiel"

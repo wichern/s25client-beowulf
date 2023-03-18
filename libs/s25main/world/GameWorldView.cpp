@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/GameWorldView.h"
 #include "CatapultStone.h"
@@ -22,6 +9,7 @@
 #include "GlobalGameSettings.h"
 #include "Loader.h"
 #include "MapGeometry.h"
+#include "Settings.h"
 #include "addons/AddonMaxWaterwayLength.h"
 #include "buildings/noBuildingSite.h"
 #include "buildings/nobMilitary.h"
@@ -40,23 +28,28 @@
 #include "gameData/BuildingConsts.h"
 #include "gameData/GuiConsts.h"
 #include "gameData/MapConsts.h"
+#include "s25util/error.h"
 #include "s25util/warningSuppression.h"
 #include <glad/glad.h>
 #include <boost/format.hpp>
 #include <cmath>
 
 GameWorldView::GameWorldView(const GameWorldViewer& gwv, const Position& pos, const Extent& size)
-    : selPt(0, 0), show_bq(false), show_names(false), show_productivity(false), offset(0, 0), lastOffset(0, 0),
-      gwv(gwv), origin_(pos), size_(size), zoomFactor_(1.f), targetZoomFactor_(1.f), zoomSpeed_(0.f)
+    : selPt(0, 0), show_bq(SETTINGS.ingame.showBQ), show_names(SETTINGS.ingame.showNames),
+      show_productivity(SETTINGS.ingame.showProductivity), offset(0, 0), lastOffset(0, 0), gwv(gwv), origin_(pos),
+      size_(size), zoomFactor_(1.f), targetZoomFactor_(1.f), zoomSpeed_(0.f)
 {
-    MoveTo(0, 0);
+    MoveBy({0, 0});
 }
-
-GameWorldView::~GameWorldView() = default;
 
 const GameWorldBase& GameWorldView::GetWorld() const
 {
     return gwv.GetWorld();
+}
+
+SoundManager& GameWorldView::GetSoundMgr()
+{
+    return const_cast<GameWorldViewer&>(gwv).GetSoundMgr();
 }
 
 void GameWorldView::SetNextZoomFactor()
@@ -112,10 +105,10 @@ float GameWorldView::GetCurrentTargetZoomFactor() const
 
 struct ObjectBetweenLines
 {
-    noBase* obj;
+    noBase& obj;
     DrawPoint pos; // Zeichenposition
 
-    ObjectBetweenLines(noBase* obj, const DrawPoint& pos) : obj(obj), pos(pos) {}
+    ObjectBetweenLines(noBase& obj, const DrawPoint& pos) : obj(obj), pos(pos) {}
 };
 
 void GameWorldView::Draw(const RoadBuildState& rb, const MapPoint selected, bool drawMouse, unsigned* water)
@@ -173,7 +166,7 @@ void GameWorldView::Draw(const RoadBuildState& rb, const MapPoint selected, bool
 
             DrawBoundaryStone(curPt, curPos, visibility);
 
-            if(visibility == VIS_VISIBLE)
+            if(visibility == Visibility::Visible)
             {
                 DrawObject(curPt, curPos);
                 DrawMovingFiguresFromBelow(terrainRenderer, Position(x, y), between_lines);
@@ -182,7 +175,7 @@ void GameWorldView::Draw(const RoadBuildState& rb, const MapPoint selected, bool
                 // Construction aid mode
                 if(show_bq)
                     DrawConstructionAid(curPt, curPos);
-            } else if(visibility == VIS_FOW)
+            } else if(visibility == Visibility::FogOfWar)
             {
                 const FOWObject* fowobj = gwv.GetYoungestFOWObject(MapPoint(curPt));
                 if(fowobj)
@@ -195,7 +188,7 @@ void GameWorldView::Draw(const RoadBuildState& rb, const MapPoint selected, bool
 
         // Figuren zwischen den Zeilen zeichnen
         for(auto& between_line : between_lines)
-            between_line.obj->Draw(between_line.pos);
+            between_line.obj.Draw(between_line.pos);
     }
 
     if(show_names || show_productivity)
@@ -206,8 +199,8 @@ void GameWorldView::Draw(const RoadBuildState& rb, const MapPoint selected, bool
     // Umherfliegende Katapultsteine zeichnen
     for(auto* catapult_stone : GetWorld().catapult_stones)
     {
-        if(gwv.GetVisibility(catapult_stone->dest_building) == VIS_VISIBLE
-           || gwv.GetVisibility(catapult_stone->dest_map) == VIS_VISIBLE)
+        if(gwv.GetVisibility(catapult_stone->dest_building) == Visibility::Visible
+           || gwv.GetVisibility(catapult_stone->dest_map) == Visibility::Visible)
             catapult_stone->Draw(offset);
     }
 
@@ -229,7 +222,7 @@ void GameWorldView::DrawGUI(const RoadBuildState& rb, const TerrainRenderer& ter
     helpers::EnumArray<MapPoint, Direction> road_points;
 
     unsigned maxWaterWayLen = 0;
-    if(rb.mode != RM_DISABLED)
+    if(rb.mode != RoadBuildMode::Disabled)
     {
         for(const auto dir : helpers::EnumRange<Direction>{})
             road_points[dir] = GetWorld().GetNeighbour(rb.point, dir);
@@ -253,28 +246,28 @@ void GameWorldView::DrawGUI(const RoadBuildState& rb, const TerrainRenderer& ter
             {
                 // Mauszeiger am boden
                 unsigned mid = 22;
-                if(rb.mode == RM_DISABLED)
+                if(rb.mode == RoadBuildMode::Disabled)
                 {
                     switch(gwv.GetBQ(curPt))
                     {
-                        case BQ_FLAG: mid = 40; break;
-                        case BQ_MINE: mid = 41; break;
-                        case BQ_HUT: mid = 42; break;
-                        case BQ_HOUSE: mid = 43; break;
-                        case BQ_CASTLE: mid = 44; break;
-                        case BQ_HARBOR: mid = 45; break;
+                        case BuildingQuality::Flag: mid = 40; break;
+                        case BuildingQuality::Mine: mid = 41; break;
+                        case BuildingQuality::Hut: mid = 42; break;
+                        case BuildingQuality::House: mid = 43; break;
+                        case BuildingQuality::Castle: mid = 44; break;
+                        case BuildingQuality::Harbor: mid = 45; break;
                         default: break;
                     }
                 }
-                LOADER.GetMapImageN(mid)->DrawFull(curPos);
+                LOADER.GetMapTexture(mid)->DrawFull(curPos);
             }
 
             // Currently selected point
             if(selectedPt == curPt)
-                LOADER.GetMapImageN(20)->DrawFull(curPos);
+                LOADER.GetMapTexture(20)->DrawFull(curPos);
 
             // not building roads, no further action needed
-            if(rb.mode == RM_DISABLED)
+            if(rb.mode == RoadBuildMode::Disabled)
                 continue;
 
             // we dont own curPt, no need for any rendering...
@@ -285,7 +278,7 @@ void GameWorldView::DrawGUI(const RoadBuildState& rb, const TerrainRenderer& ter
             // highlight current route pt
             if(rb.point == curPt)
             {
-                LOADER.GetMapImageN(21)->DrawFull(curPos);
+                LOADER.GetMapTexture(21)->DrawFull(curPos);
                 continue;
             }
 
@@ -296,20 +289,20 @@ void GameWorldView::DrawGUI(const RoadBuildState& rb, const TerrainRenderer& ter
             }
 
             // test on maximal water way length
-            if(rb.mode == RM_BOAT && maxWaterWayLen != 0 && rb.route.size() >= maxWaterWayLen)
+            if(rb.mode == RoadBuildMode::Boat && maxWaterWayLen != 0 && rb.route.size() >= maxWaterWayLen)
                 continue;
 
             // render special icon for route revert
             if(!rb.route.empty() && road_points[rb.route.back() + 3u] == curPt)
             {
-                LOADER.GetMapImageN(67)->DrawFull(curPos);
+                LOADER.GetMapTexture(67)->DrawFull(curPos);
                 continue;
             }
 
             // is a flag but not the route start flag, as it would revert the route.
-            const bool targetFlag = GetWorld().GetNO(curPt)->GetType() == NOP_FLAG && curPt != rb.start;
+            const bool targetFlag = GetWorld().GetNO(curPt)->GetType() == NodalObjectType::Flag && curPt != rb.start;
             int altitude = GetWorld().GetNode(rb.point).altitude;
-            if(targetFlag || gwv.IsRoadAvailable(rb.mode == RM_BOAT, curPt))
+            if(targetFlag || gwv.IsRoadAvailable(rb.mode == RoadBuildMode::Boat, curPt))
             {
                 unsigned id;
                 switch(int(GetWorld().GetNode(curPt).altitude) - altitude)
@@ -327,13 +320,13 @@ void GameWorldView::DrawGUI(const RoadBuildState& rb, const TerrainRenderer& ter
                     default: id = 60; break;
                 }
                 if(!targetFlag)
-                    LOADER.GetMapImageN(id)->DrawFull(curPos);
+                    LOADER.GetMapTexture(id)->DrawFull(curPos);
                 else
                 {
                     DrawPoint lastPos = GetWorld().GetNodePos(rb.point) - offset + curOffset;
                     DrawPoint halfWayPos = (curPos + lastPos) / 2;
-                    LOADER.GetMapImageN(id)->DrawFull(halfWayPos);
-                    LOADER.GetMapImageN(20)->DrawFull(curPos);
+                    LOADER.GetMapTexture(id)->DrawFull(halfWayPos);
+                    LOADER.GetMapTexture(20)->DrawFull(curPos);
                 }
             }
         }
@@ -354,17 +347,24 @@ void GameWorldView::DrawNameProductivityOverlay(const TerrainRenderer& terrainRe
             if(!no)
                 continue;
 
-            // Is object not belonging to local player?
-            if(no->GetPlayer() != gwv.GetPlayerId())
-                continue;
-
             Position curPos = GetWorld().GetNodePos(pt) - offset + curOffset;
             curPos.y -= 22;
+
+            // Is object not belonging to local player?
+            if(no->GetPlayer() != gwv.GetPlayerId())
+            {
+                if(GetWorld().GetGGS().getSelection(AddonId::MILITARY_AID) == 2 && gwv.GetNumSoldiersForAttack(pt) > 0)
+                {
+                    auto* attackAidImage = LOADER.GetImageN("map_new", 20000);
+                    attackAidImage->DrawFull(curPos - DrawPoint(0, attackAidImage->getHeight()));
+                }
+                continue;
+            }
 
             // Draw object name
             if(show_names)
             {
-                unsigned color = (no->GetGOT() == GOT_BUILDINGSITE) ? COLOR_GREY : COLOR_YELLOW;
+                unsigned color = (no->GetGOT() == GO_Type::Buildingsite) ? COLOR_GREY : COLOR_YELLOW;
                 SmallFont->Draw(curPos, _(BUILDING_NAMES[no->GetBuildingType()]),
                                 FontStyle::CENTER | FontStyle::VCENTER, color);
                 curPos.y += SmallFont->getHeight();
@@ -380,13 +380,13 @@ void GameWorldView::DrawNameProductivityOverlay(const TerrainRenderer& terrainRe
 void GameWorldView::DrawProductivity(const noBaseBuilding& no, const DrawPoint& curPos)
 {
     const GO_Type got = no.GetGOT();
-    if(got == GOT_BUILDINGSITE)
+    if(got == GO_Type::Buildingsite)
     {
         unsigned color = COLOR_GREY;
 
         unsigned short p = static_cast<const noBuildingSite&>(no).GetBuildProgress();
         SmallFont->Draw(curPos, (boost::format("(%1% %%)") % p).str(), FontStyle::CENTER | FontStyle::VCENTER, color);
-    } else if(got == GOT_NOB_USUAL || got == GOT_NOB_SHIPYARD)
+    } else if(got == GO_Type::NobUsual || got == GO_Type::NobShipyard)
     {
         const auto& n = static_cast<const nobUsual&>(no);
         std::string text;
@@ -399,7 +399,7 @@ void GameWorldView::DrawProductivity(const noBaseBuilding& no, const DrawPoint& 
         else
         {
             // Catapult and Lookout tower doesn't have productivity!
-            if(n.GetBuildingType() == BLD_CATAPULT || n.GetBuildingType() == BLD_LOOKOUTTOWER)
+            if(n.GetBuildingType() == BuildingType::Catapult || n.GetBuildingType() == BuildingType::LookoutTower)
                 return;
 
             unsigned short p = n.GetProductivity();
@@ -412,7 +412,7 @@ void GameWorldView::DrawProductivity(const noBaseBuilding& no, const DrawPoint& 
                 color = COLOR_20_PERCENT;
         }
         SmallFont->Draw(curPos, text, FontStyle::CENTER | FontStyle::VCENTER, color);
-    } else if(got == GOT_NOB_MILITARY)
+    } else if(got == GO_Type::NobMilitary)
     {
         // Display amount of soldiers
         unsigned soldiers_count = static_cast<const nobMilitary&>(no).GetNumTroops();
@@ -430,22 +430,21 @@ void GameWorldView::DrawProductivity(const noBaseBuilding& no, const DrawPoint& 
 void GameWorldView::DrawFigures(const MapPoint& pt, const DrawPoint& curPos,
                                 std::vector<ObjectBetweenLines>& between_lines) const
 {
-    const std::list<noBase*>& figures = GetWorld().GetFigures(pt);
-    for(noBase* figure : figures)
+    for(noBase& figure : GetWorld().GetFigures(pt))
     {
-        if(figure->IsMoving())
+        if(figure.IsMoving())
         {
             // Drawn from above
-            Direction curMoveDir = static_cast<noMovable*>(figure)->GetCurMoveDir();
-            if(curMoveDir == Direction::NORTHEAST || curMoveDir == Direction::NORTHWEST)
+            Direction curMoveDir = static_cast<noMovable&>(figure).GetCurMoveDir();
+            if(curMoveDir == Direction::NorthEast || curMoveDir == Direction::NorthWest)
                 continue;
             // Draw later
             between_lines.push_back(ObjectBetweenLines(figure, curPos));
-        } else if(figure->GetGOT() == GOT_SHIP)
+        } else if(figure.GetGOT() == GO_Type::Ship)
             between_lines.push_back(ObjectBetweenLines(figure, curPos)); // TODO: Why special handling for ships?
         else
             // Ansonsten jetzt schon zeichnen
-            figure->Draw(curPos);
+            figure.Draw(curPos);
     }
 }
 
@@ -453,7 +452,7 @@ void GameWorldView::DrawMovingFiguresFromBelow(const TerrainRenderer& terrainRen
                                                std::vector<ObjectBetweenLines>& between_lines)
 {
     // First draw figures moving towards this point from below
-    static const std::array<Direction, 2> aboveDirs = {{Direction::NORTHEAST, Direction::NORTHWEST}};
+    static const std::array<Direction, 2> aboveDirs = {{Direction::NorthEast, Direction::NorthWest}};
     for(Direction dir : aboveDirs)
     {
         // Get figures opposite the current dir and check if they are moving in this dir
@@ -462,55 +461,61 @@ void GameWorldView::DrawMovingFiguresFromBelow(const TerrainRenderer& terrainRen
         MapPoint curPt = terrainRenderer.ConvertCoords(GetNeighbour(curPos, dir + 3u), &curOffset);
         Position figPos = GetWorld().GetNodePos(curPt) - offset + curOffset;
 
-        const std::list<noBase*>& figures = GetWorld().GetFigures(curPt);
-        for(noBase* figure : figures)
+        for(noBase& figure : GetWorld().GetFigures(curPt))
         {
-            if(figure->IsMoving() && static_cast<noMovable*>(figure)->GetCurMoveDir() == dir)
+            if(figure.IsMoving() && static_cast<noMovable&>(figure).GetCurMoveDir() == dir)
                 between_lines.push_back(ObjectBetweenLines(figure, figPos));
         }
     }
 }
 
+constexpr auto getBqImgs()
+{
+    helpers::EnumArray<unsigned, BuildingQuality> imgs{};
+    imgs[BuildingQuality::Flag] = 50;
+    imgs[BuildingQuality::Hut] = 51;
+    imgs[BuildingQuality::House] = 52;
+    imgs[BuildingQuality::Castle] = 53;
+    imgs[BuildingQuality::Mine] = 54;
+    imgs[BuildingQuality::Harbor] = 55;
+    return imgs;
+}
+
 void GameWorldView::DrawConstructionAid(const MapPoint& pt, const DrawPoint& curPos)
 {
     BuildingQuality bq = gwv.GetBQ(pt);
-    if(bq != BQ_NOTHING)
+    if(bq != BuildingQuality::Nothing)
     {
-        glArchivItem_Bitmap* bm = LOADER.GetMapImageN(49 + bq);
+        constexpr auto bqImgs = getBqImgs();
+        auto* bm = LOADER.GetMapTexture(bqImgs[bq]);
         // Draw building quality icon
         bm->DrawFull(curPos);
         // Show ability to construct military buildings
         if(GetWorld().GetGGS().isEnabled(AddonId::MILITARY_AID))
         {
             if(!GetWorld().IsMilitaryBuildingNearNode(pt, gwv.GetPlayerId())
-               && (bq == BQ_HUT || bq == BQ_HOUSE || bq == BQ_CASTLE || bq == BQ_HARBOR))
-                LOADER.GetImageN("map_new", 20000)->DrawFull(curPos - DrawPoint(-1, bm->getHeight() + 5));
+               && (bq == BuildingQuality::Hut || bq == BuildingQuality::House || bq == BuildingQuality::Castle
+                   || bq == BuildingQuality::Harbor))
+                LOADER.GetImageN("map_new", 20000)->DrawFull(curPos - DrawPoint(-1, bm->GetSize().y + 5));
         }
     }
 }
 
-void GameWorldView::DrawObject(const MapPoint& pt, const DrawPoint& curPos)
+void GameWorldView::DrawObject(const MapPoint& pt, const DrawPoint& curPos) const
 {
     noBase* obj = GetWorld().GetNode(pt).obj;
     if(!obj)
         return;
 
     obj->Draw(curPos);
-
-    return;
-    // TODO: military aid - display icon overlay of attack possibility
-    RTTR_IGNORE_UNREACHABLE_CODE
-    if(gwv.GetNumSoldiersForAttack(pt) > 0) // soldiers available for attack?
-        LOADER.GetImageN("map_new", 20000)->DrawFull(curPos + DrawPoint(1, -5));
-    RTTR_POP_DIAGNOSTIC
 }
 
 void GameWorldView::DrawBoundaryStone(const MapPoint& pt, const DrawPoint pos, Visibility vis)
 {
-    if(vis == VIS_INVISIBLE)
+    if(vis == Visibility::Invisible)
         return;
 
-    const bool isFoW = vis == VIS_FOW;
+    const bool isFoW = vis == Visibility::FogOfWar;
 
     const BoundaryStones& boundary_stones =
       isFoW ? gwv.GetYoungestFOWNode(pt).boundary_stones : GetWorld().GetNode(pt).boundary_stones;
@@ -519,7 +524,7 @@ void GameWorldView::DrawBoundaryStone(const MapPoint& pt, const DrawPoint pos, V
     if(!owner)
         return;
 
-    const unsigned nation = GetWorld().GetPlayer(owner - 1).nation;
+    const Nation nation = GetWorld().GetPlayer(owner - 1).nation;
     unsigned player_color = GetWorld().GetPlayer(owner - 1).color;
     if(isFoW)
         player_color = CalcPlayerFOWDrawColor(player_color);
@@ -547,23 +552,17 @@ void GameWorldView::ToggleShowNamesAndProductivity()
         show_productivity = show_names = false;
     else
         show_productivity = show_names = true;
+    SaveIngameSettingsValues();
 }
 
-/**
- *  verschiebt das Bild zu einer bestimmten Stelle.
- */
-void GameWorldView::MoveTo(int x, int y, bool absolute)
+void GameWorldView::MoveBy(const DrawPoint& numPixels)
 {
-    MoveTo(DrawPoint(x, y), absolute);
+    MoveTo(offset + numPixels);
 }
 
-void GameWorldView::MoveTo(const DrawPoint& newPos, bool absolute)
+void GameWorldView::MoveTo(const DrawPoint& newPos)
 {
-    if(absolute)
-        offset = newPos;
-    else
-        offset += newPos;
-
+    offset = newPos;
     DrawPoint size(GetWorld().GetWidth() * TR_W, GetWorld().GetHeight() * TR_H);
     if(size.x && size.y)
     {
@@ -587,15 +586,14 @@ void GameWorldView::MoveToMapPt(const MapPoint pt)
     lastOffset = offset;
     Position nodePos = GetWorld().GetNodePos(pt);
 
-    MoveTo(nodePos - GetSize() / 2u, true);
+    MoveTo(nodePos - GetSize() / 2u);
 }
 
-/// Springt zur letzten Position, bevor man "weggesprungen" ist
 void GameWorldView::MoveToLastPosition()
 {
     Position newLastOffset = offset;
 
-    MoveTo(lastOffset.x, lastOffset.y, true);
+    MoveTo(lastOffset);
 
     lastOffset = newLastOffset;
 }
@@ -619,7 +617,8 @@ void GameWorldView::CalcFxLx()
     firstPt.x = offset.x / TR_W - 1;
     firstPt.y = offset.y / TR_H - 1;
     lastPt.x = (offset.x + size_.x) / TR_W + 1;
-    lastPt.y = (offset.y + size_.y + 60 * HEIGHT_FACTOR) / TR_H + 1; // max altitude = 60
+    const auto maxAltitude = gwv.getMaxNodeAltitude();
+    lastPt.y = (offset.y + size_.y + maxAltitude * HEIGHT_FACTOR) / TR_H + 1;
 
     if(zoomFactor_ != 1.f) //-V550
     {
@@ -642,4 +641,12 @@ void GameWorldView::Resize(const Extent& newSize)
 {
     size_ = newSize;
     CalcFxLx();
+}
+
+void GameWorldView::SaveIngameSettingsValues() const
+{
+    auto& ingameSettings = SETTINGS.ingame;
+    ingameSettings.showBQ = show_bq;
+    ingameSettings.showNames = show_names;
+    ingameSettings.showProductivity = show_productivity;
 }

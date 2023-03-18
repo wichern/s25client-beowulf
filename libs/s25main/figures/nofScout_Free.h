@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -48,14 +35,9 @@ public:
     nofScout_Free(MapPoint pos, unsigned char player, noRoadNode* goal);
     nofScout_Free(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofScout_Free(SerializedGameData& sgd) const;
+    void Serialize(SerializedGameData& sgd) const override;
 
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofScout_Free(sgd); }
-
-    GO_Type GetGOT() const override { return GOT_NOF_SCOUT_FREE; }
+    GO_Type GetGOT() const final { return GO_Type::NofScoutFree; }
 
     void Draw(DrawPoint drawPt) override;
 
@@ -63,5 +45,5 @@ public:
     void LostWork() override;
 
     ///// Ist der Erkunder am erkunden (Sichtbereich um ihn herum)?
-    // bool IsScouting() const { return (state == STATE_SCOUT_SCOUTING || state == STATE_GOTOFLAG); }
+    // bool IsScouting() const { return (state == ScoutScouting || state == GoToFlag); }
 };

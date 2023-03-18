@@ -1,27 +1,17 @@
-// Copyright (c) 2005 - 2018 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
+#include "DrawPoint.h"
 #include "driver/VideoMode.h"
 #include "s25util/ProxySettings.h"
 #include "s25util/Singleton.h"
 #include <boost/optional.hpp>
 #include <array>
+#include <cstdint>
+#include <gameData/const_gui_ids.h>
 #include <map>
 #include <string>
 
@@ -31,6 +21,15 @@ namespace validate {
 boost::optional<uint16_t> checkPort(const std::string& port);
 bool checkPort(int port);
 } // namespace validate
+
+struct PersistentWindowSettings
+{
+    DrawPoint lastPos;
+    bool isOpen;
+
+    PersistentWindowSettings(DrawPoint lastPos, bool isOpen) : lastPos(lastPos), isOpen(isOpen) {}
+    PersistentWindowSettings() : lastPos(DrawPoint::Invalid()), isOpen(false) {}
+};
 
 /// Configuration class
 class Settings : public Singleton<Settings, SingletonPolicies::WithLongevity>
@@ -45,14 +44,16 @@ public:
 
 protected:
     void LoadDefaults();
+    void LoadIngameDefaults();
+
+    void LoadIngame();
+    void SaveIngame();
 
 public:
     struct
     {
-        unsigned submit_debug_data;
-        unsigned use_upnp;
-        bool smartCursor;
-        bool debugMode;
+        uint8_t submit_debug_data;
+        bool use_upnp, smartCursor, debugMode, showGFInfo;
     } global;
 
     struct
@@ -77,10 +78,10 @@ public:
 
     struct
     {
-        bool musik;
-        unsigned char musik_volume;
-        bool effekte;
-        unsigned char effekte_volume;
+        bool musicEnabled;
+        uint8_t musicVolume;
+        bool effectsEnabled;
+        uint8_t effectsVolume;
         std::string playlist; /// musicplayer playlist name
     } sound;
 
@@ -109,7 +110,16 @@ public:
     struct
     {
         bool scale_statistics;
+        bool showNames;
+        bool showProductivity;
+        bool showBQ;
+        bool minimapExtended;
     } ingame;
+
+    struct
+    {
+        std::map<GUI_ID, PersistentWindowSettings> persistentSettings;
+    } windows;
 
     struct
     {
@@ -120,7 +130,7 @@ public:
 
 private:
     static const int VERSION;
-    static const std::array<std::string, 11> SECTION_NAMES;
+    static const std::array<std::string, 10> SECTION_NAMES;
 };
 
 #define SETTINGS Settings::inst()

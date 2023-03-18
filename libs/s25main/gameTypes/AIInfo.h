@@ -1,45 +1,43 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
+#include <cstdint>
 class Serializer;
 
 namespace AI {
-enum Level
+enum class Level : uint8_t
 {
-    EASY = 0,
-    MEDIUM,
-    HARD
+    Easy,
+    Medium,
+    Hard
 };
+constexpr auto maxEnumValue(Level)
+{
+    return Level::Hard;
+}
 
-enum Type
+enum class Type : uint8_t
 {
-    DUMMY = 0,
-    DEFAULT,
-    BEOWULF,
+    Dummy,
+    Default,
+    Beowulf
 };
+constexpr auto maxEnumValue(Type)
+{
+    return Type::Default;
+}
 
 struct Info
 {
     Type type;
     Level level;
-    Info(Type t = DUMMY, Level l = EASY) : type(t), level(l) {}
+    Info(Type t = Type::Dummy, Level l = Level::Easy) : type(t), level(l) {}
     Info(Serializer& ser);
     void serialize(Serializer& ser) const;
+
+    bool operator==(const Info& rhs) const { return type == rhs.type && level == rhs.level; }
 };
 } // namespace AI

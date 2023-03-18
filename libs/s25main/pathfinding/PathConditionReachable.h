@@ -1,19 +1,6 @@
-// Copyright (c) 2018 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation,  either version 2 of the License,  or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not,  see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -29,9 +16,9 @@ struct PathConditionReachable
     BOOST_FORCEINLINE bool IsNodeOk(const MapPoint& pt) const
     {
         bool goodTerrainFound = false;
-        for(const auto dir : helpers::EnumRange<Direction>{})
+        for(const DescIdx<TerrainDesc> tIdx : world.GetTerrainsAround(pt))
         {
-            const TerrainDesc& t = world.GetDescription().get(world.GetRightTerrain(pt, dir));
+            const TerrainDesc& t = world.GetDescription().get(tIdx);
             if(t.Is(ETerrain::Unreachable))
                 return false;
             else if(t.Is(ETerrain::Walkable))
@@ -43,8 +30,9 @@ struct PathConditionReachable
     BOOST_FORCEINLINE bool IsEdgeOk(const MapPoint& fromPt, const Direction dir) const
     {
         // Check terrain for node transition
-        const TerrainDesc& tLeft = world.GetDescription().get(world.GetLeftTerrain(fromPt, dir));
-        const TerrainDesc& tRight = world.GetDescription().get(world.GetRightTerrain(fromPt, dir));
+        const auto terrains = world.GetTerrain(fromPt, dir);
+        const TerrainDesc& tLeft = world.GetDescription().get(terrains.left);
+        const TerrainDesc& tRight = world.GetDescription().get(terrains.right);
         // Don't go next to danger terrain
         return !tLeft.Is(ETerrain::Unreachable) && !tRight.Is(ETerrain::Unreachable);
     }

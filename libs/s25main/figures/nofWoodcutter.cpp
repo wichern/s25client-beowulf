@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofWoodcutter.h"
 
@@ -23,11 +10,11 @@
 #include "network/GameClient.h"
 #include "ogl/glArchivItem_Bitmap_Player.h"
 #include "ogl/glSmartBitmap.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "nodeObjs/noTree.h"
 
 nofWoodcutter::nofWoodcutter(const MapPoint pos, const unsigned char player, nobUsual* workplace)
-    : nofFarmhand(JOB_WOODCUTTER, pos, player, workplace)
+    : nofFarmhand(Job::Woodcutter, pos, player, workplace)
 {}
 
 nofWoodcutter::nofWoodcutter(SerializedGameData& sgd, const unsigned obj_id) : nofFarmhand(sgd, obj_id) {}
@@ -40,17 +27,17 @@ void nofWoodcutter::DrawWorking(DrawPoint drawPt)
     if(nowId < 10)
     {
         // 1. Ein Stück vom Baum nach links laufen
-        LOADER.bob_jobs_cache[gwg->GetPlayer(player).nation][JOB_WOODCUTTER][0][nowId % 8].draw(
-          drawPt - DrawPoint(nowId, 0), COLOR_WHITE, gwg->GetPlayer(player).color);
+        LOADER.getBobSprite(world->GetPlayer(player).nation, Job::Woodcutter, Direction::West, nowId % 8)
+          .draw(drawPt - DrawPoint(nowId, 0), COLOR_WHITE, world->GetPlayer(player).color);
     } else if(nowId < 82)
     {
         // 2. Hacken
         LOADER.GetPlayerImage("rom_bobs", 24 + (nowId - 10) % 8)
-          ->DrawFull(drawPt - DrawPoint(9, 0), COLOR_WHITE, gwg->GetPlayer(player).color);
+          ->DrawFull(drawPt - DrawPoint(9, 0), COLOR_WHITE, world->GetPlayer(player).color);
 
         if((nowId - 10) % 8 == 3)
         {
-            SOUNDMANAGER.PlayNOSound(53, this, nowId);
+            world->GetSoundMgr().playNOSound(53, *this, nowId);
             was_sounding = true;
         }
 
@@ -58,23 +45,23 @@ void nofWoodcutter::DrawWorking(DrawPoint drawPt)
     {
         // 3. Warten bis Baum umfällt
         LOADER.GetPlayerImage("rom_bobs", 24)
-          ->DrawFull(drawPt - DrawPoint(9, 0), COLOR_WHITE, gwg->GetPlayer(player).color);
+          ->DrawFull(drawPt - DrawPoint(9, 0), COLOR_WHITE, world->GetPlayer(player).color);
 
         if(nowId == 90)
         {
-            SOUNDMANAGER.PlayNOSound(85, this, nowId);
+            world->GetSoundMgr().playNOSound(85, *this, nowId);
             was_sounding = true;
         }
     } else if(nowId < 115)
     {
         // 4. Wieder zurückgehen nach rechts
-        LOADER.bob_jobs_cache[gwg->GetPlayer(player).nation][JOB_WOODCUTTER][3][(nowId - 105) % 8].draw(
-          drawPt - DrawPoint(9 - (nowId - 105), 0), COLOR_WHITE, gwg->GetPlayer(player).color);
+        LOADER.getBobSprite(world->GetPlayer(player).nation, Job::Woodcutter, Direction::East, (nowId - 105) % 8)
+          .draw(drawPt - DrawPoint(9 - (nowId - 105), 0), COLOR_WHITE, world->GetPlayer(player).color);
     } else
     {
         // 5. kurz am Baum warten (quasi Baumstamm in die Hand nehmen)
-        LOADER.bob_jobs_cache[gwg->GetPlayer(player).nation][JOB_WOODCUTTER][3][1].draw(drawPt, COLOR_WHITE,
-                                                                                        gwg->GetPlayer(player).color);
+        LOADER.getBobSprite(world->GetPlayer(player).nation, Job::Woodcutter, Direction::East, 1)
+          .draw(drawPt, COLOR_WHITE, world->GetPlayer(player).color);
     }
 }
 
@@ -86,16 +73,16 @@ unsigned short nofWoodcutter::GetCarryID() const
 /// Abgeleitete Klasse informieren, wenn sie anfängt zu arbeiten (Vorbereitungen)
 void nofWoodcutter::WorkStarted()
 {
-    RTTR_Assert(gwg->GetSpecObj<noTree>(dest)->GetType() == NOP_TREE);
+    RTTR_Assert(world->GetSpecObj<noTree>(dest)->GetType() == NodalObjectType::Tree);
 
-    gwg->GetSpecObj<noTree>(dest)->FallSoon();
+    world->GetSpecObj<noTree>(dest)->FallSoon();
 }
 
 /// Abgeleitete Klasse informieren, wenn fertig ist mit Arbeiten
 void nofWoodcutter::WorkFinished()
 {
     // Holz in die Hand nehmen
-    ware = GD_WOOD;
+    ware = GoodType::Wood;
 }
 
 /// Returns the quality of this working point or determines if the worker can work here at all
@@ -103,20 +90,20 @@ nofFarmhand::PointQuality nofWoodcutter::GetPointQuality(const MapPoint pt) cons
 {
     // Gibt es hier an dieser Position einen Baum und ist dieser ausgewachsen?
     // außerdem keine Ananas fällen!
-    const noBase* no = gwg->GetNO(pt);
-    if(no->GetType() == NOP_TREE)
+    const noBase* no = world->GetNO(pt);
+    if(no->GetType() == NodalObjectType::Tree)
     {
         if(static_cast<const noTree*>(no)->IsFullyGrown() && static_cast<const noTree*>(no)->ProducesWood())
-            return PQ_CLASS1;
+            return PointQuality::Class1;
     }
 
-    return PQ_NOTPOSSIBLE;
+    return PointQuality::NotPossible;
 }
 
 void nofWoodcutter::WorkAborted()
 {
     nofFarmhand::WorkAborted();
     // Dem Baum Bescheid sagen
-    if(state == STATE_WORK)
-        gwg->GetSpecObj<noTree>(pos)->DontFall();
+    if(state == State::Work)
+        world->GetSpecObj<noTree>(pos)->DontFall();
 }

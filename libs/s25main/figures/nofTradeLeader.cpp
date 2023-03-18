@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofTradeLeader.h"
 #include "EventManager.h"
@@ -25,9 +12,10 @@
 #include "commonDefines.h"
 #include "nofTradeDonkey.h"
 #include "postSystem/PostMsgWithBuilding.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/BuildingProperties.h"
 #include "gameData/GameConsts.h"
+#include "gameData/GoodConsts.h"
 #include "gameData/JobConsts.h"
 #include "gameData/NationConsts.h"
 #include <boost/format.hpp>
@@ -35,28 +23,28 @@
 
 nofTradeLeader::nofTradeLeader(const MapPoint pos, const unsigned char player, TradeRoute tr, const MapPoint homePos,
                                const MapPoint goalPos)
-    : noFigure(JOB_HELPER, pos, player), tr(std::move(tr)), successor(nullptr), homePos(homePos), goalPos(goalPos)
+    : noFigure(Job::Helper, pos, player), tr(std::move(tr)), successor(nullptr), homePos(homePos), goalPos(goalPos)
 {}
 
 nofTradeLeader::nofTradeLeader(SerializedGameData& sgd, const unsigned obj_id)
-    : noFigure(sgd, obj_id), tr(sgd, *gwg, player), successor(sgd.PopObject<nofTradeDonkey>(GOT_NOF_TRADEDONKEY)),
+    : noFigure(sgd, obj_id), tr(sgd, *world, player), successor(sgd.PopObject<nofTradeDonkey>(GO_Type::NofTradedonkey)),
       homePos(sgd.PopMapPoint()), goalPos(sgd.PopMapPoint())
 {}
 
 void nofTradeLeader::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noFigure(sgd);
+    noFigure::Serialize(sgd);
 
     tr.Serialize(sgd);
 
     sgd.PushObject(successor, true);
-    sgd.PushMapPoint(homePos);
-    sgd.PushMapPoint(goalPos);
+    helpers::pushPoint(sgd, homePos);
+    helpers::pushPoint(sgd, goalPos);
 }
 
 void nofTradeLeader::GoalReached()
 {
-    noBase* nob = gwg->GetNO(goalPos);
+    noBase* nob = world->GetNO(goalPos);
     auto* targetWarehouse = checkedCast<nobBaseWarehouse*>(nob);
     if(successor)
     {
@@ -69,7 +57,7 @@ void nofTradeLeader::GoalReached()
             amountWares++;
             successorDonkey = successorDonkey->GetSuccessor();
         }
-        GamePlayer& owner = gwg->GetPlayer(player);
+        GamePlayer& owner = world->GetPlayer(player);
         std::string waresName = _(!goodType ? JOB_NAMES[jobType] : WARE_NAMES[*goodType]);
         std::string text = str(boost::format(_("Trade caravan with %s %s arrives from player '%s'.")) % amountWares
                                % waresName % owner.name);
@@ -80,17 +68,16 @@ void nofTradeLeader::GoalReached()
         successor = nullptr;
     }
 
-    gwg->GetPlayer(targetWarehouse->GetPlayer()).IncreaseInventoryJob(this->GetJobType(), 1);
-    gwg->RemoveFigure(pos, this);
-    targetWarehouse->AddFigure(this);
+    world->GetPlayer(targetWarehouse->GetPlayer()).IncreaseInventoryJob(this->GetJobType(), 1);
+    targetWarehouse->AddFigure(world->RemoveFigure(pos, *this));
 }
 
 void nofTradeLeader::Walked()
 {
-    noBase* nob = gwg->GetNO(goalPos);
+    noBase* nob = world->GetNO(goalPos);
 
     // Does target still exist?
-    if(nob->GetType() != NOP_BUILDING
+    if(nob->GetType() != NodalObjectType::Building
        || !BuildingProperties::IsWareHouse(static_cast<noBuilding*>(nob)->GetBuildingType()))
     {
         if(TryToGoHome())
@@ -100,7 +87,6 @@ void nofTradeLeader::Walked()
             CancelTradeCaravane();
             WanderFailedTrade();
         }
-        return;
     } else if(pos == goalPos)
         GoalReached();
     else
@@ -116,12 +102,14 @@ void nofTradeLeader::Walked()
                 CancelTradeCaravane();
                 WanderFailedTrade();
             }
-            return;
-        } else if(*next_dir == TradeDirection::ReachedGoal)
-            next_dir = TradeDirection(Direction::NORTHWEST); // Walk into building
-        StartWalking(toDirection(*next_dir));
-        if(successor)
-            successor->AddNextDir(*next_dir);
+        } else
+        {
+            if(*next_dir == TradeDirection::ReachedGoal)
+                next_dir = TradeDirection(Direction::NorthWest); // Walk into building
+            StartWalking(toDirection(*next_dir));
+            if(successor)
+                successor->AddNextDir(*next_dir);
+        }
     }
 }
 
@@ -130,7 +118,7 @@ void nofTradeLeader::AbrogateWorkplace() {}
 
 void nofTradeLeader::Draw(DrawPoint drawPt)
 {
-    DrawWalkingBobJobs(drawPt, JOB_SCOUT);
+    DrawWalkingBobJobs(drawPt, Job::Scout);
 }
 
 void nofTradeLeader::LostWork() {}
@@ -143,14 +131,14 @@ bool nofTradeLeader::TryToGoHome()
 
     goalPos = homePos;
 
-    noBase* homeWh = gwg->GetNO(goalPos);
+    noBase* homeWh = world->GetNO(goalPos);
     // Does target still exist?
-    if(homeWh->GetType() != NOP_BUILDING
+    if(homeWh->GetType() != NodalObjectType::Building
        || !BuildingProperties::IsWareHouse(static_cast<noBuilding*>(homeWh)->GetBuildingType()))
         return false;
 
     // Find a way back home
-    MapPoint homeFlagPos = gwg->GetNeighbour(homePos, Direction::SOUTHEAST);
+    MapPoint homeFlagPos = world->GetNeighbour(homePos, Direction::SouthEast);
     tr.AssignNewGoal(this->GetPos(), homeFlagPos);
     return tr.IsValid();
 }

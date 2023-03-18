@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwSettings.h"
 #include "Loader.h"
@@ -34,13 +21,13 @@ iwSettings::iwSettings()
 {
     AddText(46, DrawPoint(15, 40), _("Fullscreen resolution:"), COLOR_YELLOW, FontStyle{}, NormalFont);
     AddText(47, DrawPoint(15, 85), _("Mode:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddCheckBox(4, DrawPoint(200, 124), Extent(150, 26), TC_GREY, _("Statistics Scale"), NormalFont, false);
-    GetCtrl<ctrlCheck>(4)->SetCheck(SETTINGS.ingame.scale_statistics);
+    AddCheckBox(4, DrawPoint(200, 124), Extent(150, 26), TextureColor::Grey, _("Statistics Scale"), NormalFont, false);
+    GetCtrl<ctrlCheck>(4)->setChecked(SETTINGS.ingame.scale_statistics);
 
     // "Vollbild"
-    ctrlOptionGroup* optiongroup = AddOptionGroup(3, ctrlOptionGroup::CHECK);
-    optiongroup->AddTextButton(1, DrawPoint(200, 70), Extent(150, 22), TC_GREY, _("Fullscreen"), NormalFont);
-    optiongroup->AddTextButton(2, DrawPoint(200, 95), Extent(150, 22), TC_GREY, _("Windowed"), NormalFont);
+    ctrlOptionGroup* optiongroup = AddOptionGroup(3, GroupSelectType::Check);
+    optiongroup->AddTextButton(1, DrawPoint(200, 70), Extent(150, 22), TextureColor::Grey, _("Fullscreen"), NormalFont);
+    optiongroup->AddTextButton(2, DrawPoint(200, 95), Extent(150, 22), TextureColor::Grey, _("Windowed"), NormalFont);
 
     // "Vollbild" setzen
     optiongroup = GetCtrl<ctrlOptionGroup>(3);
@@ -48,7 +35,7 @@ iwSettings::iwSettings()
     VIDEODRIVER.ListVideoModes(video_modes);
 
     // "Auflösung"
-    AddComboBox(0, DrawPoint(200, 35), Extent(150, 22), TC_GREY, NormalFont, 110);
+    AddComboBox(0, DrawPoint(200, 35), Extent(150, 22), TextureColor::Grey, NormalFont, 110);
 
     // Und zu der Combobox hinzufügen
     for(unsigned i = 0; i < video_modes.size(); ++i)
@@ -84,8 +71,8 @@ iwSettings::~iwSettings()
             if(!VIDEODRIVER.ResizeScreen(screenSize, SETTINGS.video.fullscreen))
             {
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(
-                  _("Sorry!"), _("You need to restart your game to change the screen resolution!"), this, MSB_OK,
-                  MSB_EXCLAMATIONGREEN, 1));
+                  _("Sorry!"), _("You need to restart your game to change the screen resolution!"), this,
+                  MsgboxButton::Ok, MsgboxIcon::ExclamationGreen, 1));
             }
         }
     } catch(...)

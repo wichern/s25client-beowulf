@@ -1,24 +1,10 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "figures/noFigure.h"
-#include <boost/container/flat_set.hpp>
 
 class nobBaseMilitary;
 class SerializedGameData;
@@ -40,26 +26,15 @@ protected:
 
 public:
     nofSoldier(MapPoint pos, unsigned char player, nobBaseMilitary* goal, nobBaseMilitary* home, unsigned char rank);
-    nofSoldier(MapPoint pos, unsigned char player, nobBaseMilitary* home, unsigned char rank);
+    nofSoldier(MapPoint pos, unsigned char player, nobBaseMilitary& home, unsigned char rank);
     nofSoldier(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofSoldier()
+    void Destroy() override
     {
         RTTR_Assert(HasNoHome());
-        Destroy_noFigure();
+        noFigure::Destroy();
     }
-
-public:
-    void Destroy() override { Destroy_nofSoldier(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofSoldier(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofSoldier(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
     /// Liefert Rang des Soldaten
     unsigned char GetRank() const;
@@ -67,21 +42,15 @@ public:
     bool HasNoHome() const { return building == nullptr; }
 };
 
-/// Comparator to sort soldiers by rank (and ID for ties)
-/// Template arguments defines the sort order: True for weak ones first, false for strong ones first
-template<bool T_SortAsc>
+/// Comparator to sort soldiers by rank (and ID for ties), weak ones first
 struct ComparatorSoldiersByRank
 {
-    bool operator()(const nofSoldier* left, const nofSoldier* right) const
+    template<typename TSoldierPtr>
+    bool operator()(const TSoldierPtr& left, const TSoldierPtr& right) const
     {
         if(left->GetRank() == right->GetRank())
-            return (T_SortAsc) ? left->GetObjId() < right->GetObjId() : left->GetObjId() > right->GetObjId();
-        else if(T_SortAsc)
-            return left->GetRank() < right->GetRank();
+            return left->GetObjId() < right->GetObjId();
         else
-            return left->GetRank() > right->GetRank();
+            return left->GetRank() < right->GetRank();
     }
 };
-
-class nofPassiveSoldier;
-using SortedTroops = boost::container::flat_set<nofPassiveSoldier*, ComparatorSoldiersByRank<true>>;

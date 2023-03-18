@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GameCommandFactory.h"
 #include "GameCommands.h"
@@ -91,7 +78,7 @@ bool GameCommandFactory::ChangeTools(const ToolSettings& data, const int8_t* ord
 
 bool GameCommandFactory::CallSpecialist(const MapPoint pt, Job job)
 {
-    RTTR_Assert(job == JOB_GEOLOGIST || job == JOB_SCOUT);
+    RTTR_Assert(job == Job::Geologist || job == Job::Scout);
     return AddGC(new gc::CallSpecialist(pt, job));
 }
 
@@ -120,19 +107,10 @@ bool GameCommandFactory::NotifyAlliesOfLocation(const MapPoint pt)
     return AddGC(new gc::NotifyAlliesOfLocation(pt));
 }
 
-bool GameCommandFactory::SetInventorySetting(const MapPoint pt, bool isJob, unsigned char type, InventorySetting state)
+bool GameCommandFactory::SetInventorySetting(const MapPoint pt, const boost::variant<GoodType, Job>& what,
+                                             InventorySetting state)
 {
-    return AddGC(new gc::SetInventorySetting(pt, isJob, type, state));
-}
-
-bool GameCommandFactory::SetInventorySetting(const MapPoint pt, GoodType good, InventorySetting state)
-{
-    return SetInventorySetting(pt, false, good, state);
-}
-
-bool GameCommandFactory::SetInventorySetting(const MapPoint pt, Job job, InventorySetting state)
-{
-    return SetInventorySetting(pt, true, job, state);
+    return AddGC(new gc::SetInventorySetting(pt, what, state));
 }
 
 bool GameCommandFactory::SetAllInventorySettings(const MapPoint pt, bool isJob,
@@ -188,28 +166,27 @@ bool GameCommandFactory::StartStopExpedition(const MapPoint pt, bool start)
 
 bool GameCommandFactory::FoundColony(unsigned shipID)
 {
-    return AddGC(new gc::ExpeditionCommand(gc::ExpeditionCommand::FOUNDCOLONY, shipID));
+    return AddGC(new gc::ExpeditionCommand(gc::ExpeditionCommand::Action::FoundColony, shipID));
 }
 
 bool GameCommandFactory::TravelToNextSpot(ShipDirection direction, unsigned shipID)
 {
     gc::ExpeditionCommand::Action action;
-    switch(ShipDirection::Type(direction))
+    switch(direction)
     {
-        case ShipDirection::NORTH: action = gc::ExpeditionCommand::NORTH; break;
-        case ShipDirection::NORTHEAST: action = gc::ExpeditionCommand::NORTHEAST; break;
-        case ShipDirection::SOUTHEAST: action = gc::ExpeditionCommand::SOUTHEAST; break;
-        case ShipDirection::SOUTH: action = gc::ExpeditionCommand::SOUTH; break;
-        case ShipDirection::SOUTHWEST: action = gc::ExpeditionCommand::SOUTHWEST; break;
-        case ShipDirection::NORTHWEST: action = gc::ExpeditionCommand::NORTHWEST; break;
-        default: throw std::invalid_argument("Direction");
+        case ShipDirection::North: action = gc::ExpeditionCommand::Action::North; break;
+        case ShipDirection::NorthEast: action = gc::ExpeditionCommand::Action::NorthEast; break;
+        case ShipDirection::SouthEast: action = gc::ExpeditionCommand::Action::SouthEast; break;
+        case ShipDirection::South: action = gc::ExpeditionCommand::Action::South; break;
+        case ShipDirection::SouthWest: action = gc::ExpeditionCommand::Action::SouthWest; break;
+        case ShipDirection::NorthWest: action = gc::ExpeditionCommand::Action::NorthWest; break;
     }
     return AddGC(new gc::ExpeditionCommand(action, shipID));
 }
 
 bool GameCommandFactory::CancelExpedition(unsigned shipID)
 {
-    return AddGC(new gc::ExpeditionCommand(gc::ExpeditionCommand::CANCELEXPEDITION, shipID));
+    return AddGC(new gc::ExpeditionCommand(gc::ExpeditionCommand::Action::CancelExpedition, shipID));
 }
 
 bool GameCommandFactory::StartStopExplorationExpedition(const MapPoint pt, bool start)

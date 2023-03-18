@@ -1,3 +1,9 @@
+<!--
+Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+
 # Constants
 
 These are the named constants that must be used to refer to specific instances.
@@ -9,6 +15,7 @@ They are also used when an event is called.
 - [Resources](#Resources)  
 - [Animals](#Animals)  
 - [Pacts](#Pacts)  
+- [Statistics](#Statistics)  
 
 ## Wares / Goods
 
@@ -116,8 +123,7 @@ JOB_SHIPWRIGHT
 JOB_SCOUT  
 JOB_PACKDONKEY  
 JOB_BOATCARRIER  
-JOB_CHARBURNER  
-JOB_NOTHING  
+JOB_CHARBURNER
 
 ## Resources
 
@@ -145,4 +151,17 @@ SPEC_SHEEP
 --> [gameTypes/PactTypes.h](../../libs/s25main/gameTypes/PactTypes.h)  
 NON_AGGRESSION_PACT  
 TREATY_OF_ALLIANCE  
-DURATION_INFINITE
+DURATION_INFINITE  
+
+## Statistics
+
+--> [gameTypes/StatisticTypes.h](../../libs/s25main/gameTypes/StatisticTypes.h)  
+STAT_COUNTRY  
+STAT_BUILDINGS  
+STAT_INHABITANTS  
+STAT_MERCHANDISE  
+STAT_MILITARY  
+STAT_GOLD  
+STAT_PRODUCTIVITY  
+STAT_VANQUISHED  
+STAT_TOURNAMENT  

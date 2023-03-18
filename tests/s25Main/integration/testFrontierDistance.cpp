@@ -1,33 +1,32 @@
-// Copyright (c) 2016 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "GamePlayer.h"
 #include "buildings/nobMilitary.h"
 #include "factories/BuildingFactory.h"
-#include "worldFixtures/WorldWithGCExecution.h"
+#include "worldFixtures/CreateEmptyWorld.h"
+#include "worldFixtures/CreateSeaWorld.h"
+#include "worldFixtures/WorldFixture.h"
+#include "world/MapLoader.h"
 #include <boost/test/unit_test.hpp>
 #include <stdexcept>
 
-BOOST_AUTO_TEST_SUITE(FrontierDistance)
+// LCOV_EXCL_START
+static std::ostream& operator<<(std::ostream& out, const FrontierDistance e)
+{
+    return out << static_cast<unsigned>(rttr::enum_cast(e));
+}
+// LCOV_EXCL_STOP
+
+BOOST_AUTO_TEST_SUITE(FrontierDistanceSuite)
 
 namespace {
-template<unsigned T_width, unsigned T_height>
-struct FrontierWorld : public WorldWithGCExecution<2, T_width, T_height>
+
+template<unsigned T_width, unsigned T_height, class T_WorldCreator = CreateEmptyWorld>
+struct FrontierWorld : public WorldFixture<T_WorldCreator, 2, T_width, T_height>
 {
-    using WorldWithGCExecution<2, T_width, T_height>::world;
+    using WorldFixture<T_WorldCreator, 2, T_width, T_height>::world;
 
     MapPoint milBld0Pos, milBld1Pos;
     nobMilitary *milBld0, *milBld1;
@@ -38,28 +37,31 @@ struct FrontierWorld : public WorldWithGCExecution<2, T_width, T_height>
         const GamePlayer& p1 = world.GetPlayer(1);
         milBld0Pos = p0.GetHQPos() - MapPoint(0, 2);
         milBld1Pos = p1.GetHQPos() - MapPoint(0, 2);
-        // Assumed by distributions and sizes
-        BOOST_REQUIRE_EQUAL(milBld0Pos.y, milBld1Pos.y);
-        // Destroy HQs so only blds are checked
+        if(std::is_same<T_WorldCreator, CreateEmptyWorld>::value)
+        { // Assumed by distributions and sizes
+            BOOST_TEST_REQUIRE(milBld0Pos.y == milBld1Pos.y);
+        }
+        // Destroy HQs so only buildings are checked
         world.DestroyNO(p0.GetHQPos());
         world.DestroyNO(p1.GetHQPos());
-        milBld0 =
-          dynamic_cast<nobMilitary*>(BuildingFactory::CreateBuilding(world, BLD_BARRACKS, milBld0Pos, 0, NAT_ROMANS));
+        milBld0 = dynamic_cast<nobMilitary*>(
+          BuildingFactory::CreateBuilding(world, BuildingType::Barracks, milBld0Pos, 0, Nation::Romans));
         milBld1 = dynamic_cast<nobMilitary*>(
-          BuildingFactory::CreateBuilding(world, BLD_WATCHTOWER, milBld1Pos, 1, NAT_VIKINGS));
+          BuildingFactory::CreateBuilding(world, BuildingType::Watchtower, milBld1Pos, 1, Nation::Vikings));
     }
 };
 using FrontierWorldSmall = FrontierWorld<34u, 20u>;
 using FrontierWorldMiddle = FrontierWorld<38u, 20u>;
 using FrontierWorldBig = FrontierWorld<60u, 20u>;
+using FrontierWorldSea = FrontierWorld<SmallSeaWorldDefault<2>::width, SmallSeaWorldDefault<2>::height, CreateSeaWorld>;
 
-DescIdx<TerrainDesc> GetWaterTerrain(const GameWorld& world)
+DescIdx<TerrainDesc> GetWaterTerrain(const World& world)
 {
     DescIdx<TerrainDesc> tWater(0);
     for(; tWater.value < world.GetDescription().terrain.size(); tWater.value++)
     {
         TerrainDesc fieldDesc = world.GetDescription().get(tWater);
-        if(fieldDesc.kind == TerrainKind::WATER && !fieldDesc.Is(ETerrain::Walkable))
+        if(fieldDesc.kind == TerrainKind::Water && !fieldDesc.Is(ETerrain::Walkable))
             return tWater;
     }
     throw std::logic_error("No water"); // LCOV_EXCL_LINE
@@ -92,12 +94,13 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceNear, FrontierWorldSmall)
         world.GetPlayer(0).RecalcMilitaryFlags();
         world.GetPlayer(1).RecalcMilitaryFlags();
 
-        unsigned distance0 = milBld0->GetFrontierDistance();
-        unsigned distance1 = milBld1->GetFrontierDistance();
+        FrontierDistance distance0 = milBld0->GetFrontierDistance();
+        FrontierDistance distance1 = milBld1->GetFrontierDistance();
 
-        BOOST_REQUIRE_EQUAL(distance0, distance1);
-        BOOST_REQUIRE_EQUAL(distance0 + i * 10u, (i == 0 ? nobMilitary::DIST_NEAR : nobMilitary::DIST_FAR)
-                                                   + i * 10u); // near if addon is inactive, otherwise inland
+        BOOST_TEST(distance0 == distance1);
+        BOOST_TEST(
+          distance0
+          == (i == 0 ? FrontierDistance::Near : FrontierDistance::Far)); // near if addon is inactive, otherwise inland
     }
 }
 
@@ -105,7 +108,7 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceNearOtherFields, FrontierWorldSmall)
 {
     for(int terrain = 0; terrain < 2; terrain++)
     {
-        TerrainKind searchedTerrain = terrain == 1 ? TerrainKind::LAVA : TerrainKind::SNOW;
+        TerrainKind searchedTerrain = terrain == 1 ? TerrainKind::Lava : TerrainKind::Snow;
         DescIdx<TerrainDesc> tUnreachable(0);
         for(; tUnreachable.value < world.GetDescription().terrain.size(); tUnreachable.value++)
         {
@@ -136,12 +139,13 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceNearOtherFields, FrontierWorldSmall)
             world.GetPlayer(0).RecalcMilitaryFlags();
             world.GetPlayer(1).RecalcMilitaryFlags();
 
-            unsigned distance0 = milBld0->GetFrontierDistance();
-            unsigned distance1 = milBld1->GetFrontierDistance();
+            FrontierDistance distance0 = milBld0->GetFrontierDistance();
+            FrontierDistance distance1 = milBld1->GetFrontierDistance();
 
-            BOOST_REQUIRE_EQUAL(distance0, distance1);
-            BOOST_REQUIRE_EQUAL(distance0 + i * 10u, (i == 0 ? nobMilitary::DIST_NEAR : nobMilitary::DIST_FAR)
-                                                       + i * 10u); // near if addon is inactive, otherwise inland
+            BOOST_TEST(distance0 == distance1);
+            BOOST_TEST(distance0
+                       == (i == 0 ? FrontierDistance::Near :
+                                    FrontierDistance::Far)); // near if addon is inactive, otherwise inland
         }
     }
 }
@@ -172,12 +176,13 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceMiddle, FrontierWorldMiddle)
         world.GetPlayer(0).RecalcMilitaryFlags();
         world.GetPlayer(1).RecalcMilitaryFlags();
 
-        unsigned distance0 = milBld0->GetFrontierDistance();
-        unsigned distance1 = milBld1->GetFrontierDistance();
+        FrontierDistance distance0 = milBld0->GetFrontierDistance();
+        FrontierDistance distance1 = milBld1->GetFrontierDistance();
 
-        BOOST_REQUIRE_EQUAL(distance0, distance1);
-        BOOST_REQUIRE_EQUAL(distance0 + i * 10u, (i == 0 ? nobMilitary::DIST_MID : nobMilitary::DIST_FAR)
-                                                   + i * 10u); // middle if addon is inactive, otherwise inland
+        BOOST_TEST(distance0 == distance1);
+        BOOST_TEST(
+          distance0
+          == (i == 0 ? FrontierDistance::Mid : FrontierDistance::Far)); // middle if addon is inactive, otherwise inland
     }
 }
 
@@ -195,9 +200,8 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceFar, FrontierWorldBig)
                 continue;
             }
 
-            MapNode& mapPoint = world.GetNodeWriteable(curPoint);
-            mapPoint.t1 = tWater;
-            mapPoint.t2 = tWater;
+            MapNode& node = world.GetNodeWriteable(curPoint);
+            node.t1 = node.t2 = tWater;
         }
     }
 
@@ -207,12 +211,27 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceFar, FrontierWorldBig)
         world.GetPlayer(0).RecalcMilitaryFlags();
         world.GetPlayer(1).RecalcMilitaryFlags();
 
-        unsigned distance0 = milBld0->GetFrontierDistance();
-        unsigned distance1 = milBld1->GetFrontierDistance();
+        FrontierDistance distance0 = milBld0->GetFrontierDistance();
+        FrontierDistance distance1 = milBld1->GetFrontierDistance();
 
-        BOOST_REQUIRE_EQUAL(distance0, distance1);
-        BOOST_REQUIRE_EQUAL(distance0 + i * 10u, nobMilitary::DIST_FAR + i * 10u); // everytime inland
+        BOOST_TEST_REQUIRE(distance0 == distance1);
+        BOOST_TEST_REQUIRE(distance0 == FrontierDistance::Far); // every time inland
     }
+}
+
+BOOST_FIXTURE_TEST_CASE(FrontierDistanceHarbor, FrontierWorldSea)
+{
+    // With sea attacks
+    this->ggs.setSelection(AddonId::SEA_ATTACK, 0);
+    milBld0->LookForEnemyBuildings(milBld1);
+    BOOST_TEST(milBld0->GetFrontierDistance() == FrontierDistance::Harbor);
+    this->ggs.setSelection(AddonId::SEA_ATTACK, 1);
+    milBld0->LookForEnemyBuildings(milBld1);
+    BOOST_TEST(milBld0->GetFrontierDistance() == FrontierDistance::Harbor);
+    // With sea attacks disabled
+    this->ggs.setSelection(AddonId::SEA_ATTACK, 2);
+    milBld0->LookForEnemyBuildings(milBld1);
+    BOOST_TEST(milBld0->GetFrontierDistance() == FrontierDistance::Far);
 }
 
 BOOST_FIXTURE_TEST_CASE(FrontierDistanceIslandTest, FrontierWorldMiddle)
@@ -244,11 +263,11 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceIslandTest, FrontierWorldMiddle)
         world.GetPlayer(0).RecalcMilitaryFlags();
         world.GetPlayer(1).RecalcMilitaryFlags();
 
-        unsigned distance0 = milBld0->GetFrontierDistance();
-        unsigned distance1 = milBld1->GetFrontierDistance();
+        FrontierDistance distance0 = milBld0->GetFrontierDistance();
+        FrontierDistance distance1 = milBld1->GetFrontierDistance();
 
-        BOOST_REQUIRE_EQUAL(distance0, distance1);
-        BOOST_REQUIRE_EQUAL(distance0 + i * 10u, nobMilitary::DIST_MID + i * 10u);
+        BOOST_TEST_REQUIRE(distance0 == distance1);
+        BOOST_TEST_REQUIRE(distance0 == FrontierDistance::Mid);
     }
 }
 
@@ -276,7 +295,7 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceIslandTest, FrontierWorldMiddle)
 //  |                   ||                      |
 //  ---------------------------------------------
 //
-using WorldBig = WorldWithGCExecution<2u, 60u, 60u>;
+using WorldBig = WorldFixture<CreateEmptyWorld, 2, 60u, 60u>;
 BOOST_FIXTURE_TEST_CASE(FrontierDistanceBug_815, WorldBig)
 {
     this->ggs.setSelection(AddonId::FRONTIER_DISTANCE_REACHABLE, 1);
@@ -326,24 +345,24 @@ BOOST_FIXTURE_TEST_CASE(FrontierDistanceBug_815, WorldBig)
 
     // side of p1 outside the bottle neck, this building will cause the bug
     MapPoint p1Far(middle + 5, 30);
-    BuildingFactory::CreateBuilding(world, BLD_WATCHTOWER, p1Far, p1.GetPlayerId(), NAT_ROMANS);
+    BuildingFactory::CreateBuilding(world, BuildingType::Watchtower, p1Far, p1.GetPlayerId(), Nation::Romans);
 
     // p1 s building, which should cause a frontier distance "near"
     MapPoint p1Near(middle + 5, 15);
     auto* milBld1 = dynamic_cast<nobMilitary*>(
-      BuildingFactory::CreateBuilding(world, BLD_WATCHTOWER, p1Near, p1.GetPlayerId(), NAT_ROMANS));
+      BuildingFactory::CreateBuilding(world, BuildingType::Watchtower, p1Near, p1.GetPlayerId(), Nation::Romans));
 
     // p0 s building, should be near, like p1 s but, will be far cause p1Far cant be reached (patch is longer then 40
     // units). It will override the NEAR-Distance from P1Near, when evaluating P1Far
     MapPoint p0Near(middle - 5, 15);
     auto* milBld0 = dynamic_cast<nobMilitary*>(
-      BuildingFactory::CreateBuilding(world, BLD_WATCHTOWER, p0Near, p0.GetPlayerId(), NAT_ROMANS));
+      BuildingFactory::CreateBuilding(world, BuildingType::Watchtower, p0Near, p0.GetPlayerId(), Nation::Romans));
 
-    nobMilitary::FrontierDistance distance0 = milBld0->GetFrontierDistance();
-    nobMilitary::FrontierDistance distance1 = milBld1->GetFrontierDistance();
+    FrontierDistance distance0 = milBld0->GetFrontierDistance();
+    FrontierDistance distance1 = milBld1->GetFrontierDistance();
 
-    BOOST_REQUIRE_EQUAL(distance0, nobMilitary::DIST_NEAR);
-    BOOST_REQUIRE_EQUAL(distance1, nobMilitary::DIST_NEAR);
+    BOOST_TEST_REQUIRE(distance0 == FrontierDistance::Near);
+    BOOST_TEST_REQUIRE(distance1 == FrontierDistance::Near);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

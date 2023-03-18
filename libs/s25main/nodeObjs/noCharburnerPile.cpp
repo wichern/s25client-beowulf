@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noCharburnerPile.h"
 
@@ -24,7 +11,7 @@
 #include "noEnvObject.h"
 #include "noFire.h"
 #include "ogl/glArchivItem_Bitmap.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 
 /// Length of the smoldering
 const unsigned SMOLDERING_LENGTH = 3000;
@@ -43,41 +30,41 @@ const unsigned short REMOVECOVER_WORK_STEPS = 1;
 const unsigned short HARVEST_WORK_STEPS = 1;
 
 noCharburnerPile::noCharburnerPile(const MapPoint pos)
-    : noCoordBase(NOP_CHARBURNERPILE, pos), state(STATE_WOOD), step(0), sub_step(1), event(nullptr)
+    : noCoordBase(NodalObjectType::CharburnerPile, pos), state(State::Wood), step(0), sub_step(1), event(nullptr)
 {}
 
 noCharburnerPile::~noCharburnerPile() = default;
 
-void noCharburnerPile::Destroy_noCharburnerPile()
+void noCharburnerPile::Destroy()
 {
     GetEvMgr().RemoveEvent(event);
 
     // Bauplätze drumrum neu berechnen
-    gwg->RecalcBQAroundPointBig(pos);
+    world->RecalcBQAroundPointBig(pos);
 
-    Destroy_noCoordBase();
+    noCoordBase::Destroy();
 }
 
-void noCharburnerPile::Serialize_noCharburnerPile(SerializedGameData& sgd) const
+void noCharburnerPile::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noCoordBase(sgd);
+    noCoordBase::Serialize(sgd);
 
-    sgd.PushUnsignedChar(static_cast<unsigned char>(state));
+    sgd.PushEnum<uint8_t>(state);
     sgd.PushUnsignedShort(step);
     sgd.PushUnsignedShort(sub_step);
     sgd.PushEvent(event);
 }
 
 noCharburnerPile::noCharburnerPile(SerializedGameData& sgd, const unsigned obj_id)
-    : noCoordBase(sgd, obj_id), state(State(sgd.PopUnsignedChar())), step(sgd.PopUnsignedShort()),
-      sub_step(sgd.PopUnsignedShort()), event(sgd.PopEvent())
+    : noCoordBase(sgd, obj_id), state(sgd.Pop<State>()), step(sgd.PopUnsignedShort()), sub_step(sgd.PopUnsignedShort()),
+      event(sgd.PopEvent())
 {}
 
 void noCharburnerPile::Draw(DrawPoint drawPt)
 {
     switch(state)
     {
-        case STATE_WOOD:
+        case State::Wood:
         {
             // Draw sand on which the wood stack is constructed
             LOADER.GetImageN("charburner_bobs", 25)->DrawFull(drawPt);
@@ -98,7 +85,7 @@ void noCharburnerPile::Draw(DrawPoint drawPt)
                 image->DrawPercent(drawPt, progress);
         }
             return;
-        case STATE_SMOLDERING:
+        case State::Smoldering:
         {
             LOADER
               .GetImageN("charburner_bobs",
@@ -107,19 +94,19 @@ void noCharburnerPile::Draw(DrawPoint drawPt)
 
             // Dann Qualm zeichnen
             unsigned globalAnimation = GAMECLIENT.GetGlobalAnimation(8, 5, 2, (this->pos.x + this->pos.y) * 100);
-            LOADER.GetMapImageN(692 + 1 * 8 + globalAnimation)
+            LOADER.GetMapTexture(692 + 1 * 8 + globalAnimation)
               ->DrawFull(drawPt + DrawPoint(21, -11), 0x99EEEEEE); //-V525
-            LOADER.GetMapImageN(692 + 2 * 8 + globalAnimation)->DrawFull(drawPt - DrawPoint(2, 06), 0x99EEEEEE);
-            LOADER.GetMapImageN(692 + 1 * 8 + globalAnimation)->DrawFull(drawPt - DrawPoint(25, 11), 0x99EEEEEE);
-            LOADER.GetMapImageN(692 + 3 * 8 + globalAnimation)->DrawFull(drawPt - DrawPoint(2, 35), 0x99EEEEEE);
+            LOADER.GetMapTexture(692 + 2 * 8 + globalAnimation)->DrawFull(drawPt - DrawPoint(2, 06), 0x99EEEEEE);
+            LOADER.GetMapTexture(692 + 1 * 8 + globalAnimation)->DrawFull(drawPt - DrawPoint(25, 11), 0x99EEEEEE);
+            LOADER.GetMapTexture(692 + 3 * 8 + globalAnimation)->DrawFull(drawPt - DrawPoint(2, 35), 0x99EEEEEE);
         }
             return;
-        case STATE_REMOVECOVER:
+        case State::RemoveCover:
         {
             LOADER.GetImageN("charburner_bobs", 28 + step)->DrawFull(drawPt);
         }
             return;
-        case STATE_HARVEST:
+        case State::Harvest:
         {
             LOADER.GetImageN("charburner_bobs", 34 + step)->DrawFull(drawPt);
         }
@@ -132,17 +119,17 @@ void noCharburnerPile::HandleEvent(const unsigned /*id*/)
 {
     // Smoldering is over
     // Pile is ready for the remove of the cover
-    if(state == STATE_SMOLDERING)
+    if(state == State::Smoldering)
     {
-        state = STATE_REMOVECOVER;
+        state = State::RemoveCover;
         // start a selfdestruct timer
         event = GetEvMgr().AddEvent(this, SELFDESTRUCT_DELAY, 0);
     } else
     {
         // selfdestruct!
         event = nullptr;
-        gwg->SetNO(pos, new noFire(pos, false), true);
-        gwg->RecalcBQAroundPoint(pos);
+        world->SetNO(pos, new noFire(pos, false), true);
+        world->RecalcBQAroundPoint(pos);
         GetEvMgr().AddToKillList(this);
     }
 }
@@ -159,7 +146,7 @@ void noCharburnerPile::NextStep()
     switch(state)
     {
         default: return;
-        case STATE_WOOD:
+        case State::Wood:
         {
             ++sub_step;
             if(sub_step == CONSTRUCTION_WORKING_STEPS[step])
@@ -171,14 +158,14 @@ void noCharburnerPile::NextStep()
                 if(step == 2)
                 {
                     step = 0;
-                    state = STATE_SMOLDERING;
+                    state = State::Smoldering;
                     GetEvMgr().RemoveEvent(event);
                     event = GetEvMgr().AddEvent(this, SMOLDERING_LENGTH, 0);
                 }
             }
         }
             return;
-        case STATE_REMOVECOVER:
+        case State::RemoveCover:
         {
             ++sub_step;
             if(sub_step == REMOVECOVER_WORK_STEPS)
@@ -189,13 +176,13 @@ void noCharburnerPile::NextStep()
                 // Reached new state?
                 if(step == 6)
                 {
-                    state = STATE_HARVEST;
+                    state = State::Harvest;
                     step = 0;
                 }
             }
         }
             return;
-        case STATE_HARVEST:
+        case State::Harvest:
         {
             ++sub_step;
             if(sub_step == HARVEST_WORK_STEPS)
@@ -207,11 +194,11 @@ void noCharburnerPile::NextStep()
                 if(step == 6)
                 {
                     // Add an empty pile as environmental object
-                    gwg->SetNO(pos, new noEnvObject(pos, 40, 6), true);
+                    world->SetNO(pos, new noEnvObject(pos, 40, 6), true);
                     GetEvMgr().AddToKillList(this);
 
                     // BQ drumrum neu berechnen
-                    gwg->RecalcBQAroundPoint(pos);
+                    world->RecalcBQAroundPoint(pos);
                 }
             }
         }
@@ -222,7 +209,7 @@ void noCharburnerPile::NextStep()
 noCharburnerPile::WareType noCharburnerPile::GetNeededWareType() const
 {
     if(sub_step % 2 == 0)
-        return WT_WOOD;
+        return WareType::Wood;
     else
-        return WT_GRAIN;
+        return WareType::Grain;
 }

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Window.h"
 #include "CollisionDetection.h"
@@ -176,6 +163,10 @@ void Window::LockRegion(Window* window, const Rect& rect)
     auto it = std::find(tofreeAreas_.begin(), tofreeAreas_.end(), window);
     if(it != tofreeAreas_.end())
         tofreeAreas_.erase(it);
+
+    // Also lock the region for all parents
+    if(GetParent())
+        GetParent()->LockRegion(this, rect);
 }
 
 /**
@@ -190,6 +181,10 @@ void Window::FreeRegion(Window* window)
         tofreeAreas_.push_back(window);
     else
         lockedAreas_.erase(window);
+
+    // Also free the locked region for all parents
+    if(GetParent())
+        GetParent()->FreeRegion(this);
 }
 
 void Window::SetPos(const DrawPoint& newPos)
@@ -316,7 +311,7 @@ ctrlMultiline* Window::AddMultiline(unsigned id, const DrawPoint& pos, const Ext
  *
  *  @return Instanz das Steuerelement.
  */
-ctrlOptionGroup* Window::AddOptionGroup(unsigned id, int select_type)
+ctrlOptionGroup* Window::AddOptionGroup(unsigned id, GroupSelectType select_type)
 {
     return AddCtrl(new ctrlOptionGroup(this, id, select_type));
 }
@@ -329,7 +324,7 @@ ctrlOptionGroup* Window::AddOptionGroup(unsigned id, int select_type)
  *
  *  @return Instanz das Steuerelement.
  */
-ctrlMultiSelectGroup* Window::AddMultiSelectGroup(unsigned id, int select_type)
+ctrlMultiSelectGroup* Window::AddMultiSelectGroup(unsigned id, GroupSelectType select_type)
 {
     return AddCtrl(new ctrlMultiSelectGroup(this, id, select_type));
 }
@@ -372,7 +367,7 @@ ctrlTable* Window::AddTable(unsigned id, const DrawPoint& pos, const Extent& siz
     return AddCtrl(new ctrlTable(this, id, ScaleIf(pos), ScaleIf(size), tc, font, std::move(columns)));
 }
 
-ctrlTimer* Window::AddTimer(unsigned id, unsigned timeout)
+ctrlTimer* Window::AddTimer(unsigned id, std::chrono::milliseconds timeout)
 {
     return AddCtrl(new ctrlTimer(this, id, timeout));
 }
@@ -452,7 +447,7 @@ ctrlVarText* Window::AddVarText(unsigned id, const DrawPoint& pos, const std::st
 }
 
 ctrlPreviewMinimap* Window::AddPreviewMinimap(const unsigned id, const DrawPoint& pos, const Extent& size,
-                                              glArchivItem_Map* const map)
+                                              libsiedler2::ArchivItem_Map* const map)
 {
     return AddCtrl(new ctrlPreviewMinimap(this, id, ScaleIf(pos), ScaleIf(size), map));
 }
@@ -471,18 +466,18 @@ void Window::Draw3D(const Rect& rect, TextureColor tc, bool elevated, bool highl
 
 void Window::Draw3DBorder(const Rect& rect, TextureColor tc, bool elevated)
 {
-    if(tc == TC_INVISIBLE)
+    if(tc == TextureColor::Invisible)
         return;
-    glArchivItem_Bitmap* borderImg = LOADER.GetImageN("io", 12 + tc);
+    glArchivItem_Bitmap* borderImg = LOADER.GetImageN("io", 12 + rttr::enum_cast(tc));
     VIDEODRIVER.GetRenderer()->Draw3DBorder(rect, elevated, *borderImg);
 }
 
 void Window::Draw3DContent(const Rect& rect, TextureColor tc, bool elevated, bool highlighted, bool illuminated,
                            unsigned contentColor)
 {
-    if(tc == TC_INVISIBLE)
+    if(tc == TextureColor::Invisible)
         return;
-    glArchivItem_Bitmap* contentImg = LOADER.GetImageN("io", tc * 2 + (highlighted ? 0 : 1));
+    glArchivItem_Bitmap* contentImg = LOADER.GetImageN("io", rttr::enum_cast(tc) * 2 + (highlighted ? 0 : 1));
     VIDEODRIVER.GetRenderer()->Draw3DContent(rect, elevated, *contentImg, illuminated, contentColor);
 }
 

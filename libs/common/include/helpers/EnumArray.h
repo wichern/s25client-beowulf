@@ -1,28 +1,16 @@
-// Copyright (c) 2020 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "MaxEnumValue.h"
 #include "enum_cast.hpp"
+#include <array>
 
 namespace helpers {
 
-/// Array that is meant to be index with enum values instead of integrals
+/// Array that is meant to be indexed with enum values instead of integrals
 /// <typeparam name="T_Elements">Type of the elements</typeparam>
 /// <typeparam name="T_Index">Type of the indices</typeparam>
 template<typename T_Elements, typename T_Index>
@@ -35,8 +23,9 @@ struct EnumArray
     constexpr T_Elements* data() { return elems; }
     constexpr const T_Elements* data() const { return elems; }
     static constexpr unsigned size() { return helpers::MaxEnumValue_v<T_Index> + 1u; }
+    constexpr bool empty() const { return false; }
 
-    T_Elements& operator[](T_Index idx) noexcept { return elems[rttr::enum_cast(idx)]; }
+    constexpr T_Elements& operator[](T_Index idx) noexcept { return elems[rttr::enum_cast(idx)]; }
     constexpr const T_Elements& operator[](T_Index idx) const noexcept { return elems[rttr::enum_cast(idx)]; }
 
     iterator begin() noexcept { return elems; }
@@ -44,6 +33,47 @@ struct EnumArray
     iterator end() noexcept { return elems + size(); }
     constexpr const_iterator end() const noexcept { return elems + size(); }
 
+    constexpr bool operator==(const EnumArray& rhs)
+    {
+        for(unsigned i = 0; i < size(); ++i)
+        {
+            if(elems[i] != rhs.elems[i])
+                return false;
+        }
+        return true;
+    }
+    constexpr bool operator!=(const EnumArray& rhs) { return !(*this == rhs); }
+
     T_Elements elems[size()];
 };
+
+namespace detail {
+    template<typename T_Index, typename T, std::size_t... I>
+    constexpr auto toEnumArrayImpl(const std::array<T, sizeof...(I)>& src, std::index_sequence<I...>)
+    {
+        return helpers::EnumArray<T, T_Index>{src[I]...};
+    }
+    template<typename T, typename... T_Indices>
+    struct GetMultiEnumArray
+    {
+        using type = T;
+    };
+    template<typename T, typename T_Index, typename... T_Indices>
+    struct GetMultiEnumArray<T, T_Index, T_Indices...>
+    {
+        using type = EnumArray<typename GetMultiEnumArray<T, T_Indices...>::type, T_Index>;
+    };
+} // namespace detail
+
+/// Shortcut for creating ND EnumArrays similar to int[5][4]
+/// MultiEnumArray<Value, MyEnum1, MyEnum2> --> EnumArray<EnumArray<Value, MyEnum2>, MyEnum1>
+template<typename T, typename... T_Indices>
+using MultiEnumArray = typename detail::GetMultiEnumArray<T, T_Indices...>::type;
+
+/// Convert a std::array to an EnumArray
+template<typename T_Index, typename T>
+constexpr auto toEnumArray(const std::array<T, helpers::NumEnumValues_v<T_Index>>& src)
+{
+    return detail::toEnumArrayImpl<T_Index>(src, std::make_index_sequence<helpers::NumEnumValues_v<T_Index>>());
+}
 } // namespace helpers

@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2018 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GamePlayer.h"
 #include "buildings/nobHarborBuilding.h"
@@ -30,8 +17,8 @@ struct HarborFixture : WorldFixture<CreateEmptyWorld, 1>
         GamePlayer& player = world.GetPlayer(0);
         hq = world.GetSpecObj<nobBaseWarehouse>(player.GetHQPos());
         hb = static_cast<nobHarborBuilding*>(BuildingFactory::CreateBuilding(
-          world, BLD_HARBORBUILDING, player.GetHQPos() + MapPoint(4, 0), 0, NAT_ROMANS));
-        world.BuildRoad(0, false, hq->GetFlagPos(), {4, Direction::EAST});
+          world, BuildingType::HarborBuilding, player.GetHQPos() + MapPoint(4, 0), 0, Nation::Romans));
+        world.BuildRoad(0, false, hq->GetFlagPos(), {4, Direction::East});
     }
 
     nobBaseWarehouse* hq;
@@ -41,7 +28,7 @@ struct HarborFixture : WorldFixture<CreateEmptyWorld, 1>
 
 BOOST_FIXTURE_TEST_CASE(StartExpeditionThenCancel, HarborFixture)
 {
-    BOOST_TEST_REQUIRE(hq->GetNumRealFigures(JOB_BUILDER) >= 1u); // Must have a builder
+    BOOST_TEST_REQUIRE(hq->GetNumRealFigures(Job::Builder) >= 1u); // Must have a builder
     const auto numLeavingFigs = hq->GetLeavingFigures().size();
     hb->StartExpedition();
     // Builder should be ordered
@@ -53,7 +40,7 @@ BOOST_FIXTURE_TEST_CASE(StartExpeditionThenCancel, HarborFixture)
 
 BOOST_FIXTURE_TEST_CASE(StartExpeditionThenDestroy, HarborFixture)
 {
-    BOOST_TEST_REQUIRE(hq->GetNumRealFigures(JOB_BUILDER) >= 1u); // Must have a builder
+    BOOST_TEST_REQUIRE(hq->GetNumRealFigures(Job::Builder) >= 1u); // Must have a builder
     const auto numLeavingFigs = hq->GetLeavingFigures().size();
     hb->StartExpedition();
     // Builder should be ordered

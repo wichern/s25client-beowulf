@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "AIConstruction.h"
 #include "BuildingPlanner.h"
@@ -48,14 +35,16 @@
 namespace AIJH {
 
 AIConstruction::AIConstruction(AIPlayerJH& aijh)
-    : aijh(aijh), aii(aijh.GetInterface()), bldPlanner(aijh.GetBldPlanner()), constructionorders(NUM_BUILDING_TYPES)
-{}
+    : aijh(aijh), aii(aijh.GetInterface()), bldPlanner(aijh.GetBldPlanner())
+{
+    std::fill(constructionorders.begin(), constructionorders.end(), 0u);
+}
 
 AIConstruction::~AIConstruction() = default;
 
 void AIConstruction::AddBuildJob(std::unique_ptr<BuildJob> job, bool front)
 {
-    if(job->GetType() == BLD_SHIPYARD && aijh.IsInvalidShipyardPosition(job->GetAround()))
+    if(job->GetType() == BuildingType::Shipyard && aijh.IsInvalidShipyardPosition(job->GetAround()))
         return;
     if(BuildingProperties::IsMilitary(
          job->GetType())) // non military buildings can only be added once to the contruction que for every location
@@ -105,7 +94,8 @@ void AIConstruction::ExecuteJobs(unsigned limit)
         auto job = std::move(connectJobs.front());
         connectJobs.pop_front();
         job->ExecuteJob();
-        if(job->GetState() != JOB_FINISHED && job->GetState() != JOB_FAILED) // couldnt do job? -> move to back of list
+        if(job->GetState() != JobState::Finished
+           && job->GetState() != JobState::Failed) // couldnt do job? -> move to back of list
         {
             connectJobs.push_back(std::move(job));
         }
@@ -114,7 +104,8 @@ void AIConstruction::ExecuteJobs(unsigned limit)
     {
         auto job = GetBuildJob();
         job->ExecuteJob();
-        if(job->GetState() != JOB_FINISHED && job->GetState() != JOB_FAILED) // couldnt do job? -> move to back of list
+        if(job->GetState() != JobState::Finished
+           && job->GetState() != JobState::Failed) // couldnt do job? -> move to back of list
         {
             buildJobs.push_back(std::move(job));
         }
@@ -188,20 +179,15 @@ void AIConstruction::ConstructionsExecuted()
 namespace {
     struct Point2FlagAI
     {
-        using result_type = const noFlag*;
         const GameWorldBase& world_;
-
         Point2FlagAI(const GameWorldBase& world) : world_(world) {}
-
-        result_type operator()(const MapPoint pt, unsigned /*r*/) const { return world_.GetSpecObj<noFlag>(pt); }
+        const noFlag* operator()(const MapPoint pt, unsigned /*r*/) const { return world_.GetSpecObj<noFlag>(pt); }
     };
 
     struct IsValidFlag
     {
         const unsigned playerId_;
-
         IsValidFlag(const unsigned playerId) : playerId_(playerId) {}
-
         bool operator()(const noFlag* const flag) const { return flag && flag->GetPlayer() == playerId_; }
     };
 } // namespace
@@ -246,7 +232,7 @@ std::vector<const noFlag*> AIConstruction::FindFlags(const MapPoint pt, unsigned
 
 bool AIConstruction::MilitaryBuildingWantsRoad(const nobMilitary& milbld)
 {
-    if(milbld.GetFrontierDistance() > 0) // close to front or harbor? connect!
+    if(milbld.GetFrontierDistance() != FrontierDistance::Far) // close to front or harbor? connect!
         return true;
     if(!aijh.UpgradeBldPos.isValid()) // no upgrade bld on last update -> connect all that want to connect
         return true;
@@ -268,7 +254,7 @@ bool AIConstruction::ConnectFlagToRoadSytem(const noFlag* flag, std::vector<Dire
     // const unsigned short maxSearchRadius = 10;
 
     // flag of a military building? -> check if we really want to connect this right now
-    const MapPoint bldPos = aii.gwb.GetNeighbour(flag->GetPos(), Direction::NORTHWEST);
+    const MapPoint bldPos = aii.gwb.GetNeighbour(flag->GetPos(), Direction::NorthWest);
     if(const auto* milBld = aii.gwb.GetSpecObj<const nobMilitary>(bldPos))
     {
         if(!MilitaryBuildingWantsRoad(*milBld))
@@ -299,7 +285,7 @@ bool AIConstruction::ConnectFlagToRoadSytem(const noFlag* flag, std::vector<Dire
         tmpRoute.clear();
         unsigned length;
         // the flag should not be at a military building!
-        if(aii.gwb.IsMilitaryBuildingOnNode(aii.gwb.GetNeighbour(curFlag->GetPos(), Direction::NORTHWEST), true))
+        if(aii.gwb.IsMilitaryBuildingOnNode(aii.gwb.GetNeighbour(curFlag->GetPos(), Direction::NorthWest), true))
             continue;
         // Gibts überhaupt einen Pfad zu dieser Flagge
         if(!aii.FindFreePathForNewRoad(flag->GetPos(), curFlag->GetPos(), &tmpRoute, &length))
@@ -315,7 +301,7 @@ bool AIConstruction::ConnectFlagToRoadSytem(const noFlag* flag, std::vector<Dire
         {
             tmpPos = aii.gwb.GetNeighbour(tmpPos, j);
             RTTR_Assert(aii.GetBuildingQuality(tmpPos) == aijh.GetAINode(tmpPos).bq);
-            if(aii.GetBuildingQuality(tmpPos) == BQ_NOTHING)
+            if(aii.GetBuildingQuality(tmpPos) == BuildingQuality::Nothing)
                 curNonFlagPts++;
             else
             {
@@ -479,19 +465,20 @@ helpers::OptionalEnum<BuildingType> AIConstruction::ChooseMilitaryBuilding(const
     const BuildingType biggestBld = GetBiggestAllowedMilBuilding().value();
 
     const Inventory& inventory = aii.GetInventory();
-    if(((rand() % 3) == 0 || inventory.people[JOB_PRIVATE] < 15)
-       && (inventory.goods[GD_STONES] > 6 || bldPlanner.GetNumBuildings(BLD_QUARRY) > 0))
-        bld = BLD_GUARDHOUSE;
-    if(aijh.HarborPosClose(pt, 20) && rand() % 10 != 0 && aijh.ggs.getSelection(AddonId::SEA_ATTACK) != 2)
+    if(((rand() % 3) == 0 || inventory.people[Job::Private] < 15)
+       && (inventory.goods[GoodType::Stones] > 6 || bldPlanner.GetNumBuildings(BuildingType::Quarry) > 0))
+        bld = BuildingType::Guardhouse;
+    if(aijh.getAIInterface().isHarborPosClose(pt, 19) && rand() % 10 != 0 && aijh.ggs.isEnabled(AddonId::SEA_ATTACK))
     {
-        if(aii.CanBuildBuildingtype(BLD_WATCHTOWER))
-            return BLD_WATCHTOWER;
+        if(aii.CanBuildBuildingtype(BuildingType::Watchtower))
+            return BuildingType::Watchtower;
         return GetBiggestAllowedMilBuilding();
     }
-    if(biggestBld == BLD_WATCHTOWER || biggestBld == BLD_FORTRESS)
+    if(biggestBld == BuildingType::Watchtower || biggestBld == BuildingType::Fortress)
     {
         if(aijh.UpdateUpgradeBuilding() < 0 && bldPlanner.GetNumBuildingSites(biggestBld) < 1
-           && (inventory.goods[GD_STONES] > 20 || bldPlanner.GetNumBuildings(BLD_QUARRY) > 0) && rand() % 10 != 0)
+           && (inventory.goods[GoodType::Stones] > 20 || bldPlanner.GetNumBuildings(BuildingType::Quarry) > 0)
+           && rand() % 10 != 0)
         {
             return biggestBld;
         }
@@ -508,14 +495,14 @@ helpers::OptionalEnum<BuildingType> AIConstruction::ChooseMilitaryBuilding(const
         {
             int randmil = rand();
             bool buildCatapult = randmil % 8 == 0 && aii.CanBuildCatapult()
-                                 && bldPlanner.GetNumAdditionalBuildingsWanted(BLD_CATAPULT) > 0;
+                                 && bldPlanner.GetNumAdditionalBuildingsWanted(BuildingType::Catapult) > 0;
             // another catapult within "min" radius? ->dont build here!
             const unsigned min = 16;
             if(buildCatapult && aii.gwb.CalcDistance(pt, aii.GetStorehouses().front()->GetPos()) < min)
                 buildCatapult = false;
             if(buildCatapult)
             {
-                for(const nobUsual* catapult : aii.GetBuildings(BLD_CATAPULT))
+                for(const nobUsual* catapult : aii.GetBuildings(BuildingType::Catapult))
                 {
                     if(aii.gwb.CalcDistance(pt, catapult->GetPos()) < min)
                     {
@@ -536,11 +523,11 @@ helpers::OptionalEnum<BuildingType> AIConstruction::ChooseMilitaryBuilding(const
                 }
             }
             if(buildCatapult)
-                bld = BLD_CATAPULT;
+                bld = BuildingType::Catapult;
             else
             {
-                if(randmil % 2 == 0 && aii.CanBuildBuildingtype(BLD_WATCHTOWER))
-                    bld = BLD_WATCHTOWER;
+                if(randmil % 2 == 0 && aii.CanBuildBuildingtype(BuildingType::Watchtower))
+                    bld = BuildingType::Watchtower;
                 else
                     bld = biggestBld;
             }
@@ -548,8 +535,8 @@ helpers::OptionalEnum<BuildingType> AIConstruction::ChooseMilitaryBuilding(const
             // are no big building spots in that direction
             if(randmil % 10 == 0)
             {
-                if(aii.CanBuildBuildingtype(BLD_GUARDHOUSE))
-                    bld = BLD_GUARDHOUSE;
+                if(aii.CanBuildBuildingtype(BuildingType::Guardhouse))
+                    bld = BuildingType::Guardhouse;
                 else
                     bld = GetSmallestAllowedMilBuilding();
             }
@@ -564,13 +551,13 @@ bool AIConstruction::Wanted(BuildingType type) const
 {
     if(!aii.CanBuildBuildingtype(type))
         return false;
-    if(type == BLD_CATAPULT && !aii.CanBuildCatapult())
+    if(type == BuildingType::Catapult && !aii.CanBuildCatapult())
         return false;
-    if(BuildingProperties::IsMilitary(type) || type == BLD_STOREHOUSE)
+    if(BuildingProperties::IsMilitary(type) || type == BuildingType::Storehouse)
         return bldPlanner.WantMoreMilitaryBlds(aijh);
-    if(type == BLD_SAWMILL && bldPlanner.GetNumBuildings(BLD_SAWMILL) > 1)
+    if(type == BuildingType::Sawmill && bldPlanner.GetNumBuildings(BuildingType::Sawmill) > 1)
     {
-        if(aijh.AmountInStorage(GD_WOOD) < 15 * (bldPlanner.GetNumBuildingSites(BLD_SAWMILL) + 1))
+        if(aijh.AmountInStorage(GoodType::Wood) < 15 * (bldPlanner.GetNumBuildingSites(BuildingType::Sawmill) + 1))
             return false;
     }
     return constructionorders[type] < bldPlanner.GetNumAdditionalBuildingsWanted(type);
@@ -596,7 +583,7 @@ bool AIConstruction::BuildAlternativeRoad(const noFlag* flag, std::vector<Direct
     const auto* mainflag = aii.gwb.GetSpecObj<noFlag>(t);
 
     // Jede Flagge testen...
-    for(auto& i : flags)
+    for(const noFlag* i : flags)
     {
         const noFlag& curFlag = *i;
         // When the current flag is the end of the main route, we skip it as crossing the main route is dissallowed by
@@ -607,7 +594,7 @@ bool AIConstruction::BuildAlternativeRoad(const noFlag* flag, std::vector<Direct
         route.clear();
         unsigned newLength;
         // the flag should not be at a military building!
-        if(aii.gwb.IsMilitaryBuildingOnNode(aii.gwb.GetNeighbour(curFlag.GetPos(), Direction::NORTHWEST), true))
+        if(aii.gwb.IsMilitaryBuildingOnNode(aii.gwb.GetNeighbour(curFlag.GetPos(), Direction::NorthWest), true))
             continue;
 
         if(!IsConnectedToRoadSystem(&curFlag))
@@ -649,7 +636,7 @@ bool AIConstruction::BuildAlternativeRoad(const noFlag* flag, std::vector<Direct
                 }
             }
             RTTR_Assert(aii.GetBuildingQuality(t) == aijh.GetAINode(t).bq);
-            if(aii.GetBuildingQuality(t) == BQ_NOTHING)
+            if(aii.GetBuildingQuality(t) == BuildingQuality::Nothing)
                 temp++;
             else
             {

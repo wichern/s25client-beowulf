@@ -1,22 +1,12 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GameMessages.h"
 #include "JoinPlayerInfo.h"
+#include "enum_cast.hpp"
+#include "helpers/serializeContainers.h"
+#include "helpers/serializeEnums.h"
 
 GameMessage_Player_List::GameMessage_Player_List() : GameMessage(NMS_PLAYER_LIST) {}
 
@@ -52,8 +42,35 @@ bool GameMessage_Player_List::Run(GameMessageInterface* callback) const
     for(unsigned i = 0; i < playerInfos.size(); ++i)
     {
         const JoinPlayerInfo& playerInfo = playerInfos[i];
-        LOG.writeToFile("    %d: %s %d %d %d %d %d %s\n") % i % playerInfo.name % playerInfo.ps % playerInfo.ping
-          % playerInfo.nation % playerInfo.color % playerInfo.team % (playerInfo.isReady ? "true" : "false");
+        LOG.writeToFile("    %d: %s %d %d %d %d %d %s\n") % i % playerInfo.name % rttr::enum_cast(playerInfo.ps)
+          % playerInfo.ping % rttr::enum_cast(playerInfo.nation) % playerInfo.color % rttr::enum_cast(playerInfo.team)
+          % (playerInfo.isReady ? "true" : "false");
     }
     return callback->OnGameMessage(*this);
+}
+
+void GameMessage_Server_Async::Serialize(Serializer& ser) const
+{
+    GameMessage::Serialize(ser);
+    helpers::pushContainer(ser, checksums);
+}
+
+void GameMessage_Server_Async::Deserialize(Serializer& ser)
+{
+    GameMessage::Deserialize(ser);
+    helpers::popContainer(ser, checksums);
+}
+
+void GameMessage_Server_TypeOK::Serialize(Serializer& ser) const
+{
+    GameMessage::Serialize(ser);
+    helpers::pushEnum<uint32_t>(ser, err_code);
+    ser.PushString(version);
+}
+
+void GameMessage_Server_TypeOK::Deserialize(Serializer& ser)
+{
+    GameMessage::Deserialize(ser);
+    err_code = helpers::popEnum<StatusCode>(ser);
+    version = ser.PopString();
 }

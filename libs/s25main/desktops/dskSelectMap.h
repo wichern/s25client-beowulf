@@ -1,28 +1,15 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "Desktop.h"
 #include "mapGenerator/MapSettings.h"
-#include "network/ClientInterface.h"
 #include "network/CreateServerInfo.h"
 #include "liblobby/LobbyInterface.h"
 #include <boost/filesystem/path.hpp>
+#include <boost/signals2/connection.hpp>
 #include <set>
 #include <string>
 #include <vector>
@@ -31,7 +18,7 @@ namespace boost {
 class thread;
 }
 
-class dskSelectMap final : public Desktop, public ClientInterface, public LobbyInterface
+class dskSelectMap final : public Desktop, public LobbyInterface
 {
 public:
     dskSelectMap(CreateServerInfo csi);
@@ -47,9 +34,6 @@ private:
     void Msg_MsgBoxResult(unsigned msgbox_id, MsgboxResult mbr) override;
     void Msg_TableSelectItem(unsigned ctrl_id, const boost::optional<unsigned>& selection) override;
     void Msg_TableChooseItem(unsigned ctrl_id, unsigned selection) override;
-
-    void CI_NextConnectState(ConnectState cs) override;
-    void CI_Error(ClientError ce) override;
 
     void LC_Status_Error(const std::string& error) override;
 
@@ -71,7 +55,7 @@ private:
     void OnMapCreated(const boost::filesystem::path& mapPath);
 
     CreateServerInfo csi;
-    MapSettings rndMapSettings;
+    rttr::mapGenerator::MapSettings rndMapSettings;
     boost::thread* mapGenThread;
     boost::filesystem::path newRandMapPath;
     std::string randMapGenError;
@@ -80,4 +64,5 @@ private:
     std::map<uint8_t, std::string> landscapeNames;
     /// Maps that we already know are broken
     std::set<boost::filesystem::path> brokenMapPaths;
+    boost::signals2::scoped_connection onErrorConnection_;
 };

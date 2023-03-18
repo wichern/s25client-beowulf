@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwPlayReplay.h"
 #include "ListDir.h"
@@ -43,9 +30,9 @@ public:
     SwitchOnStart() { GAMECLIENT.SetInterface(this); }
     ~SwitchOnStart() override { GAMECLIENT.RemoveInterface(this); }
 
-    void CI_GameLoading(const std::shared_ptr<Game>& game) override
+    void CI_GameLoading(std::shared_ptr<Game> game) override
     {
-        WINDOWMANAGER.Switch(std::make_unique<dskGameLoader>(game));
+        WINDOWMANAGER.Switch(std::make_unique<dskGameLoader>(std::move(game)));
     }
 };
 
@@ -60,19 +47,19 @@ iwPlayReplay::iwPlayReplay()
                    LOADER.GetImageN("resource", 41))
 {
     using SRT = ctrlTable::SortType;
-    AddTable(0, DrawPoint(20, 30), Extent(560, 220), TC_GREEN2, NormalFont,
+    AddTable(0, DrawPoint(20, 30), Extent(560, 220), TextureColor::Green2, NormalFont,
              ctrlTable::Columns{{("Filename"), 300, SRT::String},
                                 {_("Stocktaking date"), 220, SRT::Date},
                                 {_("Player"), 360, SRT::String},
-                                {_("Length"), 120, SRT::Number},
+                                {_("Length"), 120, SRT::Time},
                                 {}});
 
-    AddTextButton(2, DrawPoint(20, 260), Extent(100, 22), TC_RED1, _("Clear"), NormalFont);
-    AddTextButton(5, DrawPoint(130, 260), Extent(160, 22), TC_RED1, "Delete Invalid", NormalFont,
+    AddTextButton(2, DrawPoint(20, 260), Extent(100, 22), TextureColor::Red1, _("Clear"), NormalFont);
+    AddTextButton(5, DrawPoint(130, 260), Extent(160, 22), TextureColor::Red1, "Delete Invalid", NormalFont,
                   _("Removes all replays that cannot be loaded with the current game version"));
-    AddTextButton(3, DrawPoint(20, 290), Extent(160, 22), TC_RED1, _("Delete selected"), NormalFont);
-    AddTextButton(4, DrawPoint(190, 290), Extent(190, 22), TC_RED1, _("Back"), NormalFont);
-    AddTextButton(1, DrawPoint(390, 290), Extent(190, 22), TC_GREEN2, _("Start"), NormalFont);
+    AddTextButton(3, DrawPoint(20, 290), Extent(160, 22), TextureColor::Red1, _("Delete selected"), NormalFont);
+    AddTextButton(4, DrawPoint(190, 290), Extent(190, 22), TextureColor::Red1, _("Back"), NormalFont);
+    AddTextButton(1, DrawPoint(390, 290), Extent(190, 22), TextureColor::Green2, _("Start"), NormalFont);
 
     PopulateTable();
 
@@ -99,7 +86,7 @@ void iwPlayReplay::PopulateTable()
         Replay replay;
 
         // Datei laden
-        if(!replay.LoadHeader(path, false))
+        if(!replay.LoadHeader(path))
         {
             // Show errors only first time this is loaded
             if(!loadedOnce)
@@ -128,10 +115,10 @@ void iwPlayReplay::PopulateTable()
         if(!path.has_filename())
             continue;
         std::string fileName = path.filename().string();
-        std::string lastGF = helpers::toString(replay.GetLastGF());
+        std::string length = GAMECLIENT.FormatGFTime(replay.GetLastGF());
 
         // Und das Zeug zur Tabelle hinzufügen
-        table->AddRow({fileName, dateStr, tmp_players, lastGF, path.string()});
+        table->AddRow({fileName, dateStr, tmp_players, length, path.string()});
     }
 
     // Erst einmal nach Dateiname sortieren
@@ -156,7 +143,7 @@ void iwPlayReplay::Msg_ButtonClick(const unsigned ctrl_id)
         case 1: StartReplay(); break;
         case 2:
             WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Clear"), _("Are you sure to remove all replays?"), this,
-                                                          MSB_YESNO, MSB_QUESTIONRED, 1));
+                                                          MsgboxButton::YesNo, MsgboxIcon::QuestionRed, 1));
             break;
         case 3:
         {
@@ -164,13 +151,13 @@ void iwPlayReplay::Msg_ButtonClick(const unsigned ctrl_id)
             if(table->GetSelection())
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Delete selected"),
                                                               _("Are you sure you want to remove the selected replay?"),
-                                                              this, MSB_YESNO, MSB_QUESTIONRED, 2));
+                                                              this, MsgboxButton::YesNo, MsgboxIcon::QuestionRed, 2));
             break;
         }
         case 4: Close(); break;
         case 5:
             WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Clear"), _("Are you sure to remove all invalid replays?"),
-                                                          this, MSB_YESNO, MSB_QUESTIONRED, 3));
+                                                          this, MsgboxButton::YesNo, MsgboxIcon::QuestionRed, 3));
             break;
     }
 }
@@ -193,14 +180,14 @@ void iwPlayReplay::StartReplay()
         SwitchOnStart switchOnStart;
         if(!GAMECLIENT.StartReplay(table->GetItemText(*table->GetSelection(), 4)))
             WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error while playing replay!"), _("Invalid Replay!"), this,
-                                                          MSB_OK, MSB_EXCLAMATIONRED));
+                                                          MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
     }
 }
 
 void iwPlayReplay::Msg_MsgBoxResult(const unsigned msgbox_id, const MsgboxResult mbr)
 {
     // Sollen alle Replays gelöscht werden?
-    if(msgbox_id == 1 && mbr == MSR_YES)
+    if(msgbox_id == 1 && mbr == MsgboxResult::Yes)
     {
         const std::vector<bfs::path> replays = GetReplays();
         for(const auto& replay : replays)
@@ -211,13 +198,13 @@ void iwPlayReplay::Msg_MsgBoxResult(const unsigned msgbox_id, const MsgboxResult
 
         // Tabelle leeren
         GetCtrl<ctrlTable>(0)->DeleteAllItems();
-    } else if(msgbox_id == 3 && mbr == MSR_YES)
+    } else if(msgbox_id == 3 && mbr == MsgboxResult::Yes)
     {
         const std::vector<bfs::path> replays = GetReplays();
         for(const auto& it : replays)
         {
             Replay replay;
-            if(!replay.LoadHeader(it, false))
+            if(!replay.LoadHeader(it))
             {
                 replay.Close();
                 boost::system::error_code ec;
@@ -226,7 +213,7 @@ void iwPlayReplay::Msg_MsgBoxResult(const unsigned msgbox_id, const MsgboxResult
         }
 
         PopulateTable();
-    } else if(msgbox_id == 2 && mbr == MSR_YES)
+    } else if(msgbox_id == 2 && mbr == MsgboxResult::Yes)
     {
         auto* table = GetCtrl<ctrlTable>(0);
         if(table->GetSelection())

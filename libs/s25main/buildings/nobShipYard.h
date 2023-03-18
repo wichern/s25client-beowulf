@@ -1,23 +1,9 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
-#include "helpers/MaxEnumValue.h"
 #include "nobUsual.h"
 #include <cstdint>
 class SerializedGameData;
@@ -27,11 +13,12 @@ class nobShipYard : public nobUsual
 {
 public:
     /// Modi für den Schiffsbauer
-    enum Mode : uint8_t
+    enum class Mode : uint8_t
     {
-        BOATS = 0, // baut kleine Boote
-        SHIPS      // baut große Schiffe
+        Boats, // baut kleine Boote
+        Ships  // baut große Schiffe
     };
+    friend constexpr auto maxEnumValue(Mode) { return Mode::Ships; }
 
 private:
     /// Aktueller Modus vom Schiffsbauer
@@ -46,11 +33,10 @@ public:
     /// Serialisierungsfunktionen
     void Serialize(SerializedGameData& sgd) const override;
 
-    GO_Type GetGOT() const override { return GOT_NOB_SHIPYARD; }
+    GO_Type GetGOT() const final { return GO_Type::NobShipyard; }
 
     /// Gibt aktuellen Modus zurück
     Mode GetMode() const { return mode; }
     /// Schaltet Modus entsprechend um
     void SetMode(Mode newMode);
 };
-DEFINE_MAX_ENUM_VALUE(nobShipYard::Mode, nobShipYard::Mode::SHIPS)

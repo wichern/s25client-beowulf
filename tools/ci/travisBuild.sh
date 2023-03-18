@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 set -euo pipefail
 
 # Information
@@ -28,8 +32,7 @@ if ! cmake .. -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     exit 1
 fi
 
-# Travis uses 2 cores
-make -j2 ${MAKE_TARGET}
+make -j3 ${MAKE_TARGET} || make VERBOSE=1 ${MAKE_TARGET}
 
 # Set runtime path for boost libraries
 CMAKE_VARS="$(cmake -LA -N .)"

@@ -1,21 +1,9 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "RttrConfig.h"
+#include "RTTR_Assert.h"
 #include "s25util/Log.h"
 #include "s25util/System.h"
 #include <boost/filesystem.hpp>
@@ -30,13 +18,16 @@ namespace bfs = boost::filesystem;
 #    error "At least one of the RTTR_*DIR is undefined!"
 #endif
 
-#ifndef RTTR_SETTINGSDIR
+// Folder for user data, formerly "SETTINGSDIR" or "CONFIG"
+#ifdef RTTR_SETTINGSDIR
+#    define RTTR_USERDATADIR RTTR_SETTINGSDIR
+#elif !defined(RTTR_USERDATADIR)
 #    if defined(_WIN32)
-#        define RTTR_SETTINGSDIR "~/Return To The Roots"
+#        define RTTR_USERDATADIR "~/Return To The Roots"
 #    elif defined(__APPLE__)
-#        define RTTR_SETTINGSDIR "~/Library/Application Support/Return To The Roots"
+#        define RTTR_USERDATADIR "~/Library/Application Support/Return To The Roots"
 #    else
-#        define RTTR_SETTINGSDIR "~/.s25rttr"
+#        define RTTR_USERDATADIR "~/.s25rttr"
 #    endif
 #endif // !RTTR_SETTINGSDIR
 
@@ -124,6 +115,12 @@ boost::filesystem::path RttrConfig::ExpandPath(const std::string& path) const
     return outPath.make_preferred();
 }
 
+void RttrConfig::overridePathMapping(const std::string& id, const boost::filesystem::path& path)
+{
+    RTTR_Assert(pathMappings.count(id) > 0);
+    pathMappings[id] = path;
+}
+
 bool RttrConfig::Init()
 {
     prefixPath_ = GetPrefixPath();
@@ -140,7 +137,6 @@ bool RttrConfig::Init()
     pathMappings["LIB"] = RTTR_LIBDIR;
     pathMappings["DRIVER"] = RTTR_DRIVERDIR;
     pathMappings["RTTR"] = RTTR_DATADIR "/RTTR";
-    pathMappings["CONFIG"] = RTTR_SETTINGSDIR;
-    pathMappings["USERDATA"] = RTTR_SETTINGSDIR;
+    pathMappings["USERDATA"] = RTTR_USERDATADIR;
     return true;
 }

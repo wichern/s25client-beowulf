@@ -1,24 +1,19 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/MapGeometry.h"
+#include "RTTR_Assert.h"
 #include "gameData/MapConsts.h"
+#include <boost/config.hpp>
 #include <array>
 #include <stdexcept>
+
+// This was added to Boost 1.71 only
+#ifdef BOOST_MSVC
+#    undef BOOST_UNREACHABLE_RETURN
+#    define BOOST_UNREACHABLE_RETURN(x) __assume(0);
+#endif
 
 Position GetNeighbour(const Position& p, const Direction dir)
 {
@@ -32,15 +27,17 @@ Position GetNeighbour(const Position& p, const Direction dir)
                 SE   0|1    1|1
                 SW  -1|1    0|1
     */
-    switch(dir.native_value())
+    switch(dir)
     {
-        case Direction::WEST: return Position(p.x - 1, p.y);
-        case Direction::NORTHWEST: return Position(p.x - !(p.y & 1), p.y - 1);
-        case Direction::NORTHEAST: return Position(p.x + (p.y & 1), p.y - 1);
-        case Direction::EAST: return Position(p.x + 1, p.y);
-        case Direction::SOUTHEAST: return Position(p.x + (p.y & 1), p.y + 1);
-        default: RTTR_Assert(dir == Direction::SOUTHWEST); return Position(p.x - !(p.y & 1), p.y + 1);
+        case Direction::West: return Position(p.x - 1, p.y);
+        case Direction::NorthWest: return Position(p.x - !(p.y & 1), p.y - 1);
+        case Direction::NorthEast: return Position(p.x + (p.y & 1), p.y - 1);
+        case Direction::East: return Position(p.x + 1, p.y);
+        case Direction::SouthEast: return Position(p.x + (p.y & 1), p.y + 1);
+        case Direction::SouthWest: return Position(p.x - !(p.y & 1), p.y + 1);
     }
+    RTTR_Assert(false);
+    BOOST_UNREACHABLE_RETURN({})
 }
 
 Position GetNeighbour2(Position pt, unsigned dir)

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofActiveSoldier.h"
 #include "EventManager.h"
@@ -21,14 +8,14 @@
 #include "GlobalGameSettings.h"
 #include "SerializedGameData.h"
 #include "buildings/nobMilitary.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "nodeObjs/noFighting.h"
 #include "nodeObjs/noFlag.h"
 #include "gameData/MilitaryConsts.h"
 #include "s25util/Log.h"
 #include <stdexcept>
 
-nofActiveSoldier::nofActiveSoldier(const MapPoint pos, const unsigned char player, nobBaseMilitary* const home,
+nofActiveSoldier::nofActiveSoldier(const MapPoint pos, const unsigned char player, nobBaseMilitary& home,
                                    const unsigned char rank, const SoldierState init_state)
     : nofSoldier(pos, player, home, rank), state(init_state), enemy(nullptr)
 
@@ -38,17 +25,17 @@ nofActiveSoldier::nofActiveSoldier(const nofSoldier& other, const SoldierState i
     : nofSoldier(other), state(init_state), enemy(nullptr)
 {}
 
-void nofActiveSoldier::Serialize_nofActiveSoldier(SerializedGameData& sgd) const
+void nofActiveSoldier::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_nofSoldier(sgd);
+    nofSoldier::Serialize(sgd);
 
     sgd.PushEnum<uint8_t>(state);
-    sgd.PushObject(enemy, false);
-    sgd.PushMapPoint(fightSpot_);
+    sgd.PushObject(enemy);
+    helpers::pushPoint(sgd, fightSpot_);
 }
 
 nofActiveSoldier::nofActiveSoldier(SerializedGameData& sgd, const unsigned obj_id)
-    : nofSoldier(sgd, obj_id), state(sgd.Pop<SoldierState>()), enemy(sgd.PopObject<nofActiveSoldier>(GOT_UNKNOWN))
+    : nofSoldier(sgd, obj_id), state(sgd.Pop<SoldierState>()), enemy(sgd.PopObject<nofActiveSoldier>())
 {
     fightSpot_ = sgd.PopMapPoint();
 }
@@ -60,7 +47,7 @@ void nofActiveSoldier::GoalReached()
     if(!building)
     {
         RTTR_Assert(false);
-        building = gwg->GetSpecObj<nobMilitary>(this->GetPos());
+        building = world->GetSpecObj<nobMilitary>(this->GetPos());
         if(building)
             LOG.write("nofActiveSoldier::GoalRoached() - no valid 'building' but found one at soldier's position "
                       "(%i,%i) (gf: %u)\n")
@@ -73,16 +60,13 @@ void nofActiveSoldier::GoalReached()
             throw std::runtime_error("No building found for soldier");
         }
     }
-    building->AddActiveSoldier(this);
-
-    // And remove myself from the map
-    gwg->RemoveFigure(pos, this);
+    building->AddActiveSoldier(world->RemoveFigure(pos, *this));
 }
 
 void nofActiveSoldier::ReturnHome()
 {
     // Set appropriate state
-    state = STATE_WALKINGHOME;
+    state = SoldierState::WalkingHome;
     // Start walking
     WalkingHome();
 }
@@ -93,7 +77,7 @@ void nofActiveSoldier::WalkingHome()
     if(!building)
     {
         // Start wandering around
-        state = STATE_FIGUREWORK;
+        state = SoldierState::FigureWork;
         StartWandering();
         Wander();
 
@@ -103,22 +87,20 @@ void nofActiveSoldier::WalkingHome()
     // Walking home to our military building
 
     // Are we already at the flag?
-    if(GetPos() == building->GetFlag()->GetPos())
+    if(GetPos() == building->GetFlagPos())
     {
         // Enter via the door
-        StartWalking(Direction::NORTHWEST);
+        StartWalking(Direction::NorthWest);
         return;
     }
     // or are we at the building?
     if(GetPos() == building->GetPos())
     {
         // We're there!
-        building->AddActiveSoldier(this);
-        // Remove myself from the map
-        gwg->RemoveFigure(pos, this);
+        building->AddActiveSoldier(world->RemoveFigure(pos, *this));
         return;
     }
-    const auto dir = gwg->FindHumanPath(pos, building->GetFlag()->GetPos(), 100);
+    const auto dir = world->FindHumanPath(pos, building->GetFlagPos(), 100);
     if(dir)
     {
         // Find all sorts of enemies (attackers, aggressive defenders..) nearby
@@ -134,7 +116,7 @@ void nofActiveSoldier::WalkingHome()
         Abrogate();
         // Start wandering around then
         StartWandering();
-        state = STATE_FIGUREWORK;
+        state = SoldierState::FigureWork;
         Wander();
     }
 }
@@ -144,27 +126,27 @@ void nofActiveSoldier::Draw(DrawPoint drawPt)
     switch(state)
     {
         default: break;
-        case STATE_WAITINGFORFIGHT:
-        case STATE_ATTACKING_WAITINGAROUNDBUILDING:
-        case STATE_ATTACKING_WAITINGFORDEFENDER:
-        case STATE_DEFENDING_WAITING:
+        case SoldierState::WaitingForFight:
+        case SoldierState::AttackingWaitingAroundBuilding:
+        case SoldierState::AttackingWaitingForDefender:
+        case SoldierState::DefendingWaiting:
         {
             // Draw waiting states
             DrawSoldierWaiting(drawPt);
         }
         break;
-        case STATE_FIGUREWORK:
-        case STATE_MEETENEMY:
-        case STATE_ATTACKING_WALKINGTOGOAL:
-        case STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR:
-        case STATE_WALKINGHOME:
-        case STATE_DEFENDING_WALKINGTO:
-        case STATE_DEFENDING_WALKINGFROM:
-        case STATE_ATTACKING_CAPTURINGFIRST:
-        case STATE_ATTACKING_CAPTURINGNEXT:
-        case STATE_ATTACKING_ATTACKINGFLAG:
-        case STATE_SEAATTACKING_GOTOHARBOR:
-        case STATE_SEAATTACKING_RETURNTOSHIP:
+        case SoldierState::FigureWork:
+        case SoldierState::MeetEnemy:
+        case SoldierState::AttackingWalkingToGoal:
+        case SoldierState::AggressivedefendingWalkingToAggressor:
+        case SoldierState::WalkingHome:
+        case SoldierState::DefendingWalkingTo:
+        case SoldierState::DefendingWalkingFrom:
+        case SoldierState::AttackingCapturingFirst:
+        case SoldierState::AttackingCapturingNext:
+        case SoldierState::AttackingAttackingFlag:
+        case SoldierState::SeaattackingGoToHarbor:
+        case SoldierState::SeaattackingReturnToShip:
         {
             // Draw walking states
             DrawWalkingBobJobs(drawPt, job_);
@@ -186,27 +168,25 @@ void nofActiveSoldier::ExpelEnemies()
     std::vector<noFigure*> figures;
 
     // At the position of the soldier
-    const std::list<noBase*>& fieldFigures = gwg->GetFigures(pos);
-    for(auto* fieldFigure : fieldFigures)
+    for(noBase& fieldFigure : world->GetFigures(pos))
     {
-        if(fieldFigure->GetType() == NOP_FIGURE)
-            figures.push_back(static_cast<noFigure*>(fieldFigure));
+        if(fieldFigure.GetType() == NodalObjectType::Figure)
+            figures.push_back(static_cast<noFigure*>(&fieldFigure));
     }
 
     // And around this point
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const MapPoint nb : world->GetNeighbours(pos))
     {
-        const std::list<noBase*>& fieldFigures = gwg->GetFigures(gwg->GetNeighbour(pos, dir));
-        for(auto* fieldFigure : fieldFigures)
+        for(noBase& fieldFigure : world->GetFigures(nb))
         {
             // Normal settler?
             // Don't disturb hedgehogs and rabbits!
-            if(fieldFigure->GetType() == NOP_FIGURE)
+            if(fieldFigure.GetType() == NodalObjectType::Figure)
             {
-                auto* fig = static_cast<noFigure*>(fieldFigure);
+                auto& fig = static_cast<noFigure&>(fieldFigure);
                 // The people have to be either on the point itself or they have to walk there
-                if(fig->GetPos() == pos || fig->GetDestinationForCurrentMove() == pos)
-                    figures.push_back(fig);
+                if(fig.GetPos() == pos || fig.GetDestinationForCurrentMove() == pos)
+                    figures.push_back(&fig);
             }
         }
     }
@@ -217,7 +197,7 @@ void nofActiveSoldier::ExpelEnemies()
     {
         // Enemy of us and no soldier?
         // And he has to walking on the road (don't disturb free workers like woodcutters etc.)
-        if(!gwg->GetPlayer(player).IsAlly(fig->GetPlayer()) && !fig->IsSoldier() && fig->IsWalkingOnRoad())
+        if(!world->GetPlayer(player).IsAlly(fig->GetPlayer()) && !fig->IsSoldier() && fig->IsWalkingOnRoad())
         {
             // Then he should start wandering around
             fig->Abrogate();
@@ -241,8 +221,8 @@ void nofActiveSoldier::Walked()
     switch(state)
     {
         default: return;
-        case STATE_WALKINGHOME: WalkingHome(); return;
-        case STATE_MEETENEMY: MeetingEnemy(); return;
+        case SoldierState::WalkingHome: WalkingHome(); return;
+        case SoldierState::MeetEnemy: MeetingEnemy(); return;
     }
 }
 
@@ -254,16 +234,16 @@ bool nofActiveSoldier::FindEnemiesNearby(unsigned char excludedOwner)
     enemy = nullptr;
 
     // Get all points in a radius of 2
-    std::vector<MapPoint> pts = gwg->GetPointsInRadiusWithCenter(pos, 2);
+    std::vector<MapPoint> pts = world->GetPointsInRadiusWithCenter(pos, 2);
 
     for(const auto& curPos : pts)
     {
-        for(noBase* object : gwg->GetFigures(curPos))
+        for(noBase& object : world->GetFigures(curPos))
         {
-            auto* soldier = dynamic_cast<nofActiveSoldier*>(object);
+            auto* soldier = dynamic_cast<nofActiveSoldier*>(&object);
             if(!soldier || soldier->GetPlayer() == excludedOwner)
                 continue;
-            if(soldier->IsReadyForFight() && !gwg->GetPlayer(soldier->GetPlayer()).IsAlly(player))
+            if(soldier->IsReadyForFight() && !world->GetPlayer(soldier->GetPlayer()).IsAlly(player))
             {
                 enemy = soldier;
                 break;
@@ -293,7 +273,7 @@ bool nofActiveSoldier::FindEnemiesNearby(unsigned char excludedOwner)
     }
 
     // We try to meet us now
-    state = STATE_MEETENEMY;
+    state = SoldierState::MeetEnemy;
     // Inform the other soldier
     enemy->MeetEnemy(this, fightSpot_);
 
@@ -306,14 +286,14 @@ bool nofActiveSoldier::FindEnemiesNearby(unsigned char excludedOwner)
 void nofActiveSoldier::IncreaseRank()
 {
     // max rank reached? -> dont increase!
-    if(GetRank() >= gwg->GetGGS().GetMaxMilitaryRank())
+    if(GetRank() >= world->GetGGS().GetMaxMilitaryRank())
         return;
 
     // Einen Rang höher
     // Inventur entsprechend erhöhen und verringern
-    gwg->GetPlayer(player).DecreaseInventoryJob(job_, 1);
+    world->GetPlayer(player).DecreaseInventoryJob(job_, 1);
     job_ = Job(unsigned(job_) + 1);
-    gwg->GetPlayer(player).IncreaseInventoryJob(job_, 1);
+    world->GetPlayer(player).IncreaseInventoryJob(job_, 1);
 }
 
 /// Handle state "meet enemy" after each walking step
@@ -331,10 +311,10 @@ void nofActiveSoldier::MeetingEnemy()
     if(GetPos() == fightSpot_)
     {
         // Enemy already there?
-        if(enemy->GetPos() == fightSpot_ && enemy->GetState() == STATE_WAITINGFORFIGHT)
+        if(enemy->GetPos() == fightSpot_ && enemy->GetState() == SoldierState::WaitingForFight)
         {
             // Start fighting
-            gwg->AddFigure(pos, new noFighting(enemy, this));
+            world->AddFigure(pos, std::make_unique<noFighting>(*enemy, *this));
 
             enemy->FightingStarted();
             FightingStarted();
@@ -344,7 +324,7 @@ void nofActiveSoldier::MeetingEnemy()
         {
             // Is the fighting point still valid (could be another fight there already e.g.)?
             // And the enemy still on the way?
-            if(!gwg->ValidPointForFighting(pos, false, this) || enemy->GetState() != STATE_MEETENEMY)
+            if(!world->IsValidPointForFighting(pos, *this, false) || enemy->GetState() != SoldierState::MeetEnemy)
             {
                 // No
                 // Abort the whole fighting fun with the enemy
@@ -357,7 +337,7 @@ void nofActiveSoldier::MeetingEnemy()
             else
             {
                 RTTR_Assert(enemy->enemy == this);
-                state = STATE_WAITINGFORFIGHT;
+                state = SoldierState::WaitingForFight;
                 return;
             }
         }
@@ -365,7 +345,7 @@ void nofActiveSoldier::MeetingEnemy()
     // Not at the fighting spot yet, continue walking there
     else
     {
-        const auto dir = gwg->FindHumanPath(pos, fightSpot_, MAX_ATTACKING_RUN_DISTANCE);
+        const auto dir = world->FindHumanPath(pos, fightSpot_, MAX_ATTACKING_RUN_DISTANCE);
         if(dir)
         {
             StartWalking(*dir);
@@ -406,10 +386,10 @@ bool nofActiveSoldier::IsReadyForFight() const
     switch(state)
     {
         default: return false;
-        case STATE_WALKINGHOME:
-        case STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR:
-        case STATE_ATTACKING_WALKINGTOGOAL:
-        case STATE_ATTACKING_WAITINGAROUNDBUILDING: return true;
+        case SoldierState::WalkingHome:
+        case SoldierState::AggressivedefendingWalkingToAggressor:
+        case SoldierState::AttackingWalkingToGoal:
+        case SoldierState::AttackingWaitingAroundBuilding: return true;
     }
 }
 
@@ -421,10 +401,10 @@ void nofActiveSoldier::MeetEnemy(nofActiveSoldier* other, const MapPoint figh_sp
     this->fightSpot_ = figh_spot;
 
     SoldierState old_state = state;
-    state = STATE_MEETENEMY;
+    state = SoldierState::MeetEnemy;
 
     // In some cases we have to start walking
-    if(old_state == STATE_ATTACKING_WAITINGAROUNDBUILDING)
+    if(old_state == SoldierState::AttackingWaitingAroundBuilding)
     {
         MeetingEnemy();
     }
@@ -435,7 +415,7 @@ void nofActiveSoldier::MeetEnemy(nofActiveSoldier* other, const MapPoint figh_sp
 bool nofActiveSoldier::GetFightSpotNear(nofActiveSoldier* other, MapPoint* fight_spot)
 {
     // Calc middle between the two soldiers and use this as origin spot for the search of more fight spots
-    MapPoint otherPos = gwg->GetNeighbour(other->GetPos(), other->GetCurMoveDir());
+    MapPoint otherPos = world->GetNeighbour(other->GetPos(), other->GetCurMoveDir());
     MapPoint middle((pos + otherPos) / 2u);
 
     // The point is supposed to be in the middle between the 2 soldiers (and guaranteed to be inside the map)
@@ -443,8 +423,8 @@ bool nofActiveSoldier::GetFightSpotNear(nofActiveSoldier* other, MapPoint* fight
     // --> maximum distance between each point and the middle is mapSize/4
     // So if we see, that this is not the case, we take the "middle" point on the other half of the map
 
-    const unsigned short mapWidth = gwg->GetWidth();
-    const unsigned short mapHeight = gwg->GetHeight();
+    const unsigned short mapWidth = world->GetWidth();
+    const unsigned short mapHeight = world->GetHeight();
 
     if(std::abs(otherPos.x - middle.x) > mapWidth / 4)
     {
@@ -462,17 +442,17 @@ bool nofActiveSoldier::GetFightSpotNear(nofActiveSoldier* other, MapPoint* fight
         else
             middle.y += halfMapHeight;
     }
-    RTTR_Assert(gwg->CalcDistance(otherPos, middle) <= std::max<unsigned>(mapWidth, mapHeight) / 4u);
+    RTTR_Assert(world->CalcDistance(otherPos, middle) <= std::max<unsigned>(mapWidth, mapHeight) / 4u);
 
-    const auto isGoodFightingSpot = [gwg = this->gwg, pos = this->pos, other](const auto& pt) {
+    const auto isGoodFightingSpot = [world = this->world, pos = this->pos, this, other](MapPoint pt) {
         // Did we find a good spot?
-        return gwg->ValidPointForFighting(pt, true, nullptr)
-               && (pos == pt || gwg->FindHumanPath(pos, pt, MEET_FOR_FIGHT_DISTANCE * 2, false, nullptr))
+        return world->IsValidPointForFighting(pt, *this, true)
+               && (pos == pt || world->FindHumanPath(pos, pt, MEET_FOR_FIGHT_DISTANCE * 2, false))
                && (other->GetPos() == pt
-                   || gwg->FindHumanPath(other->GetPos(), pt, MEET_FOR_FIGHT_DISTANCE * 2, false, nullptr));
+                   || world->FindHumanPath(other->GetPos(), pt, MEET_FOR_FIGHT_DISTANCE * 2, false));
     };
     const std::vector<MapPoint> pts =
-      gwg->GetPointsInRadius<1>(middle, MEET_FOR_FIGHT_DISTANCE, Identity<MapPoint>(), isGoodFightingSpot, true);
+      world->GetMatchingPointsInRadius<1>(middle, MEET_FOR_FIGHT_DISTANCE, isGoodFightingSpot, true);
     if(pts.empty())
         return false;
     *fight_spot = pts.front();
@@ -482,6 +462,6 @@ bool nofActiveSoldier::GetFightSpotNear(nofActiveSoldier* other, MapPoint* fight
 /// Informs a waiting soldier about the start of a fight
 void nofActiveSoldier::FightingStarted()
 {
-    state = STATE_FIGHTING;
+    state = SoldierState::Fighting;
     enemy = nullptr;
 }

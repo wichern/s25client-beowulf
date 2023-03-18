@@ -1,39 +1,13 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
-#include "DrawPoint.h"
+#include "FoWObject.h"
 #include "gameTypes/BuildingType.h"
 #include "gameTypes/MapTypes.h"
 #include "gameTypes/Nation.h"
-
-class SerializedGameData;
-
-/// Typen für die FOW Objekte
-enum FOW_Type
-{
-    FOW_NOTHING,
-    FOW_BUILDING,
-    FOW_BUILDINGSITE,
-    FOW_FLAG,
-    FOW_TREE,
-    FOW_GRANITE
-};
 
 /// Helligkeit der Objekte beim Zeichnen
 const unsigned FOW_DRAW_COLOR_BRIGHTNESS = 0x80;
@@ -42,20 +16,6 @@ const unsigned FOW_DRAW_COLOR = 0xFF808080;
 
 /// Berechnet die dunklere Spielerfarbe zum Zeichnen
 unsigned CalcPlayerFOWDrawColor(unsigned color);
-
-/// Visuelles Objekt im Nebel, nur zur sichtbaren "Erinnerung",
-/// was ein bestimmter Spieler gesehen hat
-class FOWObject
-{
-public:
-    virtual ~FOWObject();
-    /// An x,y zeichnen.
-    virtual void Draw(DrawPoint drawPt) const = 0;
-    /// Serialisierungsfunktion.
-    virtual void Serialize(SerializedGameData& sgd) const = 0;
-    /// Gibt Typ zurück
-    virtual FOW_Type GetType() const = 0;
-};
 
 /// Gebäude im Nebel
 class fowBuilding : public FOWObject
@@ -71,7 +31,7 @@ public:
     fowBuilding(SerializedGameData& sgd);
     void Serialize(SerializedGameData& sgd) const override;
     void Draw(DrawPoint drawPt) const override;
-    FOW_Type GetType() const override { return FOW_BUILDING; }
+    FoW_Type GetType() const override { return FoW_Type::Building; }
 };
 
 /// Baustelle
@@ -92,7 +52,7 @@ public:
     fowBuildingSite(SerializedGameData& sgd);
     void Serialize(SerializedGameData& sgd) const override;
     void Draw(DrawPoint drawPt) const override;
-    FOW_Type GetType() const override { return FOW_BUILDINGSITE; }
+    FoW_Type GetType() const override { return FoW_Type::Buildingsite; }
 };
 
 /// Flagge
@@ -109,7 +69,7 @@ public:
     fowFlag(SerializedGameData& sgd);
     void Serialize(SerializedGameData& sgd) const override;
     void Draw(DrawPoint drawPt) const override;
-    FOW_Type GetType() const override { return FOW_FLAG; }
+    FoW_Type GetType() const override { return FoW_Type::Flag; }
 };
 
 /// Baum
@@ -126,7 +86,7 @@ public:
     fowTree(SerializedGameData& sgd);
     void Serialize(SerializedGameData& sgd) const override;
     void Draw(DrawPoint drawPt) const override;
-    FOW_Type GetType() const override { return FOW_TREE; }
+    FoW_Type GetType() const override { return FoW_Type::Tree; }
 };
 
 /// Granitblock
@@ -141,5 +101,5 @@ public:
     fowGranite(SerializedGameData& sgd);
     void Serialize(SerializedGameData& sgd) const override;
     void Draw(DrawPoint drawPt) const override;
-    FOW_Type GetType() const override { return FOW_GRANITE; }
+    FoW_Type GetType() const override { return FoW_Type::Granite; }
 };

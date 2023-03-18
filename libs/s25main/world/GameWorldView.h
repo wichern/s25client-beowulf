@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -22,11 +9,12 @@
 #include "gameTypes/MapTypes.h"
 #include <vector>
 
-class GameWorldViewer;
 class GameWorldBase;
-struct RoadBuildState;
-class TerrainRenderer;
+class GameWorldViewer;
 class noBaseBuilding;
+class SoundManager;
+class TerrainRenderer;
+struct RoadBuildState;
 
 class IDrawNodeCallback
 {
@@ -79,10 +67,10 @@ class GameWorldView
 
 public:
     GameWorldView(const GameWorldViewer& gwv, const Position& pos, const Extent& size);
-    ~GameWorldView();
 
     const GameWorldViewer& GetViewer() const { return gwv; }
     const GameWorldBase& GetWorld() const;
+    SoundManager& GetSoundMgr();
 
     void SetPos(const Position& newPos) { origin_ = newPos; }
     Position GetPos() const { return origin_; }
@@ -93,26 +81,37 @@ public:
     void SetNextZoomFactor();
 
     /// Bauqualitäten anzeigen oder nicht
-    void ToggleShowBQ() { show_bq = !show_bq; }
+    void ToggleShowBQ()
+    {
+        show_bq = !show_bq;
+        SaveIngameSettingsValues();
+    }
     /// Gebäudenamen zeigen oder nicht
-    void ToggleShowNames() { show_names = !show_names; }
+    void ToggleShowNames()
+    {
+        show_names = !show_names;
+        SaveIngameSettingsValues();
+    }
     /// Produktivität zeigen oder nicht
-    void ToggleShowProductivity() { show_productivity = !show_productivity; };
+    void ToggleShowProductivity()
+    {
+        show_productivity = !show_productivity;
+        SaveIngameSettingsValues();
+    };
     /// Schaltet Produktivitäten/Namen komplett aus oder an
     void ToggleShowNamesAndProductivity();
 
     void Draw(const RoadBuildState& rb, MapPoint selected, bool drawMouse, unsigned* water = nullptr);
 
-    /// Bewegt sich zu einer bestimmten Position in Pixeln auf der Karte
-    void MoveTo(int x, int y, bool absolute = false);
-    void MoveTo(const DrawPoint& newPos, bool absolute = false);
+    /// Moves the map view by the given offset in pixels
+    void MoveBy(const DrawPoint& numPixels);
+    /// Moves a position on the map in pixels
+    void MoveTo(const DrawPoint& newPos);
     /// Zentriert den Bildschirm auf ein bestimmtes Map-Object
     void MoveToMapPt(MapPoint pt);
     /// Springt zur letzten Position, bevor man "weggesprungen" ist
     void MoveToLastPosition();
 
-    void MoveToX(int x, bool absolute = false) { MoveTo((absolute ? 0 : offset.x) + x, offset.y, true); }
-    void MoveToY(int y, bool absolute = false) { MoveTo(offset.x, (absolute ? 0 : offset.y) + y, true); }
     DrawPoint GetOffset() const { return offset; }
 
     /// Add a debug node printer
@@ -132,7 +131,7 @@ public:
 private:
     void CalcFxLx();
     void DrawBoundaryStone(const MapPoint& pt, DrawPoint pos, Visibility vis);
-    void DrawObject(const MapPoint& pt, const DrawPoint& curPos);
+    void DrawObject(const MapPoint& pt, const DrawPoint& curPos) const;
     void DrawConstructionAid(const MapPoint& pt, const DrawPoint& curPos);
     void DrawFigures(const MapPoint& pt, const DrawPoint& curPos, std::vector<ObjectBetweenLines>& between_lines) const;
     void DrawMovingFiguresFromBelow(const TerrainRenderer& terrainRenderer, const DrawPoint& curPos,
@@ -142,4 +141,6 @@ private:
     void DrawProductivity(const noBaseBuilding& no, const DrawPoint& curPos);
     void DrawGUI(const RoadBuildState& rb, const TerrainRenderer& terrainRenderer, const MapPoint& selectedPt,
                  bool drawMouse);
+
+    void SaveIngameSettingsValues() const;
 };

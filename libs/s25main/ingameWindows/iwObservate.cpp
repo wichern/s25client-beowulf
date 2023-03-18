@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwObservate.h"
 #include "CollisionDetection.h"
@@ -38,7 +25,7 @@ const Extent BigWndSize(340, 310);
 
 iwObservate::iwObservate(GameWorldView& gwv, const MapPoint selectedPt)
     : IngameWindow(CGI_OBSERVATION, IngameWindow::posAtMouse, SmallWndSize, _("Observation window"), nullptr, false,
-                   false),
+                   CloseBehavior::NoRightClick),
       parentView(gwv),
       view(new GameWorldView(gwv.GetViewer(), Position(GetDrawPos() * DrawPoint(10, 15)), GetSize() - Extent::all(20))),
       selectedPt(selectedPt), lastWindowPos(Point<unsigned short>::Invalid()), isScrolling(false), zoomLvl(0),
@@ -51,16 +38,16 @@ iwObservate::iwObservate(GameWorldView& gwv, const MapPoint selectedPt)
     DrawPoint btPos(GetSize().x / 2, GetSize().y);
     btPos -= DrawPoint(btSize.x * 2, 50);
     // Lupe: 36
-    AddImageButton(1, btPos, btSize, TC_GREY, LOADER.GetImageN("io", 36), _("Zoom"));
+    AddImageButton(1, btPos, btSize, TextureColor::Grey, LOADER.GetImageN("io", 36), _("Zoom"));
     // Kamera (Folgen): 43
     btPos.x += btSize.x;
-    AddImageButton(2, btPos, btSize, TC_GREY, LOADER.GetImageN("io", 43), _("Follow object"));
+    AddImageButton(2, btPos, btSize, TextureColor::Grey, LOADER.GetImageN("io", 43), _("Follow object"));
     // Zum Ort
     btPos.x += btSize.x;
-    AddImageButton(3, btPos, btSize, TC_GREY, LOADER.GetImageN("io", 107), _("Go to place"));
+    AddImageButton(3, btPos, btSize, TextureColor::Grey, LOADER.GetImageN("io", 107), _("Go to place"));
     // Fenster vergroessern/verkleinern
     btPos.x += btSize.x;
-    AddImageButton(4, btPos, btSize, TC_GREY, LOADER.GetImageN("io", 109), _("Resize window"));
+    AddImageButton(4, btPos, btSize, TextureColor::Grey, LOADER.GetImageN("io", 109), _("Resize window"));
 }
 
 void iwObservate::Msg_ButtonClick(const unsigned ctrl_id)
@@ -100,14 +87,12 @@ void iwObservate::Msg_ButtonClick(const unsigned ctrl_id)
                           view->GetViewer().GetTerrainRenderer().ConvertCoords(Position(x, y), &curOffset);
                         DrawPoint curDrawPt = view->GetWorld().GetNodePos(curPt) - view->GetOffset() + curOffset;
 
-                        if(view->GetViewer().GetVisibility(curPt) != VIS_VISIBLE)
+                        if(view->GetViewer().GetVisibility(curPt) != Visibility::Visible)
                             continue;
 
-                        const std::list<noBase*>& figures = view->GetWorld().GetFigures(curPt);
-
-                        for(const noBase* obj : figures)
+                        for(const noBase& obj : view->GetWorld().GetFigures(curPt))
                         {
-                            const auto* movable = dynamic_cast<const noMovable*>(obj);
+                            const auto* movable = dynamic_cast<const noMovable*>(&obj);
                             if(!movable)
                                 continue;
 
@@ -183,12 +168,12 @@ void iwObservate::Draw_()
     if(!IsMinimized())
     {
         RoadBuildState road;
-        road.mode = RM_DISABLED;
+        road.mode = RoadBuildMode::Disabled;
 
         view->Draw(road, parentView.GetSelectedPt(), false);
         // Draw indicator for center point
         if(!followMovableId)
-            LOADER.GetMapImageN(23)->DrawFull(view->GetPos() + view->GetSize() / 2u);
+            LOADER.GetMapTexture(23)->DrawFull(view->GetPos() + view->GetSize() / 2u);
     }
 
     return IngameWindow::Draw_();
@@ -221,20 +206,19 @@ bool iwObservate::MoveToFollowedObj()
 
 bool iwObservate::MoveToFollowedObj(const MapPoint ptToCheck)
 {
-    if(view->GetViewer().GetVisibility(ptToCheck) != VIS_VISIBLE)
+    if(view->GetViewer().GetVisibility(ptToCheck) != Visibility::Visible)
         return false;
-    const std::list<noBase*>& curObjs = view->GetWorld().GetFigures(ptToCheck);
-    for(const noBase* obj : curObjs)
+    for(const noBase& obj : view->GetWorld().GetFigures(ptToCheck))
     {
-        if(obj->GetObjId() == followMovableId)
+        if(obj.GetObjId() == followMovableId)
         {
-            const auto* followMovable = static_cast<const noMovable*>(obj);
+            const auto& followMovable = static_cast<const noMovable&>(obj);
             DrawPoint drawPt = view->GetWorld().GetNodePos(ptToCheck);
 
-            if(followMovable->IsMoving())
-                drawPt += followMovable->CalcWalkingRelative();
+            if(followMovable.IsMoving())
+                drawPt += followMovable.CalcWalkingRelative();
 
-            view->MoveTo(drawPt - view->GetSize() / 2u, true);
+            view->MoveTo(drawPt - view->GetSize() / 2u);
             return true;
         }
     }
@@ -250,7 +234,7 @@ bool iwObservate::Msg_MouseMove(const MouseCoords& mc)
         if(SETTINGS.interface.revert_mouse)
             acceleration = -acceleration;
 
-        view->MoveTo((mc.GetPos() - scrollOrigin) * acceleration);
+        view->MoveBy((mc.GetPos() - scrollOrigin) * acceleration);
         VIDEODRIVER.SetMousePos(scrollOrigin);
     }
 

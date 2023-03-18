@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "gameTypes/MapNode.h"
 #include "SerializedGameData.h"
@@ -23,8 +10,8 @@
 #include <algorithm>
 
 MapNode::MapNode()
-    : altitude(10), shadow(64), t1(0), t2(0), resources(0), reserved(false), owner(0), bq(BQ_NOTHING), seaId(0),
-      harborId(0), obj(nullptr)
+    : altitude(10), shadow(64), t1(0), t2(0), resources(0), reserved(false), owner(0), bq(BuildingQuality::Nothing),
+      seaId(0), harborId(0), obj(nullptr)
 {
     std::fill(roads.begin(), roads.end(), PointRoad::None);
     std::fill(boundary_stones.begin(), boundary_stones.end(), 0);
@@ -32,9 +19,7 @@ MapNode::MapNode()
 
 void MapNode::Serialize(SerializedGameData& sgd, const unsigned numPlayers, const WorldDescription& desc) const
 {
-    for(PointRoad road : roads)
-        sgd.PushEnum<uint8_t>(road);
-
+    helpers::pushContainer(sgd, roads);
     sgd.PushUnsignedChar(altitude);
     sgd.PushUnsignedChar(shadow);
     sgd.PushString(desc.get(t1).name);
@@ -42,14 +27,12 @@ void MapNode::Serialize(SerializedGameData& sgd, const unsigned numPlayers, cons
     sgd.PushUnsignedChar(resources.getValue());
     sgd.PushBool(reserved);
     sgd.PushUnsignedChar(owner);
-    for(unsigned char boundary_stone : boundary_stones)
-        sgd.PushUnsignedChar(boundary_stone);
-    sgd.PushEnum<uint8_t>(bq);
+    helpers::pushContainer(sgd, boundary_stones);
     RTTR_Assert(numPlayers <= fow.size());
     for(unsigned z = 0; z < numPlayers; ++z)
         fow[z].Serialize(sgd);
-    sgd.PushObject(obj, false);
-    sgd.PushObjectContainer(figures, false);
+    sgd.PushObject(obj);
+    sgd.PushObjectContainer(figures);
     sgd.PushUnsignedShort(seaId);
     sgd.PushUnsignedInt(harborId);
 }
@@ -57,8 +40,7 @@ void MapNode::Serialize(SerializedGameData& sgd, const unsigned numPlayers, cons
 void MapNode::Deserialize(SerializedGameData& sgd, const unsigned numPlayers, const WorldDescription& desc,
                           const std::vector<DescIdx<TerrainDesc>>& landscapeTerrains)
 {
-    for(PointRoad& road : roads)
-        road = sgd.Pop<PointRoad>();
+    helpers::popContainer(sgd, roads);
 
     altitude = sgd.PopUnsignedChar();
     shadow = sgd.PopUnsignedChar();
@@ -82,14 +64,14 @@ void MapNode::Deserialize(SerializedGameData& sgd, const unsigned numPlayers, co
     resources = Resource(sgd.PopUnsignedChar());
     reserved = sgd.PopBool();
     owner = sgd.PopUnsignedChar();
-    for(unsigned char& boundary_stone : boundary_stones)
-        boundary_stone = sgd.PopUnsignedChar();
-    bq = sgd.Pop<BuildingQuality>();
+    helpers::popContainer(sgd, boundary_stones);
+    if(sgd.GetGameDataVersion() < 9)
+        bq = sgd.Pop<BuildingQuality>();
     RTTR_Assert(numPlayers <= fow.size());
     for(unsigned z = 0; z < numPlayers; ++z)
         fow[z].Deserialize(sgd);
-    obj = sgd.PopObject<noBase>(GOT_UNKNOWN);
-    sgd.PopObjectContainer(figures, GOT_UNKNOWN);
+    obj = sgd.PopObject<noBase>();
+    sgd.PopObjectContainer(figures);
     seaId = sgd.PopUnsignedShort();
     harborId = sgd.PopUnsignedInt();
 }

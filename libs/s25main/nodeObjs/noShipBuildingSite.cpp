@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noShipBuildingSite.h"
 
@@ -25,24 +12,24 @@
 #include "notifications/ShipNote.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "postSystem/ShipPostMsg.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 
 noShipBuildingSite::noShipBuildingSite(const MapPoint pos, const unsigned char player)
-    : noCoordBase(NOP_ENVIRONMENT, pos), player(player), progress(0)
+    : noCoordBase(NodalObjectType::Environment, pos), player(player), progress(0)
 {}
 
 noShipBuildingSite::~noShipBuildingSite() = default;
 
 void noShipBuildingSite::Destroy()
 {
-    gwg->SetNO(pos, nullptr);
+    world->SetNO(pos, nullptr);
 
-    Destroy_noCoordBase();
+    noCoordBase::Destroy();
 }
 
 void noShipBuildingSite::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noCoordBase(sgd);
+    noCoordBase::Serialize(sgd);
 
     sgd.PushUnsignedChar(player);
     sgd.PushUnsignedChar(progress);
@@ -96,19 +83,18 @@ void noShipBuildingSite::MakeBuildStep()
     {
         // Replace me by ship
         GetEvMgr().AddToKillList(this);
-        gwg->SetNO(pos, nullptr);
-        auto* ship = new noShip(pos, player);
-        gwg->AddFigure(pos, ship);
+        world->SetNO(pos, nullptr);
+        auto& ship = world->AddFigure(pos, std::make_unique<noShip>(pos, player));
 
         // Schiff registrieren lassen
-        gwg->GetPlayer(player).RegisterShip(ship);
+        world->GetPlayer(player).RegisterShip(ship);
 
         // BQ neu berechnen, da Schiff nicht mehr blockiert
-        gwg->RecalcBQAroundPointBig(pos);
+        world->RecalcBQAroundPointBig(pos);
 
         // Spieler über Fertigstellung benachrichtigen
         SendPostMessage(player, std::make_unique<ShipPostMsg>(GetEvMgr().GetCurrentGF(), _("A new ship is ready"),
-                                                              PostCategory::Economy, *ship));
-        gwg->GetNotifications().publish(ShipNote(ShipNote::Constructed, player, pos));
+                                                              PostCategory::Economy, ship));
+        world->GetNotifications().publish(ShipNote(ShipNote::Constructed, player, pos));
     }
 }

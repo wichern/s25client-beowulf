@@ -1,36 +1,23 @@
-// Copyright (c) 2016 - 2018 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Point.h"
 #include "PointOutput.h"
 #include <rttr/test/random.hpp>
-#include <boost/mpl/list.hpp>
 #include <boost/test/unit_test.hpp>
 #include <type_traits>
+#include <utility>
 
 using boost::test_tools::tolerance;
 using rttr::test::randomPoint;
 using rttr::test::randomValue;
 
-using SignedTypes = boost::mpl::list<int8_t, int16_t, int32_t, int64_t, float, double>;
+using SignedTypes = std::tuple<int8_t, int16_t, int32_t, int64_t, float, double>;
 // Custom trait to support float/double
 template<typename T>
 using make_unsigned_t =
-  typename std::conditional_t<std::is_floating_point<T>::value, std::common_type<T>, std::make_unsigned<T>>::type;
+  typename std::conditional_t<std::is_floating_point<T>::value, detail::type_identity<T>, std::make_unsigned<T>>::type;
 
 template<typename T>
 constexpr T abs(T val)
@@ -264,14 +251,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(unscale_point, T, SignedTypes)
 
     pt2 /= scale;
     TEST_POINTS_CLOSE(pt2, resultUnsigned, epsilon);
-
-    x = randomValue<T>(1, 100);
-    y = randomValue<T>(1, 100);
-    const auto scale2 = randomValue<T>();
-    pt = SignedPoint(x, y);
-    const auto resultPt = scale2 / pt;
-    static_assert(std::is_same<decltype(resultPt.x), T>::value, "Result must be signed");
-    TEST_POINTS_CLOSE(resultPt, SignedPoint::all(scale2) / pt, epsilon);
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(symetric_operators, T, SignedTypes)

@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 ###############################################################################
 #
 # This file will only be read by Jenkinsfile.
@@ -22,6 +27,7 @@ fi
 ###############################################################################
 
 deploy_to="%deploy_to%"
+force_deploy="%force_deploy%"
 
 result_dir=$(pwd)/result
 archive_dir=/srv/backup/www/s25client/$deploy_to/$(date +%Y)
@@ -45,24 +51,26 @@ mkdir -p $updater_dir
 for artifact in $artifacts ; do
     echo "Processing file $artifact"
 
-    VERSION=$(echo $(basename $artifact) | cut -f2- -d '_' | cut -f 1-2 -d '.')
-    PLATFORM=$(echo $VERSION | cut -f 3 -d '-')
-
+    _file=$(echo $(basename $artifact) | cut -f2- -d '_')
+	VERSION=$(echo $_file | cut -f 1 -d '-')
+	PLATFORM=$(echo $_file | cut -f 3 -d '-' | cut -f 1-2 -d '.')
+	
     arch_dir=$PLATFORM
 
+    echo "- Version:  $VERSION"
     echo "- Platform: $arch_dir"
     echo ""
 
     set -x
 
     _changed=1
-    if [ -f $updater_dir/$arch_dir/revision ] && [ -f $arch_dir/revision ] ; then
+    if [ "$force_deploy" != "true" ] && [ -f $updater_dir/$arch_dir/revision ] && [ -f $arch_dir/revision ] ; then
         diff -qrN $updater_dir/$arch_dir/revision $arch_dir/revision && _changed=0 || _changed=1
     fi
 
     set +x
 
-    if [ $_changed -eq 0 ] ; then
+    if [ $_changed -eq 0 ]; then
         echo "- Skipping rotation. Nothing has been changed."
     else
         echo "- Rotating tree."

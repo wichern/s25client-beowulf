@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -30,17 +17,18 @@ protected:
     /// Flaggen-Ausgangspunkt
     noFlag* flag;
 
-    enum State
+    enum class State : uint8_t
     {
-        STATE_FIGUREWORK, // Zur Flagge und zurückgehen, Rumirren usw
-        STATE_GOTOFLAG,   // geht zurück zur Flagge um anschließend nach Hause zu gehen
+        FigureWork, // Zur Flagge und zurückgehen, Rumirren usw
+        GoToFlag,   // geht zurück zur Flagge um anschließend nach Hause zu gehen
 
-        STATE_GEOLOGIST_GOTONEXTNODE, // Zum nächsten Punkt gehen, um dort zu graben
-        STATE_GEOLOGIST_DIG,          // graben (mit Hammer auf Berg hauen)
-        STATE_GEOLOGIST_CHEER,        // Jubeln, dass man etwas gefunden hat
+        GeologistGotoNextNode, // Zum nächsten Punkt gehen, um dort zu graben
+        GeologistDig,          // graben (mit Hammer auf Berg hauen)
+        GeologistCheer,        // Jubeln, dass man etwas gefunden hat
 
-        STATE_SCOUT_SCOUTING // läuft umher und erkundet
+        ScoutScouting // läuft umher und erkundet
     } state;
+    friend constexpr auto maxEnumValue(State) { return State::ScoutScouting; }
 
     /// Kündigt bei der Flagge
     void AbrogateWorkplace() override;
@@ -51,19 +39,8 @@ public:
     nofFlagWorker(Job job, MapPoint pos, unsigned char player, noRoadNode* goal);
     nofFlagWorker(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofFlagWorker();
-
-public:
-    void Destroy() override { Destroy_nofFlagWorker(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofFlagWorker(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofFlagWorker(sgd); }
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
     /// Wird aufgerufen, wenn die Flagge abgerissen wurde
     virtual void LostWork() = 0;

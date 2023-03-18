@@ -1,34 +1,21 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "Rect.h"
 #include "enum_cast.hpp"
-#include "helpers/MaxEnumValue.h"
 #include "helpers/MultiArray.h"
 #include "ogl/glSmartBitmap.h"
+#include "resources/ResourceId.h"
 #include "gameTypes/BuildingType.h"
 #include "gameTypes/Direction.h"
+#include "gameTypes/FlagType.h"
 #include "gameTypes/GoodTypes.h"
 #include "gameTypes/JobTypes.h"
 #include "gameTypes/Nation.h"
 #include "gameData/AnimalConsts.h"
-#include "libsiedler2/Archiv.h"
 #include <boost/filesystem/path.hpp>
 #include <array>
 #include <cstdint>
@@ -37,19 +24,24 @@
 #include <string>
 #include <vector>
 
-enum class AddonId;
-class ITexture;
+class ArchiveLoader;
+class ArchiveLocator;
 class glArchivItem_Bitmap;
-class glArchivItem_BitmapBase;
 class glArchivItem_Bitmap_Player;
+class glArchivItem_BitmapBase;
 class glArchivItem_Bob;
 class glFont;
-class SoundEffectItem;
 class glTexturePacker;
-class MusicItem;
+class ITexture;
 class Log;
+class MusicItem;
 class RttrConfig;
+class SoundEffectItem;
+enum class AddonId;
+
 namespace libsiedler2 {
+class Archiv;
+class ArchivItem;
 class ArchivItem_Ini;
 class ArchivItem_Palette;
 } // namespace libsiedler2
@@ -61,60 +53,46 @@ enum class FontSize
     Normal,
     Large
 };
-DEFINE_MAX_ENUM_VALUE(FontSize, FontSize::Large)
+constexpr auto maxEnumValue(FontSize)
+{
+    return FontSize::Large;
+}
 
-/// Identifier for resources
-using ResourceId = std::string;
+void addDefaultResourceFolders(const RttrConfig& config, ArchiveLocator& locator,
+                               const std::vector<Nation>& usedNations, const std::vector<AddonId>& enabledAddons);
 
 class Loader
 {
     /// Struct for storing loaded file entries
-    struct FileEntry
-    {
-        libsiedler2::Archiv archiv;
-        /// List of files used to build this archiv
-        std::vector<boost::filesystem::path> filesUsed;
-        bool loadedAfterOverrideChange;
-    };
-    struct OverrideFolder
-    {
-        /// Path to the folder
-        boost::filesystem::path path;
-        /// Filenames in the folder
-        std::vector<boost::filesystem::path> files;
-    };
+    struct FileEntry;
 
 public:
     Loader(Log&, const RttrConfig&);
     ~Loader();
 
-    /// Add a folder to the list of folders containing overrides. Files in folders added last will override prior ones
-    /// Paths with macros will be resolved
-    void AddOverrideFolder(const std::string& path, bool atBack = true);
-    void AddOverrideFolder(const char* path, bool atBack = true) { AddOverrideFolder(std::string(path), atBack); }
-    /// Add a folder to the list of folders containing overrides. Files in folders added last will override prior ones
-    void AddOverrideFolder(const boost::filesystem::path& path, bool atBack = true);
-    /// Add the folder form an addon to the override folders
-    void AddAddonFolder(AddonId id);
-    void ClearOverrideFolders();
+    void initResourceFolders() { initResourceFolders({}, {}); }
+    void initResourceFolders(const std::vector<Nation>& usedNations, const std::vector<AddonId>& enabledAddons);
 
     /// Load general files required also outside of games
     bool LoadFilesAtStart();
     bool LoadFonts();
     /// Load files required during a game
-    bool LoadFilesAtGame(const std::string& mapGfxPath, bool isWinterGFX, const std::vector<Nation>& nations);
-    /// Load all files from the override folders that have not been loaded yet
-    bool LoadOverrideFiles();
+    bool LoadFilesAtGame(const std::string& mapGfxPath, bool isWinterGFX, const std::vector<Nation>& nations,
+                         const std::vector<AddonId>& enabledAddons);
     /// Load all given files with the default palette
     bool LoadFiles(const std::vector<std::string>& files);
+    bool LoadResources(const std::vector<ResourceId>& resources);
 
     /// Creates archives with empty files for the GUI (for testing purposes)
     void LoadDummyGUIFiles();
+    void LoadDummyMapFiles();
     /// Load a file and save it into the loader repo
-    bool Load(const boost::filesystem::path& path, const libsiedler2::ArchivItem_Palette* palette = nullptr,
-              bool isFromOverrideDir = false);
-    /// Load a file or directory and its overrides into the archiv
-    bool Load(libsiedler2::Archiv& archiv, const boost::filesystem::path& path,
+    bool Load(const boost::filesystem::path& path, const libsiedler2::ArchivItem_Palette* palette = nullptr);
+    bool Load(const ResourceId& resId, const libsiedler2::ArchivItem_Palette* palette = nullptr);
+    /// Load a file or directory and its overrides into the archive
+    bool Load(libsiedler2::Archiv& archive, const boost::filesystem::path& path,
+              const libsiedler2::ArchivItem_Palette* palette = nullptr);
+    bool Load(libsiedler2::Archiv& archive, const ResourceId& resId,
               const libsiedler2::ArchivItem_Palette* palette = nullptr);
 
     void fillCaches();
@@ -134,15 +112,33 @@ public:
     std::string GetTextN(const ResourceId& file, unsigned nr);
     libsiedler2::Archiv& GetArchive(const ResourceId& file);
     glArchivItem_Bob* GetBob(const ResourceId& file);
-    glArchivItem_BitmapBase* GetNationImageN(unsigned nation, unsigned nr);
-    glArchivItem_Bitmap* GetNationImage(unsigned nation, unsigned nr);
-    glArchivItem_Bitmap* GetNationIcon(unsigned nation, unsigned nr);
+    glArchivItem_BitmapBase* GetNationImageN(Nation nation, unsigned nr);
+    glArchivItem_Bitmap* GetNationImage(Nation nation, unsigned nr);
+    glArchivItem_Bitmap* GetNationIcon(Nation nation, BuildingType bld);
     /// Same as GetNationImage but returns a ITexture. Note glArchivItem_Bitmap is a ITexture
-    ITexture* GetNationTex(unsigned nation, unsigned nr);
-    glArchivItem_Bitmap_Player* GetNationPlayerImage(unsigned nation, unsigned nr);
-    glArchivItem_Bitmap* GetMapImageN(unsigned nr);
-    /// Same as GetMapImageN but returns a ITexture. Note glArchivItem_Bitmap is a ITexture
-    ITexture* GetMapTexN(unsigned nr);
+    ITexture* GetNationTex(Nation nation, unsigned nr);
+    glArchivItem_Bitmap_Player* GetNationPlayerImage(Nation nation, unsigned nr);
+    /// Return the map texture with the given number
+    ITexture* GetMapTexture(unsigned nr);
+    /// Return the more specialized map image. Note: Prefer GetMapTexture which also handles (pseudo) player bitmaps
+    glArchivItem_Bitmap* GetMapImage(unsigned nr);
+    /// Get the ware symbol texture
+    ITexture* GetWareTex(GoodType ware) { return GetMapTexture(WARES_TEX_MAP_OFFSET + rttr::enum_cast(ware)); }
+    /// Get the ware stack texture (lying on ground)
+    ITexture* GetWareStackTex(GoodType ware)
+    {
+        return GetMapTexture(WARE_STACK_TEX_MAP_OFFSET + rttr::enum_cast(ware));
+    }
+    /// Get the ware texture when carried by donky
+    ITexture* GetWareDonkeyTex(GoodType ware)
+    {
+        return GetMapTexture(WARES_DONKEY_TEX_MAP_OFFSET + rttr::enum_cast(ware));
+    }
+    /// Get job symbol texture
+    ITexture* GetJobTex(Job job)
+    {
+        return (job == Job::CharBurner) ? GetTextureN("io_new", 5) : GetMapTexture(2300 + rttr::enum_cast(job));
+    }
     glArchivItem_Bitmap_Player* GetMapPlayerImage(unsigned nr);
 
     bool IsWinterGFX() const { return isWinterGFX_; }
@@ -150,13 +146,13 @@ public:
     std::vector<std::unique_ptr<MusicItem>> sng_lst;
 
     /// Figure animations have 8 frames
-    using FigAnimationSprites = std::array<glSmartBitmap, 8>;
+    using AnimationSprites = std::array<glSmartBitmap, 8>;
     struct FightSprites
     {
         /// Attack animation
-        FigAnimationSprites attacking;
+        AnimationSprites attacking;
         // 3 defend animations
-        std::array<FigAnimationSprites, 3> defending;
+        std::array<AnimationSprites, 3> defending;
         /// Sprite for the hit
         glSmartBitmap hit;
     };
@@ -171,47 +167,52 @@ public:
     }
     glSmartBitmap& getDeadAnimalSprite(Species species)
     {
-        return animal_cache[species][Direction::WEST][ANIMAL_MAX_ANIMATION_STEPS];
+        return animal_cache[species][Direction::West][ANIMAL_MAX_ANIMATION_STEPS];
     }
 
+    struct BuildingSprites
+    {
+        glSmartBitmap building, skeleton, door;
+    };
     /// Buildings: Nation, Type, Building/Skeleton
-    helpers::MultiArray<glSmartBitmap, NUM_NATIONS, NUM_BUILDING_TYPES, 2> building_cache;
+    helpers::MultiEnumArray<BuildingSprites, Nation, BuildingType> building_cache;
     /// Flags: Nation, Type, AnimationFrame
-    helpers::MultiArray<glSmartBitmap, NUM_NATIONS, 3, 8> flag_cache;
+    helpers::MultiEnumArray<AnimationSprites, Nation, FlagType> flag_cache;
     /// Military Flags: AnimationFrame
-    // helpers::MultiArray<glSmartBitmap, 8> building_flag_cache;
+    // AnimationSprites building_flag_cache;
     /// Trees: Type, AnimationFrame
     helpers::MultiArray<glSmartBitmap, 9, 15> tree_cache;
-    /// Jobs: Nation, Job (last is fat carrier), Direction, AnimationFrame
-    helpers::MultiArray<FigAnimationSprites, NUM_NATIONS, NUM_JOB_TYPES + 1, 6> bob_jobs_cache;
+    /// Jobs: Nation, Job, Direction, AnimationFrame
+    helpers::MultiEnumArray<AnimationSprites, Nation, Job, Direction> bob_jobs_cache;
+    helpers::MultiEnumArray<AnimationSprites, Nation, Direction> fat_carrier_cache;
     glSmartBitmap& getBobSprite(Nation nat, Job job, Direction dir, unsigned aniFrame)
     {
-        return bob_jobs_cache(nat, job, rttr::enum_cast(dir))[aniFrame];
+        return bob_jobs_cache[nat][job][dir][aniFrame];
     }
     glSmartBitmap& getCarrierBobSprite(Nation nat, bool fat, Direction dir, unsigned aniFrame)
     {
-        return bob_jobs_cache(nat, fat ? NUM_JOB_TYPES : rttr::enum_cast(JOB_HELPER), rttr::enum_cast(dir))[aniFrame];
+        return fat ? fat_carrier_cache[nat][dir][aniFrame] : bob_jobs_cache[nat][Job::Helper][dir][aniFrame];
     }
     /// Stone: Type, Size
-    helpers::MultiArray<glSmartBitmap, 2, 6> granite_cache;
+    helpers::EnumArray<std::array<glSmartBitmap, 6>, GraniteType> granite_cache;
     /// Grainfield: Type, Size
     helpers::MultiArray<glSmartBitmap, 2, 4> grainfield_cache;
-    /// Carrier w/ ware: Ware, NormalOrFat, Direction, Animation
-    helpers::MultiArray<FigAnimationSprites, NUM_WARE_TYPES, 2, 6> carrier_cache;
+    /// Carrier w/ ware: NormalOrFat, Ware, Direction
+    std::array<helpers::MultiEnumArray<AnimationSprites, GoodType, Direction>, 2> carrier_cache;
     glSmartBitmap& getCarrierSprite(GoodType ware, bool fat, Direction dir, unsigned aniFrame)
     {
-        return carrier_cache(ware, fat, rttr::enum_cast(dir))[aniFrame];
+        return carrier_cache[fat][ware][dir][aniFrame];
     }
     /// Boundary stones: Nation
-    std::array<glSmartBitmap, NUM_NATIONS> boundary_stone_cache;
+    helpers::EnumArray<glSmartBitmap, Nation> boundary_stone_cache;
     /// BoatCarrier: Direction, AnimationFrame
-    std::array<FigAnimationSprites, 6> boat_cache;
+    std::array<AnimationSprites, 6> boat_cache;
     glSmartBitmap& getBoatCarrierSprite(Direction dir, unsigned aniFrame)
     {
         return boat_cache[rttr::enum_cast(dir)][aniFrame];
     }
     /// Donkey: Direction, AnimationFrame
-    std::array<FigAnimationSprites, 6> donkey_cache;
+    std::array<AnimationSprites, 6> donkey_cache;
     glSmartBitmap& getDonkeySprite(Direction dir, unsigned aniFrame)
     {
         return donkey_cache[rttr::enum_cast(dir)][aniFrame];
@@ -219,42 +220,25 @@ public:
     /// Gateway: AnimationFrame
     std::array<glSmartBitmap, 5> gateway_cache;
     /// Fight animations for each nation, soldier type and left/right
-    helpers::MultiArray<FightSprites, NUM_NATIONS, NUM_SOLDIER_RANKS, 2> fight_cache;
+    helpers::EnumArray<helpers::MultiArray<FightSprites, NUM_SOLDIER_RANKS, 2>, Nation> fight_cache;
 
 private:
-    static ResourceId MakeResourceId(const boost::filesystem::path& filepath);
-
-    /// Get all files to load for a request of loading filepath
-    std::vector<boost::filesystem::path> GetFilesToLoad(const boost::filesystem::path& filepath);
-    bool MergeArchives(libsiedler2::Archiv& targetArchiv, libsiedler2::Archiv& otherArchiv);
-
     /// Load all sounds
     bool LoadSounds();
 
-    /// Load a file or directory into the archive
-    libsiedler2::Archiv DoLoadFileOrDirectory(const boost::filesystem::path& filePath,
-                                              const libsiedler2::ArchivItem_Palette* palette = nullptr);
-    /// Load the file into the archive
-    libsiedler2::Archiv DoLoadFile(const boost::filesystem::path& filePath,
-                                   const libsiedler2::ArchivItem_Palette* palette = nullptr);
-    bool LoadOverrideDirectory(const boost::filesystem::path& path);
-
     template<typename T>
-    static T convertChecked(libsiedler2::ArchivItem* item)
-    {
-        T res = dynamic_cast<T>(item);
-        RTTR_Assert(!item || res);
-        return res;
-    }
+    bool LoadImpl(const T& resIdOrPath, const libsiedler2::ArchivItem_Palette* palette);
+
     Log& logger_;
     const RttrConfig& config_;
-    std::vector<OverrideFolder> overrideFolders_;
+    std::unique_ptr<ArchiveLocator> archiveLocator_;
+    std::unique_ptr<ArchiveLoader> archiveLoader_;
     std::map<ResourceId, FileEntry> files_;
     std::vector<glFont> fonts;
 
     bool isWinterGFX_;
-    std::array<libsiedler2::Archiv*, NUM_NATIONS> nation_gfx;
-    std::array<libsiedler2::Archiv*, NUM_NATIONS> nationIcons_;
+    helpers::EnumArray<libsiedler2::Archiv*, Nation> nation_gfx;
+    helpers::EnumArray<libsiedler2::Archiv*, Nation> nationIcons_;
     libsiedler2::Archiv* map_gfx;
     std::unique_ptr<glTexturePacker> stp;
 };

@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "enum_cast.hpp"
+#include "helpers/PtrSpan.h"
 #include "world/MapBase.h"
 #include "world/MilitarySquares.h"
 #include "gameTypes/Direction.h"
@@ -35,7 +23,14 @@
 struct LandscapeDesc;
 class CatapultStone;
 class noBase;
-struct ShipDirection;
+class noBuildingSite;
+enum class ShipDirection : uint8_t;
+
+struct WalkTerrain
+{
+    DescIdx<TerrainDesc> left, right;
+};
+
 /// Base class representing the world itself, no algorithms, handlers etc!
 class World : public MapBase
 {
@@ -43,9 +38,9 @@ class World : public MapBase
     struct Sea
     {
         /// Anzahl der Knoten, welches sich in diesem Meer befinden
-        unsigned nodes_count;
+        unsigned nodes_count = 0;
 
-        Sea() : nodes_count(0) {}
+        Sea() = default;
         Sea(unsigned nodes_count) : nodes_count(nodes_count) {}
     };
 
@@ -67,6 +62,13 @@ class World : public MapBase
 
     std::unique_ptr<noBase> noNodeObj;
     void Resize(const MapExtent& newSize) override final;
+    noBase& AddFigureImpl(MapPoint pt, std::unique_ptr<noBase> fig);
+    /// Implementation of RemoveFigure. Returned pointer must be wrapped in an owning pointer
+    noBase* RemoveFigureImpl(MapPoint pt, noBase& fig);
+
+protected:
+    /// harbor building sites created by ships
+    std::list<noBuildingSite*> harbor_building_sites_from_sea;
 
 public:
     /// Currently flying catapult stones
@@ -92,8 +94,19 @@ public:
     /// Return the neighboring node
     const MapNode& GetNeighbourNode(MapPoint pt, Direction dir) const;
 
-    void AddFigure(MapPoint pt, noBase* fig);
-    void RemoveFigure(MapPoint pt, noBase* fig);
+    // Add a figure to a node (taking ownership) and returns a reference to it
+    template<typename T>
+    T& AddFigure(MapPoint pt, std::unique_ptr<T> fig)
+    {
+        return static_cast<T&>(AddFigureImpl(pt, std::move(fig)));
+    }
+    template<typename T>
+    std::unique_ptr<T> RemoveFigure(MapPoint pt, T& fig)
+    {
+        return std::unique_ptr<T>(static_cast<T*>(RemoveFigureImpl(pt, fig)));
+    }
+    template<typename T>
+    std::unique_ptr<T> RemoveFigure(MapPoint pt, T*& fig) = delete;
     /// Return the NO from that point or a "nothing"-object if there is none
     noBase* GetNO(MapPoint pt);
     /// Return the NO from that point or a "nothing"-object if there is none
@@ -116,6 +129,9 @@ public:
 
     void ChangeAltitude(MapPoint pt, unsigned char altitude);
 
+    // Make whole map visible with no additional checks or notices
+    void MakeWholeMapVisibleForAllPlayers();
+
     /// Checks if the point completely belongs to a player (if false but point itself belongs to player then it is a
     /// border) if owner is != 0 it checks if the points specific ownership
     bool IsPlayerTerritory(MapPoint pt, unsigned char owner = 0) const;
@@ -126,7 +142,8 @@ public:
     BuildingQuality AdjustBQ(MapPoint pt, unsigned char player, BuildingQuality nodeBQ) const;
 
     /// Return the figures currently on the node
-    const std::list<noBase*>& GetFigures(const MapPoint pt) const { return GetNode(pt).figures; }
+    auto GetFigures(const MapPoint pt) const { return helpers::nonNullPtrSpan(GetNode(pt).figures); }
+    bool HasFigureAt(MapPoint pt, const noBase& figure) const;
 
     /// Return a specific object or nullptr
     template<typename T>
@@ -141,11 +158,11 @@ public:
         return dynamic_cast<const T*>(GetNode(pt).obj);
     }
 
-    /// Return the terrain to the right when walking from the point in the given direction
-    /// 0 = left upper triangle, 1 = triangle above, ..., 4 = triangle below
-    DescIdx<TerrainDesc> GetRightTerrain(MapPoint pt, Direction dir) const;
-    /// Return the terrain to the left when walking from the point in the given direction
-    DescIdx<TerrainDesc> GetLeftTerrain(MapPoint pt, Direction dir) const;
+    /// Get left and right terrain from the point in the given direction
+    WalkTerrain GetTerrain(MapPoint pt, Direction dir) const;
+    /// Return all terrains around the given point. The per-direction entry is the terrain to the right
+    helpers::EnumArray<DescIdx<TerrainDesc>, Direction> GetTerrainsAround(MapPoint pt) const;
+
     /// Create the FOW-objects, -streets, etc for a point and player
     void SaveFOWNode(MapPoint pt, unsigned player, unsigned curTime);
     unsigned GetNumSeas() const { return seas.size(); }
@@ -188,19 +205,19 @@ public:
         // Uses knowledge about Direction<->RoadDir to avoid switch, see static_asserts
         using rttr::enum_cast;
         auto iDir = enum_cast(dir);
-        if(iDir >= enum_cast(Direction::EAST))
+        if(iDir >= enum_cast(Direction::East))
         {
-            static_assert(enum_cast(Direction::EAST) - 3 == enum_cast(RoadDir::East)
-                            && enum_cast(Direction::SOUTHEAST) - 3 == enum_cast(RoadDir::SouthEast)
-                            && enum_cast(Direction::SOUTHWEST) - 3 == enum_cast(RoadDir::SouthWest),
+            static_assert(enum_cast(Direction::East) - 3 == enum_cast(RoadDir::East)
+                            && enum_cast(Direction::SouthEast) - 3 == enum_cast(RoadDir::SouthEast)
+                            && enum_cast(Direction::SouthWest) - 3 == enum_cast(RoadDir::SouthWest),
                           "Mismatch");
             iDir -= 3u; // Map East->East etc
         } else
         {
             // Will map iDir to opposite
-            static_assert(enum_cast(Direction::WEST) == enum_cast(RoadDir::East)
-                            && enum_cast(Direction::NORTHWEST) == enum_cast(RoadDir::SouthEast)
-                            && enum_cast(Direction::NORTHEAST) == enum_cast(RoadDir::SouthWest),
+            static_assert(enum_cast(Direction::West) == enum_cast(RoadDir::East)
+                            && enum_cast(Direction::NorthWest) == enum_cast(RoadDir::SouthEast)
+                            && enum_cast(Direction::NorthEast) == enum_cast(RoadDir::SouthWest),
                           "Mismatch");
             pt = GetNeighbour(pt, dir);
         }
@@ -265,10 +282,9 @@ template<class T_Predicate>
 inline bool World::IsOfTerrain(const MapPoint pt, T_Predicate predicate) const
 {
     // NOTE: This is '!HasTerrain(pt, !predicate)'
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const DescIdx<TerrainDesc> tIdx : GetTerrainsAround(pt))
     {
-        DescIdx<TerrainDesc> t = GetRightTerrain(pt, dir);
-        if(!predicate(GetDescription().get(t)))
+        if(!predicate(GetDescription().get(tIdx)))
             return false;
     }
     return true;
@@ -277,10 +293,9 @@ inline bool World::IsOfTerrain(const MapPoint pt, T_Predicate predicate) const
 template<class T_Predicate>
 inline bool World::HasTerrain(const MapPoint pt, T_Predicate predicate) const
 {
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const DescIdx<TerrainDesc> tIdx : GetTerrainsAround(pt))
     {
-        DescIdx<TerrainDesc> t = GetRightTerrain(pt, dir);
-        if(predicate(GetDescription().get(t)))
+        if(predicate(GetDescription().get(tIdx)))
             return true;
     }
     return false;

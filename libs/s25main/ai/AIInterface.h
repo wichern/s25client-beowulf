@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -22,8 +9,12 @@
 #include "NodalObjectTypes.h"
 #include "ai/AIResource.h"
 #include "factories/GameCommandFactory.h"
+#include "helpers/OptionalEnum.h"
 #include "world/GameWorldBase.h"
+#include "gameTypes/ChatDestination.h"
 #include "gameTypes/Direction.h"
+#include <memory>
+#include <vector>
 
 class nobHQ;
 class nobShipYard;
@@ -38,25 +29,27 @@ class nobHarborBuilding;
 class nobMilitary;
 class nobUsual;
 struct Inventory;
+class GameMessage_Chat;
 
 class AIInterface : public GameCommandFactory
 {
 public:
-    AIInterface(const GameWorldBase& gwb, std::vector<gc::GameCommandPtr>& gcs, unsigned char playerID)
-        : gwb(gwb), player_(gwb.GetPlayer(playerID)), gcs(gcs), playerID_(playerID)
-    {}
+    AIInterface(const GameWorldBase& gwb, std::vector<gc::GameCommandPtr>& gcs, unsigned char playerID);
+    ~AIInterface();
 
     unsigned char GetPlayerId() const { return playerID_; }
     unsigned GetNumPlayers() const { return gwb.GetNumPlayers(); }
+    const std::vector<unsigned>& getUsableHarbors() const { return usableHarbors_; }
 
     bool IsDefeated() const { return player_.IsDefeated(); }
     /// Return the resource buried on a given spot (gold, coal, ironore, granite (sub), fish, nothing)
-    AIResource GetSubsurfaceResource(MapPoint pt) const;
+    AISubSurfaceResource GetSubsurfaceResource(MapPoint pt) const;
     /// Return the resource on top on a given spot (wood, stones, nothing)
-    AIResource GetSurfaceResource(MapPoint pt) const;
+    AISurfaceResource GetSurfaceResource(MapPoint pt) const;
     /// Calculate the surface resource value on a given spot (wood/ stones/ farmland)
     /// when given a direction and lastvalue the calculation will be much faster O(n) vs O(n^2)
-    int CalcResourceValue(MapPoint pt, AIResource res, int8_t direction = -1, int lastval = 0xffff) const;
+    int CalcResourceValue(MapPoint pt, AIResource res, helpers::OptionalEnum<Direction> direction = boost::none,
+                          int lastval = 0xffff) const;
     /// Calculate the resource value for a given point
     int GetResourceRating(MapPoint pt, AIResource res) const;
     /// Test whether a given point is part of the border or not
@@ -78,11 +71,14 @@ public:
     {
         const noBase* no = gwb.GetNO(pt);
         const NodalObjectType noType = no->GetType();
-        return (noType == NOP_BUILDING || noType == NOP_BUILDINGSITE)
+        return (noType == NodalObjectType::Building || noType == NodalObjectType::Buildingsite)
                && (static_cast<const noBaseBuilding*>(no)->GetBuildingType() == bld);
     }
     /// Test whether the ai player can see a point
-    bool IsVisible(const MapPoint pt) const { return gwb.CalcVisiblityWithAllies(pt, playerID_) == VIS_VISIBLE; }
+    bool IsVisible(const MapPoint pt) const
+    {
+        return gwb.CalcVisiblityWithAllies(pt, playerID_) == Visibility::Visible;
+    }
     /// Return true when the building quality at the 2nd point is lower than the bq on the first point
     bool CalcBQSumDifference(MapPoint pt1, MapPoint pt2) const;
     /// Return building quality on a given spot
@@ -139,6 +135,13 @@ public:
     {
         return player_.GetBuildingRegister().GetStorehouses();
     }
+
+    /// Check if there is a building of the given type in a radius of at most maxDistance
+    bool isBuildingNearby(BuildingType bldType, MapPoint pt, unsigned maxDistance) const;
+    /// Check if there is a (useful) harbor spot in at most the given distance. onlyEmpty=True -> No harbor building
+    /// there yet
+    bool isHarborPosClose(MapPoint pt, unsigned maxDistance, bool onlyEmpty = false) const;
+
     /// Return the inventory of the AI player
     const Inventory& GetInventory() const { return player_.GetInventory(); }
     /// Return the number of ships
@@ -154,7 +157,7 @@ public:
     /// Test whether there is a possibility to start a expedition in a given direction from a given position, assuming a
     /// given starting harbor
     bool IsExplorationDirectionPossible(MapPoint pt, unsigned originHarborID, ShipDirection direction) const;
-    unsigned GetNation() { return player_.nation; }
+    Nation GetNation() const { return player_.nation; }
 
     bool HasIssuedGameCommands() const { return !gcs.empty(); }
 
@@ -188,6 +191,11 @@ public:
     bool CallSpecialist(const noFlag* flag, Job job);
     using GameCommandFactory::CallSpecialist;
 
+    /// Sends a chat messsage to all players
+    void Chat(const std::string& message, ChatDestination destination = ChatDestination::All);
+
+    std::vector<std::unique_ptr<GameMessage_Chat>> FetchChatMessages();
+
     /// Pointer to GameWorld, containing all information about the world
     const GameWorldBase& gwb;
 
@@ -202,6 +210,9 @@ private:
     const GamePlayer& player_;
     /// Pointer to the game commands queue, to send commands to the game
     std::vector<gc::GameCommandPtr>& gcs;
+    std::vector<std::unique_ptr<GameMessage_Chat>> pendingChatMsgs_;
     /// ID of AI player
     const unsigned char playerID_;
+    /// Harbor ids which have at least one other harbor at the same sea
+    std::vector<unsigned> usableHarbors_;
 };

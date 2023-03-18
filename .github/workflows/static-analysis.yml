@@ -1,8 +1,16 @@
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 name: Static analysis
 
 on:
   push:
   pull_request:
+
+concurrency:
+  group: ${{format('staticAna-{0}:{1}', github.repository, github.ref)}}
+  cancel-in-progress: true
 
 env:
   CC: clang-10
@@ -27,15 +35,18 @@ jobs:
           find . \( -path ./build -o -path ./external/glad -o -path ./external/dev-tools -o \
                     -path ./external/turtle -o -path ./external/kaguya \) \
                  -prune -false -o \( -name '*.hpp' -or -name '*.h' \) \
-                 -exec tools/ci/checkIncludeGuards.sh {} \;
+                 -print0 | xargs -0 -n1 tools/ci/checkIncludeGuards.sh
       - name: Lint markdown files
-        uses: avto-dev/markdown-lint@v1.3.0
+        uses: avto-dev/markdown-lint@v1.5.0
         with:
-          args: --ignore data/RTTR/MAPS .
-          ignore: external
+          ignore: external data/RTTR/MAPS .
+      - name: Check licensing
+        run:
+          pip install --user reuse
+          reuse lint
 
   Clang-Tidy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - run: git submodule update --init

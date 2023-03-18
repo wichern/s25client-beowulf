@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -64,13 +51,13 @@ class nobHarborBuilding : public nobBaseWarehouse
     /// Bestell-Ware-Event
     const GameEvent* orderware_ev;
     /// Die Meeres-IDs aller angrenzenden Meere (jeweils für die 6 drumherumliegenden Küstenpunkte)
-    helpers::EnumArray<unsigned short, Direction> seaIds;
+    helpers::EnumArray<uint16_t, Direction> seaIds;
     /// Liste von Waren, die weggeschifft werden sollen
-    std::list<Ware*> wares_for_ships;
+    std::list<std::unique_ptr<Ware>> wares_for_ships;
     /// Liste von Menschen, die weggeschifft werden sollen
     struct FigureForShip
     {
-        noFigure* fig;
+        std::unique_ptr<noFigure> fig;
         MapPoint dest;
     };
     std::list<FigureForShip> figures_for_ships;
@@ -78,7 +65,7 @@ class nobHarborBuilding : public nobBaseWarehouse
     /// Liste von angreifenden Soldaten, die verschifft werden sollen
     struct SoldierForShip
     {
-        nofAttacker* attacker;
+        std::unique_ptr<nofAttacker> attacker;
         MapPoint dest;
     };
     std::list<SoldierForShip> soldiers_for_ships;
@@ -96,16 +83,16 @@ private:
     bool IsExplorationExpeditionReady() const;
     /// Abgeleitete kann eine gerade erzeugte Ware ggf. sofort verwenden
     /// (muss in dem Fall true zurückgeben)
-    bool UseWareAtOnce(Ware* ware, noBaseBuilding& goal) override;
+    bool UseWareAtOnce(std::unique_ptr<Ware>& ware, noBaseBuilding& goal) override;
     /// Dasselbe für Menschen
-    bool UseFigureAtOnce(noFigure* fig, noRoadNode& goal) override;
+    bool UseFigureAtOnce(std::unique_ptr<noFigure>& fig, noRoadNode& goal) override;
     /// Bestellte Figur, die sich noch inder Warteschlange befindet, kommt nicht mehr und will rausgehauen werden
     void CancelFigure(noFigure* figure) override;
     /// Bestellt ein Schiff zum Hafen, sofern dies nötig ist
     void OrderShip();
 
     /// Stellt Verteidiger zur Verfügung
-    nofDefender* ProvideDefender(nofAttacker* attacker) override;
+    std::unique_ptr<nofDefender> ProvideDefender(nofAttacker& attacker) override;
 
     friend class SerializedGameData;
     friend class BuildingFactory;
@@ -120,22 +107,22 @@ public:
 
     /// Serialisierung
     void Serialize(SerializedGameData& sgd) const override;
-    GO_Type GetGOT() const override { return GOT_NOB_HARBORBUILDING; }
+    GO_Type GetGOT() const final { return GO_Type::NobHarborbuilding; }
     void Draw(DrawPoint drawPt) override;
     void HandleEvent(unsigned id) override;
 
     /// Eine bestellte Ware konnte doch nicht kommen
-    void WareLost(Ware* ware) override;
+    void WareLost(Ware& ware) override;
     /// Legt eine Ware im Lagerhaus ab
-    void AddWare(Ware*& ware) override;
+    void AddWare(std::unique_ptr<Ware> ware) override;
     /// Eine Figur geht ins Lagerhaus
-    void AddFigure(noFigure* figure, bool increase_visual_counts) override;
+    void AddFigure(std::unique_ptr<noFigure> figure, bool increase_visual_counts) override;
     /// Berechnet Wichtigkeit einer neuen Ware für den Hafen (Waren werden für Expeditionen
     /// benötigt!)
     unsigned CalcDistributionPoints(GoodType type) const;
 
     /// Storniert die Bestellung für eine bestimmte Ware, die mit einem Schiff transportiert werden soll
-    void CancelWareForShip(Ware* ware);
+    std::unique_ptr<Ware> CancelWareForShip(Ware* ware);
 
     /// Startet eine Expedition
     void StartExpedition();
@@ -150,13 +137,13 @@ public:
     /// Ist Erkundungs-Expedition in Vorbereitung?
     bool IsExplorationExpeditionActive() const { return exploration_expedition.active; }
     /// Schiff ist angekommen
-    void ShipArrived(noShip* ship);
+    void ShipArrived(noShip& ship);
     /// Schiff konnte nicht mehr kommen
     void ShipLost(noShip* ship);
 
     /// Abfangen, wenn ein Mann nicht mehr kommen kann --> könnte ein Bauarbeiter sein und
     /// wenn wir einen benötigen, müssen wir einen neuen bestellen
-    void RemoveDependentFigure(noFigure* figure) override;
+    void RemoveDependentFigure(noFigure& figure) override;
 
     /// Gibt die Hafenplatz-ID zurück, auf der der Hafen steht
     unsigned GetHarborPosID() const;
@@ -172,9 +159,9 @@ public:
     std::vector<ShipConnection> GetShipConnections() const;
 
     /// Fügt einen Mensch hinzu, der mit dem Schiff irgendwo hin fahren will
-    void AddFigureForShip(noFigure* fig, MapPoint dest);
+    void AddFigureForShip(std::unique_ptr<noFigure> fig, MapPoint dest);
     /// Fügt eine Ware hinzu, die mit dem Schiff verschickt werden soll
-    void AddWareForShip(Ware*& ware);
+    void AddWareForShip(std::unique_ptr<Ware> ware);
 
     /// A ware changed its route and doesn't want to use the ship anymore
     void WareDontWantToTravelByShip(Ware* ware);
@@ -185,9 +172,9 @@ public:
     int GetNeedForShip(unsigned ships_coming) const;
 
     /// Erhält die Waren von einem Schiff und nimmt diese in den Warenbestand auf
-    void ReceiveGoodsFromShip(std::list<noFigure*>& figures, std::list<Ware*>& wares);
+    void ReceiveGoodsFromShip(std::list<std::unique_ptr<noFigure>>& figures, std::list<std::unique_ptr<Ware>>& wares);
 
-    nofAggressiveDefender* SendAggressiveDefender(nofAttacker* attacker) override;
+    nofAggressiveDefender* SendAggressiveDefender(nofAttacker& attacker) override;
 
     struct SeaAttackerBuilding
     {
@@ -215,7 +202,7 @@ public:
     std::vector<SeaAttackerBuilding> GetAttackerBuildingsForSeaIdAttack();
 
     /// Fügt einen Schiffs-Angreifer zum Hafen hinzu
-    void AddSeaAttacker(nofAttacker* attacker);
+    void AddSeaAttacker(std::unique_ptr<nofAttacker> attacker);
     /// Attacker does not want to attack anymore
     void CancelSeaAttacker(nofAttacker* attacker);
 

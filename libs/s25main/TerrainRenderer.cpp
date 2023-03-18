@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "TerrainRenderer.h"
 #include "Loader.h"
@@ -32,9 +19,8 @@
 #include "libsiedler2/Archiv.h"
 #include "libsiedler2/ArchivItem_PaletteAnimation.h"
 #include "s25util/Log.h"
-#include "s25util/dynamicUniqueCast.h"
-#include "s25util/strAlgos.h"
 #include <glad/glad.h>
+#include <boost/pointer_cast.hpp>
 #include <boost/range/adaptor/indexed.hpp>
 #include <cstdlib>
 #include <set>
@@ -64,6 +50,11 @@ glArchivItem_Bitmap* new_clone(const glArchivItem_Bitmap& bmp)
 
 TerrainRenderer::TerrainRenderer() : size_(0, 0) {}
 TerrainRenderer::~TerrainRenderer() = default;
+
+static constexpr unsigned getFlatIndex(DescIdx<LandscapeDesc> ls, LandRoadType road)
+{
+    return ls.value * helpers::NumEnumValues_v<LandRoadType> + rttr::enum_cast(road);
+}
 
 TerrainRenderer::PointF TerrainRenderer::GetNeighbourVertexPos(MapPoint pt, const Direction dir) const
 {
@@ -116,12 +107,12 @@ void TerrainRenderer::LoadTextures(const WorldDescription& desc)
     }
     terrainTextures.resize(usedTerrains.rbegin()->value + 1);
     edgeTextures.resize(usedEdges.rbegin()->value + 1);
-    roadTextures.resize((usedLandscapes.rbegin()->value + 1) * LandscapeDesc::NUM_ROADTYPES);
+    roadTextures.resize((usedLandscapes.rbegin()->value + 1) * helpers::NumEnumValues_v<LandRoadType>);
 
     for(DescIdx<TerrainDesc> curIdx : usedTerrains)
     {
         const TerrainDesc& cur = desc.get(curIdx);
-        std::string textureName = s25util::toLower(bfs::path(cur.texturePath).stem().string());
+        const auto textureName = ResourceId::make(bfs::path(cur.texturePath));
         glArchivItem_Bitmap* texBmp = LOADER.GetImageN(textureName, 0);
         if(!texBmp)
             throw std::runtime_error("Invalid texture '" + cur.texturePath + "' for terrain '" + cur.name + "'");
@@ -131,8 +122,7 @@ void TerrainRenderer::LoadTextures(const WorldDescription& desc)
             if(!texBmp->getPalette() || !animItem || animItem->getBobType() != libsiedler2::BobType::PaletteAnim)
             {
                 LOG.write("Invalid palette animation '%1%' for '%2%'") % unsigned(cur.palAnimIdx) % cur.name;
-                terrainTextures[curIdx.value].textures.push_back(
-                  LOADER.ExtractTexture(*texBmp, cur.posInTexture).release());
+                terrainTextures[curIdx.value].textures.push_back(LOADER.ExtractTexture(*texBmp, cur.posInTexture));
             } else
             {
                 auto& anim = static_cast<libsiedler2::ArchivItem_PaletteAnimation&>(*animItem);
@@ -141,13 +131,12 @@ void TerrainRenderer::LoadTextures(const WorldDescription& desc)
                 for(unsigned i = 0; i < textures->size(); i++)
                 {
                     terrainTextures[curIdx.value].textures.push_back(
-                      libutil::dynamicUniqueCast<glArchivItem_Bitmap>(textures->release(i)).release());
+                      boost::dynamic_pointer_cast<glArchivItem_Bitmap>(textures->release(i)));
                 }
             }
         } else
         {
-            terrainTextures[curIdx.value].textures.push_back(
-              LOADER.ExtractTexture(*texBmp, cur.posInTexture).release());
+            terrainTextures[curIdx.value].textures.push_back(LOADER.ExtractTexture(*texBmp, cur.posInTexture));
         }
         // Initialize OpenGL textures
         for(glArchivItem_Bitmap& bmp : terrainTextures[curIdx.value].textures)
@@ -176,7 +165,7 @@ void TerrainRenderer::LoadTextures(const WorldDescription& desc)
     for(DescIdx<EdgeDesc> curIdx : usedEdges)
     {
         const EdgeDesc& cur = desc.get(curIdx);
-        std::string textureName = s25util::toLower(bfs::path(cur.texturePath).stem().string());
+        const auto textureName = ResourceId::make(bfs::path(cur.texturePath));
         glArchivItem_Bitmap* texBmp = LOADER.GetImageN(textureName, 0);
         if(!texBmp)
             throw std::runtime_error("Invalid texture '" + cur.texturePath + "' for edge '" + cur.name + "'");
@@ -186,16 +175,15 @@ void TerrainRenderer::LoadTextures(const WorldDescription& desc)
     for(DescIdx<LandscapeDesc> curIdx : usedLandscapes)
     {
         const LandscapeDesc& cur = desc.get(curIdx);
-        for(unsigned i = 0; i < cur.roadTexDesc.size(); i++)
+        for(const auto i : helpers::enumRange<LandRoadType>())
         {
-            std::string textureName = s25util::toLower(bfs::path(cur.roadTexDesc[i].texturePath).stem().string());
+            const auto textureName = ResourceId::make(bfs::path(cur.roadTexDesc[i].texturePath));
             glArchivItem_Bitmap* texBmp = LOADER.GetImageN(textureName, 0);
             if(!texBmp)
                 throw std::runtime_error("Invalid texture '" + cur.roadTexDesc[i].texturePath
                                          + "' for road in landscape '" + cur.name + "'");
-            roadTextures[curIdx.value * LandscapeDesc::NUM_ROADTYPES + i] =
-              LOADER.ExtractTexture(*texBmp, cur.roadTexDesc[i].posInTexture);
-            roadTextures[curIdx.value * LandscapeDesc::NUM_ROADTYPES + i]->GetTexture(); // Init texture
+            roadTextures[getFlatIndex(curIdx, i)] = LOADER.ExtractTexture(*texBmp, cur.roadTexDesc[i].posInTexture);
+            roadTextures[getFlatIndex(curIdx, i)]->GetTexture(); // Init texture
         }
     }
 }
@@ -226,15 +214,15 @@ void TerrainRenderer::UpdateVertexColor(const MapPoint pt, const GameWorldViewer
     float clr = -1.f / (256.f * 256.f) * shadow * shadow + 1.f / 90.f * shadow + 0.38f;
     switch(gwv.GetVisibility(pt))
     {
-        case VIS_INVISIBLE:
+        case Visibility::Invisible:
             // Unsichtbar -> schwarz
             GetVertex(pt).color = 0.0f;
             break;
-        case VIS_FOW:
+        case Visibility::FogOfWar:
             // Fog of War -> abgedunkelt
             GetVertex(pt).color = clr / 4.f;
             break;
-        case VIS_VISIBLE:
+        case Visibility::Visible:
             // Normal sichtbar
             GetVertex(pt).color = clr / 2.f;
             break;
@@ -251,18 +239,18 @@ void TerrainRenderer::LoadVertexTerrain(const MapPoint pt, const GameWorldViewer
 void TerrainRenderer::UpdateBorderVertex(const MapPoint pt)
 {
     Vertex& vertex = GetVertex(pt);
-    vertex.borderPos[0] = (GetNeighbourVertexPos(pt, Direction::SOUTHWEST) + GetVertexPos(pt)
-                           + GetNeighbourVertexPos(pt, Direction::SOUTHEAST))
+    vertex.borderPos[0] = (GetNeighbourVertexPos(pt, Direction::SouthWest) + GetVertexPos(pt)
+                           + GetNeighbourVertexPos(pt, Direction::SouthEast))
                           / 3.0f;
-    vertex.borderColor[0] = (GetColor(GetNeighbour(pt, Direction::SOUTHWEST)) + GetColor(pt)
-                             + GetColor(GetNeighbour(pt, Direction::SOUTHEAST)))
+    vertex.borderColor[0] = (GetColor(GetNeighbour(pt, Direction::SouthWest)) + GetColor(pt)
+                             + GetColor(GetNeighbour(pt, Direction::SouthEast)))
                             / 3.0f;
 
     vertex.borderPos[1] =
-      (GetNeighbourVertexPos(pt, Direction::EAST) + GetVertexPos(pt) + GetNeighbourVertexPos(pt, Direction::SOUTHEAST))
+      (GetNeighbourVertexPos(pt, Direction::East) + GetVertexPos(pt) + GetNeighbourVertexPos(pt, Direction::SouthEast))
       / 3.0f;
     vertex.borderColor[1] =
-      (GetColor(GetNeighbour(pt, Direction::EAST)) + GetColor(pt) + GetColor(GetNeighbour(pt, Direction::SOUTHEAST)))
+      (GetColor(GetNeighbour(pt, Direction::East)) + GetColor(pt) + GetColor(GetNeighbour(pt, Direction::SouthEast)))
       / 3.0f;
 }
 
@@ -314,8 +302,8 @@ void TerrainRenderer::GenerateOpenGL(const GameWorldViewer& gwv)
         const unsigned pos = GetVertexIdx(pt);
         const TerrainDesc& t1 = desc.get(terrain[pos][0]);
         const TerrainDesc& t2 = desc.get(terrain[pos][1]);
-        const TerrainDesc& t3 = desc.get(terrain[GetVertexIdx(GetNeighbour(pt, Direction::EAST))][0]);
-        const TerrainDesc& t4 = desc.get(terrain[GetVertexIdx(GetNeighbour(pt, Direction::SOUTHWEST))][1]);
+        const TerrainDesc& t3 = desc.get(terrain[GetVertexIdx(GetNeighbour(pt, Direction::East))][0]);
+        const TerrainDesc& t4 = desc.get(terrain[GetVertexIdx(GetNeighbour(pt, Direction::SouthWest))][1]);
 
         if((borders[pos].left_right[0] = GetEdgeType(t2, t1)))
             borders[pos].left_right_offset[0] = numTriangles++;
@@ -375,14 +363,14 @@ void TerrainRenderer::UpdateTrianglePos(const MapPoint pt, bool updateVBO)
     unsigned pos = GetTriangleIdx(pt);
 
     gl_vertices[pos][0] = GetVertexPos(pt);
-    gl_vertices[pos][1] = GetNeighbourVertexPos(pt, Direction::SOUTHWEST);
-    gl_vertices[pos][2] = GetNeighbourVertexPos(pt, Direction::SOUTHEAST);
+    gl_vertices[pos][1] = GetNeighbourVertexPos(pt, Direction::SouthWest);
+    gl_vertices[pos][2] = GetNeighbourVertexPos(pt, Direction::SouthEast);
 
     ++pos;
 
     gl_vertices[pos][0] = GetVertexPos(pt);
-    gl_vertices[pos][1] = GetNeighbourVertexPos(pt, Direction::SOUTHEAST);
-    gl_vertices[pos][2] = GetNeighbourVertexPos(pt, Direction::EAST);
+    gl_vertices[pos][1] = GetNeighbourVertexPos(pt, Direction::SouthEast);
+    gl_vertices[pos][2] = GetNeighbourVertexPos(pt, Direction::East);
 
     if(updateVBO && vbo_vertices.isValid())
     {
@@ -399,8 +387,8 @@ void TerrainRenderer::UpdateTriangleColor(const MapPoint pt, bool updateVBO)
     Color& clr1 = gl_colors[pos][1];
     Color& clr2 = gl_colors[pos][2];
     clr0.r = clr0.g = clr0.b = GetColor(pt);
-    clr1.r = clr1.g = clr1.b = GetColor(GetNeighbour(pt, Direction::SOUTHWEST));
-    clr2.r = clr2.g = clr2.b = GetColor(GetNeighbour(pt, Direction::SOUTHEAST));
+    clr1.r = clr1.g = clr1.b = GetColor(GetNeighbour(pt, Direction::SouthWest));
+    clr2.r = clr2.g = clr2.b = GetColor(GetNeighbour(pt, Direction::SouthEast));
 
     ++pos;
 
@@ -408,8 +396,8 @@ void TerrainRenderer::UpdateTriangleColor(const MapPoint pt, bool updateVBO)
     Color& clr4 = gl_colors[pos][1];
     Color& clr5 = gl_colors[pos][2];
     clr3.r = clr3.g = clr3.b = GetColor(pt);
-    clr4.r = clr4.g = clr4.b = GetColor(GetNeighbour(pt, Direction::SOUTHEAST));
-    clr5.r = clr5.g = clr5.b = GetColor(GetNeighbour(pt, Direction::EAST));
+    clr4.r = clr4.g = clr4.b = GetColor(GetNeighbour(pt, Direction::SouthEast));
+    clr5.r = clr5.g = clr5.b = GetColor(GetNeighbour(pt, Direction::East));
 
     if(updateVBO && vbo_colors.isValid())
     {
@@ -457,7 +445,7 @@ void TerrainRenderer::UpdateBorderTrianglePos(const MapPoint pt, bool updateVBO)
             first_offset = offset;
 
         gl_vertices[offset][i ? 0 : 2] = GetVertexPos(pt);
-        gl_vertices[offset][1] = GetNeighbourVertexPos(pt, Direction::SOUTHEAST);
+        gl_vertices[offset][1] = GetNeighbourVertexPos(pt, Direction::SouthEast);
         gl_vertices[offset][i ? 2 : 0] = GetBorderPos(pt, i);
 
         ++count_borders;
@@ -473,13 +461,13 @@ void TerrainRenderer::UpdateBorderTrianglePos(const MapPoint pt, bool updateVBO)
         if(!first_offset)
             first_offset = offset;
 
-        gl_vertices[offset][i ? 2 : 0] = GetNeighbourVertexPos(pt, Direction::SOUTHEAST);
-        gl_vertices[offset][1] = GetNeighbourVertexPos(pt, Direction::EAST);
+        gl_vertices[offset][i ? 2 : 0] = GetNeighbourVertexPos(pt, Direction::SouthEast);
+        gl_vertices[offset][1] = GetNeighbourVertexPos(pt, Direction::East);
 
         if(i == 0)
             gl_vertices[offset][2] = GetBorderPos(pt, 1);
         else
-            gl_vertices[offset][0] = GetNeighbourBorderPos(pt, 0, Direction::EAST);
+            gl_vertices[offset][0] = GetNeighbourBorderPos(pt, 0, Direction::East);
 
         ++count_borders;
     }
@@ -494,13 +482,13 @@ void TerrainRenderer::UpdateBorderTrianglePos(const MapPoint pt, bool updateVBO)
         if(!first_offset)
             first_offset = offset;
 
-        gl_vertices[offset][i ? 2 : 0] = GetNeighbourVertexPos(pt, Direction::SOUTHWEST);
-        gl_vertices[offset][1] = GetNeighbourVertexPos(pt, Direction::SOUTHEAST);
+        gl_vertices[offset][i ? 2 : 0] = GetNeighbourVertexPos(pt, Direction::SouthWest);
+        gl_vertices[offset][1] = GetNeighbourVertexPos(pt, Direction::SouthEast);
 
         if(i == 0)
             gl_vertices[offset][2] = GetBorderPos(pt, i);
         else
-            gl_vertices[offset][0] = GetNeighbourBorderPos(pt, i, Direction::SOUTHWEST);
+            gl_vertices[offset][0] = GetNeighbourBorderPos(pt, i, Direction::SouthWest);
 
         ++count_borders;
     }
@@ -535,7 +523,7 @@ void TerrainRenderer::UpdateBorderTriangleColor(const MapPoint pt, bool updateVB
         gl_colors[offset][i ? 0 : 2].r = gl_colors[offset][i ? 0 : 2].g = gl_colors[offset][i ? 0 : 2].b =
           GetColor(pt); //-V807
         gl_colors[offset][1].r = gl_colors[offset][1].g = gl_colors[offset][1].b =
-          GetColor(GetNeighbour(pt, Direction::SOUTHEAST)); //-V807
+          GetColor(GetNeighbour(pt, Direction::SouthEast)); //-V807
         gl_colors[offset][i ? 2 : 0].r = gl_colors[offset][i ? 2 : 0].g = gl_colors[offset][i ? 2 : 0].b =
           GetBorderColor(pt, i); //-V807
 
@@ -553,9 +541,9 @@ void TerrainRenderer::UpdateBorderTriangleColor(const MapPoint pt, bool updateVB
             first_offset = offset;
 
         gl_colors[offset][i ? 2 : 0].r = gl_colors[offset][i ? 2 : 0].g = gl_colors[offset][i ? 2 : 0].b =
-          GetColor(GetNeighbour(pt, Direction::SOUTHEAST));
+          GetColor(GetNeighbour(pt, Direction::SouthEast));
         gl_colors[offset][1].r = gl_colors[offset][1].g = gl_colors[offset][1].b =
-          GetColor(GetNeighbour(pt, Direction::EAST));
+          GetColor(GetNeighbour(pt, Direction::East));
         MapPoint pt2(pt.x + i, pt.y);
         if(pt2.x >= size_.x)
             pt2.x -= size_.x;
@@ -576,15 +564,15 @@ void TerrainRenderer::UpdateBorderTriangleColor(const MapPoint pt, bool updateVB
             first_offset = offset;
 
         gl_colors[offset][i ? 2 : 0].r = gl_colors[offset][i ? 2 : 0].g = gl_colors[offset][i ? 2 : 0].b =
-          GetColor(GetNeighbour(pt, Direction::SOUTHWEST));
+          GetColor(GetNeighbour(pt, Direction::SouthWest));
         gl_colors[offset][1].r = gl_colors[offset][1].g = gl_colors[offset][1].b =
-          GetColor(GetNeighbour(pt, Direction::SOUTHEAST));
+          GetColor(GetNeighbour(pt, Direction::SouthEast));
 
         if(i == 0)
             gl_colors[offset][2].r = gl_colors[offset][2].g = gl_colors[offset][2].b = GetBorderColor(pt, i); //-V807
         else
             gl_colors[offset][0].r = gl_colors[offset][0].g = gl_colors[offset][0].b =
-              GetBorderColor(GetNeighbour(pt, Direction::SOUTHWEST), i); //-V807
+              GetBorderColor(GetNeighbour(pt, Direction::SouthWest), i); //-V807
 
         ++count_borders;
     }
@@ -768,21 +756,22 @@ void TerrainRenderer::Draw(const Position& firstPt, const Position& lastPt, cons
 
     if(water)
     {
-        unsigned water_count = 0;
         const WorldDescription& desc = gwv.GetWorld().GetDescription();
+        unsigned water_count = 0;
         for(DescIdx<TerrainDesc> t(0); t.value < sorted_textures.size(); ++t.value)
         {
-            if(desc.get(t).kind != TerrainKind::WATER)
-                continue;
-            for(const MapTile& tile : sorted_textures[t.value])
-                water_count += tile.count;
+            if(desc.get(t).kind == TerrainKind::Water)
+            {
+                for(const MapTile& tile : sorted_textures[t.value])
+                    water_count += tile.count;
+            }
         }
 
-        Position diff = lastPt - firstPt;
-        if(diff.x && diff.y)
-            *water = 50 * water_count / (diff.x * diff.y);
-        else
-            *water = 0;
+        Position diff =
+          lastPt - firstPt + Position(1, 1); // Number of points checked in X and Y, including(!) the last one
+        // For each point there are 2 tiles added (USD, RSU) so we have 2 times the tiles as the number of points.
+        // Calculate the percentage of water tiles
+        *water = 100 * water_count / (2 * prodOfComponents(diff));
     }
 
     lastOffset = Position(0, 0);
@@ -939,23 +928,24 @@ void TerrainRenderer::PrepareWaysPoint(PreparedRoads& sorted_roads, const GameWo
         // else Upgraded for Donkey roads
         // else Normal
         uint8_t gfxRoadType;
+        const auto terrain = gwViewer.GetWorld().GetTerrain(pt, targetDir);
+        const TerrainDesc& lTerrain = desc.get(terrain.left);
         if(type == PointRoad::Boat)
-            gfxRoadType =
-              desc.get(gwViewer.GetWorld().GetLeftTerrain(pt, targetDir)).landscape.value * LandscapeDesc::NUM_ROADTYPES
-              + LandscapeDesc::Boat;
-        else
         {
-            const TerrainDesc& lTerrain = desc.get(gwViewer.GetWorld().GetLeftTerrain(pt, targetDir));
-            if(lTerrain.kind == TerrainKind::MOUNTAIN)
-                gfxRoadType = lTerrain.landscape.value * LandscapeDesc::NUM_ROADTYPES + LandscapeDesc::Mountain;
+            gfxRoadType = getFlatIndex(lTerrain.landscape, LandRoadType::Boat);
+        } else
+        {
+            if(desc.get(terrain.left).kind == TerrainKind::Mountain)
+                gfxRoadType = getFlatIndex(lTerrain.landscape, LandRoadType::Mountain);
             else
             {
-                const TerrainDesc& rTerrain = desc.get(gwViewer.GetWorld().GetRightTerrain(pt, targetDir));
-                if(rTerrain.kind == TerrainKind::MOUNTAIN)
-                    gfxRoadType = rTerrain.landscape.value * LandscapeDesc::NUM_ROADTYPES + LandscapeDesc::Mountain;
+                const TerrainDesc& rTerrain = desc.get(terrain.right);
+                if(rTerrain.kind == TerrainKind::Mountain)
+                    gfxRoadType = getFlatIndex(rTerrain.landscape, LandRoadType::Mountain);
                 else
-                    gfxRoadType = lTerrain.landscape.value * LandscapeDesc::NUM_ROADTYPES
-                                  + ((type == PointRoad::Donkey) ? LandscapeDesc::Upgraded : LandscapeDesc::Normal);
+                    gfxRoadType =
+                      getFlatIndex(lTerrain.landscape,
+                                   ((type == PointRoad::Donkey) ? LandRoadType::Upgraded : LandRoadType::Normal));
             }
         }
 
@@ -1052,23 +1042,23 @@ void TerrainRenderer::AltitudeChanged(const MapPoint pt, const GameWorldViewer& 
     UpdateVertexPos(pt, gwv);
     UpdateVertexColor(pt, gwv);
 
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        UpdateVertexColor(gwv.GetNeighbour(pt, dir), gwv);
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
+        UpdateVertexColor(nb, gwv);
 
     // und für die Ränder
     UpdateBorderVertex(pt);
 
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        UpdateBorderVertex(gwv.GetNeighbour(pt, dir));
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
+        UpdateBorderVertex(nb);
 
     // den selbst sowieso die Punkte darum updaten, da sich bei letzteren die Schattierung geändert haben könnte
     UpdateTrianglePos(pt, true);
     UpdateTriangleColor(pt, true);
 
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
     {
-        UpdateTrianglePos(gwv.GetNeighbour(pt, dir), true);
-        UpdateTriangleColor(gwv.GetNeighbour(pt, dir), true);
+        UpdateTrianglePos(nb, true);
+        UpdateTriangleColor(nb, true);
     }
 
     // Auch im zweiten Kreis drumherum die Dreiecke neu berechnen, da die durch die Schattenänderung der umliegenden
@@ -1080,10 +1070,10 @@ void TerrainRenderer::AltitudeChanged(const MapPoint pt, const GameWorldViewer& 
     UpdateBorderTrianglePos(pt, true);
     UpdateBorderTriangleColor(pt, true);
 
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
     {
-        UpdateBorderTrianglePos(gwv.GetNeighbour(pt, dir), true);
-        UpdateBorderTriangleColor(gwv.GetNeighbour(pt, dir), true);
+        UpdateBorderTrianglePos(nb, true);
+        UpdateBorderTriangleColor(nb, true);
     }
 
     for(unsigned i = 0; i < 12; ++i)
@@ -1097,23 +1087,23 @@ void TerrainRenderer::VisibilityChanged(const MapPoint pt, const GameWorldViewer
         return;
 
     UpdateVertexColor(pt, gwv);
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        UpdateVertexColor(gwv.GetNeighbour(pt, dir), gwv);
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
+        UpdateVertexColor(nb, gwv);
 
     // und für die Ränder
     UpdateBorderVertex(pt);
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        UpdateBorderVertex(gwv.GetNeighbour(pt, dir));
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
+        UpdateBorderVertex(nb);
 
     // den selbst sowieso die Punkte darum updaten, da sich bei letzteren die Schattierung geändert haben könnte
     UpdateTriangleColor(pt, true);
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        UpdateTriangleColor(gwv.GetNeighbour(pt, dir), true);
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
+        UpdateTriangleColor(nb, true);
 
     // und für die Ränder
     UpdateBorderTriangleColor(pt, true);
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        UpdateBorderTriangleColor(gwv.GetNeighbour(pt, dir), true);
+    for(const MapPoint nb : gwv.GetNeighbours(pt))
+        UpdateBorderTriangleColor(nb, true);
 }
 
 void TerrainRenderer::UpdateAllColors(const GameWorldViewer& gwv)

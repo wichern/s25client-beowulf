@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMainMenu.h"
 #include "GamePlayer.h"
@@ -28,6 +15,7 @@
 #include "iwBuildings.h"
 #include "iwDiplomacy.h"
 #include "iwDistribution.h"
+#include "iwEconomicProgress.h"
 #include "iwInventory.h"
 #include "iwMerchandiseStatistics.h"
 #include "iwMilitary.h"
@@ -48,36 +36,50 @@ iwMainMenu::iwMainMenu(GameWorldView& gwv, GameCommandFactory& gcFactory)
       gwv(gwv), gcFactory(gcFactory)
 {
     // Verteilung
-    AddImageButton(0, DrawPoint(12, 22), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 134),
+    AddImageButton(0, DrawPoint(12, 22), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 134),
                    _("Distribution of goods"));
     // Transport
-    AddImageButton(1, DrawPoint(68, 22), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 198), _("Transport"));
+    AddImageButton(1, DrawPoint(68, 22), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 198),
+                   _("Transport"));
     // Werkzeugproduktion
-    AddImageButton(2, DrawPoint(124, 22), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 137), _("Tools"));
+    AddImageButton(2, DrawPoint(124, 22), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 137), _("Tools"));
 
     // Statistiken
-    AddImageButton(3, DrawPoint(12, 70), Extent(39, 44), TC_GREY, LOADER.GetImageN("io", 166), _("General statistics"));
-    AddImageButton(4, DrawPoint(54, 70), Extent(39, 44), TC_GREY, LOADER.GetImageN("io", 135),
+    AddImageButton(3, DrawPoint(12, 70), Extent(39, 44), TextureColor::Grey, LOADER.GetImageN("io", 166),
+                   _("General statistics"));
+    AddImageButton(4, DrawPoint(54, 70), Extent(39, 44), TextureColor::Grey, LOADER.GetImageN("io", 135),
                    _("Merchandise statistics"));
-    AddImageButton(5, DrawPoint(96, 70), Extent(39, 44), TC_GREY, LOADER.GetImageN("io", 132), _("Buildings"));
+    AddImageButton(5, DrawPoint(96, 70), Extent(39, 44), TextureColor::Grey, LOADER.GetImageN("io", 132),
+                   _("Buildings"));
 
     // Inventur
-    AddImageButton(6, DrawPoint(138, 70), Extent(39, 44), TC_GREY, LOADER.GetImageN("io", 214), _("Stock"));
+    AddImageButton(6, DrawPoint(138, 70), Extent(39, 44), TextureColor::Grey, LOADER.GetImageN("io", 214), _("Stock"));
 
     // Gebäude
-    AddImageButton(7, DrawPoint(12, 118), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 136), _("Productivity"));
+    AddImageButton(7, DrawPoint(12, 118), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 136),
+                   _("Productivity"));
     // Militär
-    AddImageButton(8, DrawPoint(68, 118), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 133), _("Military"));
+    AddImageButton(8, DrawPoint(68, 118), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 133),
+                   _("Military"));
     // Schiffe
-    AddImageButton(9, DrawPoint(124, 118), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 175), _("Ship register"));
+    AddImageButton(9, DrawPoint(124, 118), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 175),
+                   _("Ship register"));
 
     // Baureihenfolge
     if(gwv.GetWorld().GetGGS().isEnabled(AddonId::CUSTOM_BUILD_SEQUENCE))
-        AddImageButton(10, DrawPoint(12, 166), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 24),
+        AddImageButton(10, DrawPoint(12, 166), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 24),
                        _("Building sequence"));
 
     // Diplomatie (todo: besseres Bild suchen)
-    AddImageButton(11, DrawPoint(68, 166), Extent(53, 44), TC_GREY, LOADER.GetImageN("io", 190), _("Diplomacy"));
+    AddImageButton(11, DrawPoint(68, 166), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 190),
+                   _("Diplomacy"));
+
+    if(gwv.GetWorld().getEconHandler())
+    {
+        // Economy Mode
+        AddImageButton(12, DrawPoint(124, 166), Extent(53, 44), TextureColor::Grey, LOADER.GetImageN("io", 196),
+                       _("Economic Progress"));
+    }
 
 // AI-Debug
 #ifdef NDEBUG
@@ -87,13 +89,14 @@ iwMainMenu::iwMainMenu(GameWorldView& gwv, GameCommandFactory& gcFactory)
 #endif
     if(gwv.GetViewer().GetPlayer().isHost && enableAIDebug)
     {
-        auto* bt = static_cast<ctrlTextButton*>(
-          AddTextButton(13, DrawPoint(80, 210), Extent(0, 22), TC_GREY, _("AI"), NormalFont, _("AI Debug Window")));
+        auto* bt = static_cast<ctrlTextButton*>(AddTextButton(13, DrawPoint(80, 210), Extent(0, 22), TextureColor::Grey,
+                                                              _("AI"), NormalFont, _("AI Debug Window")));
         bt->ResizeForMaxChars(bt->GetText().size());
     }
 
     // Optionen
-    AddImageButton(30, DrawPoint(12, 231), Extent(165, 32), TC_GREY, LOADER.GetImageN("io", 37), _("Options"));
+    AddImageButton(30, DrawPoint(12, 231), Extent(165, 32), TextureColor::Grey, LOADER.GetImageN("io", 37),
+                   _("Options"));
 }
 
 /**
@@ -164,6 +167,11 @@ void iwMainMenu::Msg_ButtonClick(const unsigned ctrl_id)
             WINDOWMANAGER.ToggleWindow(std::make_unique<iwDiplomacy>(gwv.GetViewer(), gcFactory));
         }
         break;
+        case 12: // Wirtschaftsmodusfortschritt
+        {
+            WINDOWMANAGER.ToggleWindow(std::make_unique<iwEconomicProgress>(gwv.GetViewer()));
+        }
+        break;
         case 13: // AI Debug
         {
             if(auto* wnd = WINDOWMANAGER.FindNonModalWindow(CGI_AI_DEBUG))
@@ -183,7 +191,7 @@ void iwMainMenu::Msg_ButtonClick(const unsigned ctrl_id)
         break;
         case 30: // Optionen
         {
-            WINDOWMANAGER.ToggleWindow(std::make_unique<iwOptionsWindow>());
+            WINDOWMANAGER.ToggleWindow(std::make_unique<iwOptionsWindow>(gwv.GetSoundMgr()));
         }
         break;
     }

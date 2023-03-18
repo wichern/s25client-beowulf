@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "TerrainData.h"
 #include "helpers/MultiArray.h"
@@ -489,7 +476,7 @@ void TerrainData::PrintEdgePrios()
 bool TerrainData::IsUseable(TerrainType t)
 {
     TerrainBQ bq = GetBuildingQuality(t);
-    return (bq != TerrainBQ::NOTHING && bq != TerrainBQ::DANGER);
+    return (bq != TerrainBQ::Nothing && bq != TerrainBQ::Danger);
 }
 
 bool TerrainData::IsUsableByShip(TerrainType t)
@@ -581,7 +568,7 @@ bool TerrainData::IsMountain(TerrainType t)
 
 bool TerrainData::IsMineable(TerrainType t)
 {
-    return GetBuildingQuality(t) == TerrainBQ::MINE;
+    return GetBuildingQuality(t) == TerrainBQ::Mine;
 }
 
 TerrainBQ TerrainData::GetBuildingQuality(TerrainType t)
@@ -592,15 +579,15 @@ TerrainBQ TerrainData::GetBuildingQuality(TerrainType t)
         case TT_LAVA:
         case TT_LAVA2:
         case TT_LAVA3:
-        case TT_LAVA4: return TerrainBQ::DANGER;
-        case TT_DESERT: return TerrainBQ::FLAG;
+        case TT_LAVA4: return TerrainBQ::Danger;
+        case TT_DESERT: return TerrainBQ::Flag;
         case TT_SWAMPLAND:
         case TT_WATER:
-        case TT_WATER_NOSHIP: return TerrainBQ::NOTHING;
+        case TT_WATER_NOSHIP: return TerrainBQ::Nothing;
         case TT_MOUNTAIN1:
         case TT_MOUNTAIN2:
         case TT_MOUNTAIN3:
-        case TT_MOUNTAIN4: return TerrainBQ::MINE;
+        case TT_MOUNTAIN4: return TerrainBQ::Mine;
         case TT_MEADOW_FLOWERS:
         case TT_SAVANNAH:
         case TT_MEADOW1:
@@ -609,7 +596,7 @@ TerrainBQ TerrainData::GetBuildingQuality(TerrainType t)
         case TT_STEPPE:
         case TT_MOUNTAINMEADOW:
         case TT_BUILDABLE_WATER:
-        case TT_BUILDABLE_MOUNTAIN: return TerrainBQ::CASTLE;
+        case TT_BUILDABLE_MOUNTAIN: return TerrainBQ::Castle;
     }
     throw std::logic_error("Invalid terrain type");
 }

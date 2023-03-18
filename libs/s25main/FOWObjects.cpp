@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "FOWObjects.h"
 #include "Loader.h"
 #include "SerializedGameData.h"
+#include "buildings/noBaseBuilding.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "gameData/BuildingConsts.h"
 #include "s25util/colors.h"
@@ -37,8 +25,6 @@ unsigned CalcPlayerFOWDrawColor(const unsigned color)
     return MakeColor(0xFF, red, green, blue);
 }
 
-FOWObject::~FOWObject() = default;
-
 ////////////////////////////////////////////////////////////////////////////////////
 // fowBuilding
 
@@ -54,16 +40,7 @@ void fowBuilding::Serialize(SerializedGameData& sgd) const
 
 void fowBuilding::Draw(DrawPoint drawPt) const
 {
-    if(type == BLD_CHARBURNER)
-    {
-        LOADER.GetImageN("charburner", nation * 8 + 1)->DrawFull(drawPt, FOW_DRAW_COLOR);
-    } else
-    {
-        LOADER.GetNationImage(nation, 250 + 5 * type)->DrawFull(drawPt, FOW_DRAW_COLOR);
-        // ACHTUNG nicht jedes Gebäude hat einen Schatten !!
-        if(LOADER.GetNationImage(nation, 250 + 5 * type + 1))
-            LOADER.GetNationImage(nation, 250 + 5 * type + 1)->DrawFull(drawPt, COLOR_SHADOW);
-    }
+    noBaseBuilding::GetBuildingImage(type, nation).DrawFull(drawPt, FOW_DRAW_COLOR);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -106,23 +83,23 @@ void fowBuildingSite::Draw(DrawPoint drawPt) const
         unsigned progressRaw, progressBld;
         unsigned maxProgressRaw, maxProgressBld;
 
-        if(BUILDING_COSTS[nation][type].stones)
+        if(BUILDING_COSTS[type].stones)
         {
             // Haus besteht aus Steinen und Brettern
-            maxProgressRaw = BUILDING_COSTS[nation][type].boards * 8;
-            maxProgressBld = BUILDING_COSTS[nation][type].stones * 8;
+            maxProgressRaw = BUILDING_COSTS[type].boards * 8;
+            maxProgressBld = BUILDING_COSTS[type].stones * 8;
         } else
         {
             // Haus besteht nur aus Brettern, dann 50:50
-            maxProgressBld = maxProgressRaw = BUILDING_COSTS[nation][type].boards * 4;
+            maxProgressBld = maxProgressRaw = BUILDING_COSTS[type].boards * 4;
         }
         progressRaw = std::min<unsigned>(build_progress, maxProgressRaw);
         progressBld = ((build_progress > maxProgressRaw) ? (build_progress - maxProgressRaw) : 0);
 
-        // Rohbau
-        LOADER.building_cache[nation][type][1].drawPercent(drawPt, progressRaw * 100 / maxProgressRaw, FOW_DRAW_COLOR);
-        // Das richtige Haus
-        LOADER.building_cache[nation][type][0].drawPercent(drawPt, progressBld * 100 / maxProgressBld, FOW_DRAW_COLOR);
+        LOADER.building_cache[nation][type].skeleton.drawPercent(drawPt, progressRaw * 100 / maxProgressRaw,
+                                                                 FOW_DRAW_COLOR);
+        LOADER.building_cache[nation][type].building.drawPercent(drawPt, progressBld * 100 / maxProgressBld,
+                                                                 FOW_DRAW_COLOR);
     }
 }
 
@@ -167,12 +144,12 @@ void fowTree::Draw(DrawPoint drawPt) const
     if(size == 3)
     {
         // Ausgewachsen
-        LOADER.GetMapImageN(200 + type * 15)->DrawFull(drawPt, FOW_DRAW_COLOR);
-        LOADER.GetMapImageN(350 + type * 15)->DrawFull(drawPt, COLOR_SHADOW);
+        LOADER.GetMapTexture(200 + type * 15)->DrawFull(drawPt, FOW_DRAW_COLOR);
+        LOADER.GetMapTexture(350 + type * 15)->DrawFull(drawPt, COLOR_SHADOW);
     } else
     {
-        LOADER.GetMapImageN(208 + type * 15 + size)->DrawFull(drawPt, FOW_DRAW_COLOR);
-        LOADER.GetMapImageN(358 + type * 15 + size)->DrawFull(drawPt, COLOR_SHADOW);
+        LOADER.GetMapTexture(208 + type * 15 + size)->DrawFull(drawPt, FOW_DRAW_COLOR);
+        LOADER.GetMapTexture(358 + type * 15 + size)->DrawFull(drawPt, COLOR_SHADOW);
     }
 }
 
@@ -191,6 +168,5 @@ void fowGranite::Serialize(SerializedGameData& sgd) const
 
 void fowGranite::Draw(DrawPoint drawPt) const
 {
-    LOADER.GetMapImageN(516 + type * 6 + state)->DrawFull(drawPt, FOW_DRAW_COLOR);
-    LOADER.GetMapImageN(616 + type * 6 + state)->DrawFull(drawPt, COLOR_SHADOW);
+    LOADER.granite_cache[type][state].DrawFull(drawPt, FOW_DRAW_COLOR);
 }

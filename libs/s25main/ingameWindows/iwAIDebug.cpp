@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwAIDebug.h"
 #include "Loader.h"
@@ -22,6 +9,7 @@
 #include "ai/aijh/Jobs.h"
 #include "controls/ctrlComboBox.h"
 #include "controls/ctrlMultiline.h"
+#include "helpers/EnumArray.h"
 #include "helpers/toString.h"
 #include "ogl/FontStyle.h"
 #include "ogl/glFont.h"
@@ -43,20 +31,22 @@ enum
 
 class iwAIDebug::DebugPrinter : public IDrawNodeCallback
 {
-    std::array<glArchivItem_Bitmap*, 7> bqImgs;
-    std::array<glArchivItem_Bitmap*, 2> ticks;
+    helpers::EnumArray<ITexture*, BuildingQuality> bqImgs;
+    std::array<ITexture*, 2> ticks;
     glFont& font;
 
 public:
     DebugPrinter(const AIJH::AIPlayerJH* ai, unsigned overlay) : font(*NormalFont), ai(ai), overlay(overlay)
     {
         // Cache images
-        bqImgs[0] = nullptr;
-        for(int i = 1; i < 6; i++)
-            bqImgs[i] = LOADER.GetMapImageN(49 + i);
-        ticks[0] = LOADER.GetImageN("io", 40);
-        ticks[1] = LOADER.GetImageN("io", 32);
-        bqImgs[6] = ticks[0]; // Invalid marker
+        for(const auto i : helpers::enumRange<BuildingQuality>())
+        {
+            bqImgs[i] = LOADER.GetMapTexture(49 + rttr::enum_cast(i));
+        }
+        ticks[0] = LOADER.GetTextureN("io", 40);
+        ticks[1] = LOADER.GetTextureN("io", 32);
+        bqImgs[BuildingQuality::Nothing] = nullptr;
+        bqImgs[BuildingQuality::Harbor] = ticks[0]; // Invalid marker
     }
 
     const AIJH::AIPlayerJH* ai;
@@ -68,7 +58,7 @@ public:
             return;
         if(overlay == 1)
         {
-            glArchivItem_Bitmap* img = bqImgs[std::min<unsigned>(ai->GetAINode(pt).bq, bqImgs.size() - 1)];
+            auto* img = bqImgs[ai->GetAINode(pt).bq];
             if(img)
                 img->DrawFull(curPos);
         } else if(overlay == 2)
@@ -99,13 +89,15 @@ iwAIDebug::iwAIDebug(GameWorldView& gwv, const std::vector<const AIPlayer*>& ais
         return;
     }
 
-    ctrlComboBox* players = AddComboBox(ID_CbPlayer, DrawPoint(15, 30), Extent(250, 20), TC_GREY, NormalFont, 100);
+    ctrlComboBox* players =
+      AddComboBox(ID_CbPlayer, DrawPoint(15, 30), Extent(250, 20), TextureColor::Grey, NormalFont, 100);
     for(const AIJH::AIPlayerJH* ai : ais_)
     {
         players->AddString(ai->GetPlayerName());
     }
 
-    ctrlComboBox* overlays = AddComboBox(ID_CbOverlay, DrawPoint(15, 60), Extent(250, 20), TC_GREY, NormalFont, 100);
+    ctrlComboBox* overlays =
+      AddComboBox(ID_CbOverlay, DrawPoint(15, 60), Extent(250, 20), TextureColor::Grey, NormalFont, 100);
     overlays->AddString("None");
     overlays->AddString("BuildingQuality");
     overlays->AddString("Reachability");
@@ -121,8 +113,8 @@ iwAIDebug::iwAIDebug(GameWorldView& gwv, const std::vector<const AIPlayer*>& ais
     overlays->AddString("Fish");
 
     // Show 7 lines of text and 1 empty line
-    text = AddMultiline(ID_Text, DrawPoint(15, 120), Extent(250, 8 * NormalFont->getHeight()), TC_GREY, NormalFont,
-                        FontStyle::NO_OUTLINE);
+    text = AddMultiline(ID_Text, DrawPoint(15, 120), Extent(250, 8 * NormalFont->getHeight()), TextureColor::Grey,
+                        NormalFont, FontStyle::NO_OUTLINE);
 
     SetIwSize(Extent(GetIwSize().x, text->GetPos().y + text->GetSize().y));
 
@@ -155,7 +147,7 @@ void iwAIDebug::Msg_PaintBefore()
     IngameWindow::Msg_PaintBefore();
     std::stringstream ss;
 
-    const AIJH::Job* currentJob = printer->ai->GetCurrentJob();
+    const AIJH::AIJob* currentJob = printer->ai->GetCurrentJob();
     if(!currentJob)
     {
         text->Clear();
@@ -176,7 +168,7 @@ void iwAIDebug::Msg_PaintBefore()
     } else if(ej)
     {
 #define RTTR_PRINT_EV(ev) \
-    case AIEvent::ev: ss << #ev << std::endl; break
+    case AIEvent::EventType::ev: ss << #ev << std::endl; break
         switch(ej->GetEvent().GetType())
         {
             RTTR_PRINT_EV(BuildingDestroyed);
@@ -211,13 +203,13 @@ void iwAIDebug::Msg_PaintBefore()
     case AIJH::state: ss << #state << std::endl; break
     switch(currentJob->GetState())
     {
-        RTTR_PRINT_STATUS(JOB_WAITING);
-        RTTR_PRINT_STATUS(JOB_EXECUTING_START);
-        RTTR_PRINT_STATUS(JOB_EXECUTING_ROAD1);
-        RTTR_PRINT_STATUS(JOB_EXECUTING_ROAD2);
-        RTTR_PRINT_STATUS(JOB_EXECUTING_ROAD2_2);
-        RTTR_PRINT_STATUS(JOB_FINISHED);
-        RTTR_PRINT_STATUS(JOB_FAILED);
+        RTTR_PRINT_STATUS(JobState::Waiting);
+        RTTR_PRINT_STATUS(JobState::Start);
+        RTTR_PRINT_STATUS(JobState::ExecutingRoad1);
+        RTTR_PRINT_STATUS(JobState::ExecutingRoad2);
+        RTTR_PRINT_STATUS(JobState::ExecutingRoad2_2);
+        RTTR_PRINT_STATUS(JobState::Finished);
+        RTTR_PRINT_STATUS(JobState::Failed);
         default: ss << "Unknown status"; break;
     }
 

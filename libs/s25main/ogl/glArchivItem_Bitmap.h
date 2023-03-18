@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -25,10 +12,7 @@
 #include "s25util/colors.h"
 
 /// Basisklasse für GL-Bitmapitems.
-class glArchivItem_Bitmap :
-    public virtual libsiedler2::baseArchivItem_Bitmap,
-    public glArchivItem_BitmapBase,
-    public ITexture
+class glArchivItem_Bitmap : public virtual libsiedler2::baseArchivItem_Bitmap, public glArchivItem_BitmapBase
 {
 public:
     glArchivItem_Bitmap();
@@ -44,9 +28,6 @@ public:
     void DrawPart(const Rect& destArea, unsigned color = COLOR_WHITE);
     /// Draw only percent% of the height of the image
     void DrawPercent(const DrawPoint& dstPos, unsigned percent, unsigned color = COLOR_WHITE);
-
-    virtual Position GetOrigin() const override { return glArchivItem_BitmapBase::GetOrigin(); }
-    virtual Extent GetSize() const override { return glArchivItem_BitmapBase::GetSize(); }
 
 protected:
     /// Draw the texture.

@@ -1,22 +1,8 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwTransport.h"
-
 #include "DrawPoint.h"
 #include "GamePlayer.h"
 #include "Loader.h"
@@ -26,43 +12,47 @@
 #include "iwHelp.h"
 #include "network/GameClient.h"
 #include "world/GameWorldViewer.h"
+#include "gameData/GoodConsts.h"
 #include "gameData/const_gui_ids.h"
 
 iwTransport::iwTransport(const GameWorldViewer& gwv, GameCommandFactory& gcFactory)
-    : IngameWindow(CGI_TRANSPORT, IngameWindow::posLastOrCenter, Extent(166, 333), _("Transport"),
-                   LOADER.GetImageN("io", 5)),
-      gwv(gwv), gcFactory(gcFactory), settings_changed(false)
+    : TransmitSettingsIgwAdapter(CGI_TRANSPORT, IngameWindow::posLastOrCenter, Extent(166, 333), _("Transport"),
+                                 LOADER.GetImageN("io", 5)),
+      gwv(gwv), gcFactory(gcFactory)
 {
-    AddImageButton(0, DrawPoint(18, 285), Extent(30, 30), TC_GREY, LOADER.GetImageN("io", 225), _("Help"));
+    AddImageButton(0, DrawPoint(18, 285), Extent(30, 30), TextureColor::Grey, LOADER.GetImageN("io", 225), _("Help"));
 
     // Standard
-    AddImageButton(1, DrawPoint(60, 285), Extent(48, 30), TC_GREY, LOADER.GetImageN("io", 191), _("Default"));
+    AddImageButton(1, DrawPoint(60, 285), Extent(48, 30), TextureColor::Grey, LOADER.GetImageN("io", 191),
+                   _("Default"));
     // ganz hoch
-    AddImageButton(2, DrawPoint(118, 235), Extent(30, 20), TC_GREY, LOADER.GetImageN("io", 215), _("Top"));
+    AddImageButton(2, DrawPoint(118, 235), Extent(30, 20), TextureColor::Grey, LOADER.GetImageN("io", 215), _("Top"));
     // hoch
-    AddImageButton(3, DrawPoint(118, 255), Extent(30, 20), TC_GREY, LOADER.GetImageN("io", 33), _("Up"));
+    AddImageButton(3, DrawPoint(118, 255), Extent(30, 20), TextureColor::Grey, LOADER.GetImageN("io", 33), _("Up"));
     // runter
-    AddImageButton(4, DrawPoint(118, 275), Extent(30, 20), TC_GREY, LOADER.GetImageN("io", 34), _("Down"));
+    AddImageButton(4, DrawPoint(118, 275), Extent(30, 20), TextureColor::Grey, LOADER.GetImageN("io", 34), _("Down"));
     // ganz runter
-    AddImageButton(5, DrawPoint(118, 295), Extent(30, 20), TC_GREY, LOADER.GetImageN("io", 216), _("Bottom"));
+    AddImageButton(5, DrawPoint(118, 295), Extent(30, 20), TextureColor::Grey, LOADER.GetImageN("io", 216),
+                   _("Bottom"));
 
     // Buttons der einzelnen Waren anlegen
-    ctrlOptionGroup* group = AddOptionGroup(6, ctrlOptionGroup::ILLUMINATE);
+    ctrlOptionGroup* group = AddOptionGroup(6, GroupSelectType::Illuminate);
 
-    buttonData = {{{LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_COINS), WARE_NAMES[GD_COINS]},
+    auto getGoodTex = [](GoodType good) { return LOADER.GetMapTexture(WARES_TEX_MAP_OFFSET + rttr::enum_cast(good)); };
+    buttonData = {{{getGoodTex(GoodType::Coins), WARE_NAMES[GoodType::Coins]},
                    {LOADER.GetTextureN("io", 111), gettext_noop("Weapons")},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_BEER), WARE_NAMES[GD_BEER]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_IRON), WARE_NAMES[GD_IRON]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_GOLD), WARE_NAMES[GD_GOLD]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_IRONORE), WARE_NAMES[GD_IRONORE]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_COAL), WARE_NAMES[GD_COAL]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_BOARDS), WARE_NAMES[GD_BOARDS]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_STONES), WARE_NAMES[GD_STONES]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_WOOD), WARE_NAMES[GD_WOOD]},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_WATER), WARE_NAMES[GD_WATER]},
+                   {getGoodTex(GoodType::Beer), WARE_NAMES[GoodType::Beer]},
+                   {getGoodTex(GoodType::Iron), WARE_NAMES[GoodType::Iron]},
+                   {getGoodTex(GoodType::Gold), WARE_NAMES[GoodType::Gold]},
+                   {getGoodTex(GoodType::IronOre), WARE_NAMES[GoodType::IronOre]},
+                   {getGoodTex(GoodType::Coal), WARE_NAMES[GoodType::Coal]},
+                   {getGoodTex(GoodType::Boards), WARE_NAMES[GoodType::Boards]},
+                   {getGoodTex(GoodType::Stones), WARE_NAMES[GoodType::Stones]},
+                   {getGoodTex(GoodType::Wood), WARE_NAMES[GoodType::Wood]},
+                   {getGoodTex(GoodType::Water), WARE_NAMES[GoodType::Water]},
                    {LOADER.GetTextureN("io", 80), gettext_noop("Food")},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_HAMMER), gettext_noop("Tools")},
-                   {LOADER.GetMapTexN(WARES_TEX_MAP_OFFSET + GD_BOAT), WARE_NAMES[GD_BOAT]}}};
+                   {getGoodTex(GoodType::Hammer), gettext_noop("Tools")},
+                   {getGoodTex(GoodType::Boat), WARE_NAMES[GoodType::Boat]}}};
     // Positionen der einzelnen Buttons
     const std::array<DrawPoint, numButtons> BUTTON_POS = {{{20, 25},
                                                            {52, 42},
@@ -79,22 +69,16 @@ iwTransport::iwTransport(const GameWorldViewer& gwv, GameCommandFactory& gcFacto
                                                            {20, 229},
                                                            {52, 246}}};
 
+    // Get current transport order
+    pendingOrder = GAMECLIENT.visual_settings.transport_order;
+
     // Einstellungen festlegen
     for(unsigned char i = 0; i < buttonData.size(); ++i)
     {
-        group->AddImageButton(i, BUTTON_POS[i], Extent(30, 30), TC_GREY,
-                              buttonData[GAMECLIENT.visual_settings.transport_order[i]].sprite,
-                              _(buttonData[GAMECLIENT.visual_settings.transport_order[i]].tooltip));
+        group->AddImageButton(i, BUTTON_POS[i], Extent(30, 30), TextureColor::Grey, buttonData[pendingOrder[i]].sprite,
+                              _(buttonData[pendingOrder[i]].tooltip));
     }
     group->SetSelection(0);
-
-    // Netzwerk-Übertragungs-Timer
-    AddTimer(7, 2000);
-}
-
-iwTransport::~iwTransport()
-{
-    TransmitSettings();
 }
 
 void iwTransport::TransmitSettings()
@@ -104,9 +88,11 @@ void iwTransport::TransmitSettings()
     if(settings_changed)
     {
         // Daten übertragen
-        gcFactory.ChangeTransport(GAMECLIENT.visual_settings.transport_order);
-
-        settings_changed = false;
+        if(gcFactory.ChangeTransport(pendingOrder))
+        {
+            GAMECLIENT.visual_settings.transport_order = pendingOrder;
+            settings_changed = false;
+        }
     }
 }
 
@@ -128,7 +114,7 @@ void iwTransport::Msg_ButtonClick(const unsigned ctrl_id)
         {
             auto* group = GetCtrl<ctrlOptionGroup>(6);
 
-            GAMECLIENT.visual_settings.transport_order = GAMECLIENT.default_settings.transport_order;
+            pendingOrder = GAMECLIENT.default_settings.transport_order;
 
             for(unsigned char i = 0; i < buttonData.size(); ++i)
             {
@@ -147,8 +133,7 @@ void iwTransport::Msg_ButtonClick(const unsigned ctrl_id)
             // Wenn wir schon ganz oben sind, gehts nicht weiter höher
             while(group->GetSelection() > 0)
             {
-                std::swap(GAMECLIENT.visual_settings.transport_order[group->GetSelection()],
-                          GAMECLIENT.visual_settings.transport_order[group->GetSelection() - 1]);
+                std::swap(pendingOrder[group->GetSelection()], pendingOrder[group->GetSelection() - 1]);
                 ctrlImageButton& btPrev = *group->GetCtrl<ctrlImageButton>(group->GetSelection() - 1);
                 ctrlImageButton& btNext = *group->GetCtrl<ctrlImageButton>(group->GetSelection());
                 btPrev.SwapImage(btNext);
@@ -166,8 +151,7 @@ void iwTransport::Msg_ButtonClick(const unsigned ctrl_id)
             // Wenn wir schon ganz oben sind, gehts nicht weiter höher
             if(group->GetSelection() > 0)
             {
-                std::swap(GAMECLIENT.visual_settings.transport_order[group->GetSelection()],
-                          GAMECLIENT.visual_settings.transport_order[group->GetSelection() - 1]);
+                std::swap(pendingOrder[group->GetSelection()], pendingOrder[group->GetSelection() - 1]);
                 ctrlImageButton& btPrev = *group->GetCtrl<ctrlImageButton>(group->GetSelection() - 1);
                 ctrlImageButton& btNext = *group->GetCtrl<ctrlImageButton>(group->GetSelection());
                 btPrev.SwapImage(btNext);
@@ -185,8 +169,7 @@ void iwTransport::Msg_ButtonClick(const unsigned ctrl_id)
             // Wenn wir schon ganz unten sind, gehts nicht weiter runter
             if(group->GetSelection() < 13)
             {
-                std::swap(GAMECLIENT.visual_settings.transport_order[group->GetSelection()],
-                          GAMECLIENT.visual_settings.transport_order[group->GetSelection() + 1]);
+                std::swap(pendingOrder[group->GetSelection()], pendingOrder[group->GetSelection() + 1]);
                 ctrlImageButton& btPrev = *group->GetCtrl<ctrlImageButton>(group->GetSelection());
                 ctrlImageButton& btNext = *group->GetCtrl<ctrlImageButton>(group->GetSelection() + 1);
                 btPrev.SwapImage(btNext);
@@ -204,8 +187,7 @@ void iwTransport::Msg_ButtonClick(const unsigned ctrl_id)
             // Wenn wir schon ganz unten sind, gehts nicht weiter runter
             while(group->GetSelection() < 13)
             {
-                std::swap(GAMECLIENT.visual_settings.transport_order[group->GetSelection()],
-                          GAMECLIENT.visual_settings.transport_order[group->GetSelection() + 1]);
+                std::swap(pendingOrder[group->GetSelection()], pendingOrder[group->GetSelection() + 1]);
                 ctrlImageButton& btPrev = *group->GetCtrl<ctrlImageButton>(group->GetSelection());
                 ctrlImageButton& btNext = *group->GetCtrl<ctrlImageButton>(group->GetSelection() + 1);
                 btPrev.SwapImage(btNext);
@@ -219,26 +201,19 @@ void iwTransport::Msg_ButtonClick(const unsigned ctrl_id)
     }
 }
 
-void iwTransport::Msg_Timer(const unsigned /*ctrl_id*/)
-{
-    if(GAMECLIENT.IsReplayModeOn())
-        // Im Replay aktualisieren wir die Werte
-        UpdateSettings();
-    else
-        // Im normalen Spielmodus schicken wir den ganzen Spaß ab
-        TransmitSettings();
-}
-
 void iwTransport::UpdateSettings()
 {
     if(GAMECLIENT.IsReplayModeOn())
+    {
         gwv.GetPlayer().FillVisualSettings(GAMECLIENT.visual_settings);
+        pendingOrder = GAMECLIENT.visual_settings.transport_order;
+    }
     auto* group = GetCtrl<ctrlOptionGroup>(6);
 
     // Einstellungen festlegen
     for(unsigned char i = 0; i < buttonData.size(); ++i)
     {
-        const auto& data = buttonData[GAMECLIENT.visual_settings.transport_order[i]];
+        const auto& data = buttonData[pendingOrder[i]];
         group->GetCtrl<ctrlImageButton>(i)->SetImage(data.sprite);
         group->GetCtrl<ctrlImageButton>(i)->SetTooltip(_(data.tooltip));
     }

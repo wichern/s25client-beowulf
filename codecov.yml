@@ -1,8 +1,18 @@
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: CC0-1.0
+
 coverage:
-    range: "65..95"
+    range: "55..95"
     ignore:
-        - external/*
-        - tests/legacyFiles/*
-        - tests/mockupDrivers/*
-        - tests/testHelpers/*
+        - external/**/*
+        - tests/**/*
+    status:
+      # Project coverage changes should not make PRs fail. Patch coverage is still checked
+      # Reasoning: Removing lines by moving stuff in functions can reduce the amount of covered lines but actually improve code
+      project:
+        default:
+          target: auto
+          informational: true
+
 comment: false

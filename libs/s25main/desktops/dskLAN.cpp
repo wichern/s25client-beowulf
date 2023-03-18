@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks ( helpers::toString(gameInfo.info.curNumPlayers)
+// Copyright (C) 2005 - 2021 Settlers Freaks ( helpers::toString(gameInfo.info.curNumPlayers)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskLAN.h"
 #include "Loader.h"
@@ -45,15 +32,16 @@ enum
 dskLAN::dskLAN() : dskMenuBase(LOADER.GetImageN("setup013", 0)), discovery(LAN_DISCOVERY_CFG)
 {
     // "Server hinzufügen"
-    AddTextButton(ID_btAddServer, DrawPoint(530, 250), Extent(250, 22), TC_GREEN2, _("Add Server"), NormalFont);
+    AddTextButton(ID_btAddServer, DrawPoint(530, 250), Extent(250, 22), TextureColor::Green2, _("Add Server"),
+                  NormalFont);
     // "Verbinden"
-    AddTextButton(ID_btConnect, DrawPoint(530, 280), Extent(250, 22), TC_GREEN2, _("Connect"), NormalFont);
+    AddTextButton(ID_btConnect, DrawPoint(530, 280), Extent(250, 22), TextureColor::Green2, _("Connect"), NormalFont);
     // "Zurück"
-    AddTextButton(ID_btBack, DrawPoint(530, 530), Extent(250, 22), TC_RED1, _("Back"), NormalFont);
+    AddTextButton(ID_btBack, DrawPoint(530, 530), Extent(250, 22), TextureColor::Red1, _("Back"), NormalFont);
 
     // Gameserver-Tabelle - "ID", "Server", "Karte", "Spieler", "Version"
     using SRT = ctrlTable::SortType;
-    AddTable(ID_tblServer, DrawPoint(20, 20), Extent(500, 530), TC_GREY, NormalFont,
+    AddTable(ID_tblServer, DrawPoint(20, 20), Extent(500, 530), TextureColor::Grey, NormalFont,
              ctrlTable::Columns{{_("ID"), 0, SRT::Number},
                                 {_("Server"), 300, SRT::String},
                                 {_("Map"), 300, SRT::String},
@@ -62,8 +50,9 @@ dskLAN::dskLAN() : dskMenuBase(LOADER.GetImageN("setup013", 0)), discovery(LAN_D
 
     discovery.Start();
 
-    AddTimer(ID_tmrRefreshServers, 60000); // Servers broadcast changes, so force a full update only once a minute
-    AddTimer(ID_tmrRefreshList, 2000);
+    using namespace std::chrono_literals;
+    AddTimer(ID_tmrRefreshServers, 1min); // Servers broadcast changes, so force a full update only once a minute
+    AddTimer(ID_tmrRefreshList, 2s);
 }
 
 void dskLAN::Msg_Timer(const unsigned ctrl_id)
@@ -93,7 +82,7 @@ void dskLAN::Msg_ButtonClick(const unsigned ctrl_id)
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(
                   _("Sorry!"),
                   _("You can't create a game while a proxy server is active\nDisable the use of a proxy server first!"),
-                  this, MSB_OK, MSB_EXCLAMATIONGREEN, 1));
+                  this, MsgboxButton::Ok, MsgboxIcon::ExclamationGreen, 1));
             else
             {
                 WINDOWMANAGER.ReplaceWindow(std::make_unique<iwDirectIPCreate>(ServerType::LAN));
@@ -164,7 +153,7 @@ bool dskLAN::ConnectToSelectedGame()
         return false;
 
     const GameInfo& game = openGames[selectedId];
-    if(game.info.revision == RTTR_Version::GetRevision())
+    if(game.info.revision == rttr::version::GetRevision())
     {
         auto connect = std::make_unique<iwDirectIPConnect>(ServerType::LAN);
         connect->Connect(game.ip, game.info.port, game.info.isIPv6, game.info.hasPwd);
@@ -173,7 +162,7 @@ bool dskLAN::ConnectToSelectedGame()
     } else
     {
         WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Sorry!"), _("You can't join that game with your version!"),
-                                                      this, MSB_OK, MSB_EXCLAMATIONRED, 1));
+                                                      this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed, 1));
         return false;
     }
 }

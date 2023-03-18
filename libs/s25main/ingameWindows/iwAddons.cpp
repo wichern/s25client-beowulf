@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwAddons.h"
 #include "GlobalGameSettings.h"
@@ -46,44 +33,45 @@ constexpr unsigned AddonGuiLineHeight = 30;
 iwAddons::iwAddons(GlobalGameSettings& ggs, Window* parent, AddonChangeAllowed policy,
                    std::vector<AddonId> whitelistedAddons)
     : IngameWindow(CGI_ADDONS, IngameWindow::posLastOrCenter, Extent(700, 500), _("Addon Settings"),
-                   LOADER.GetImageN("resource", 41), true, false, parent),
+                   LOADER.GetImageN("resource", 41), true, CloseBehavior::Custom, parent),
       ggs(ggs), policy_(policy), whitelistedAddons_(std::move(whitelistedAddons))
 {
     AddText(ID_txtAddFeatures, DrawPoint(20, 30), _("Additional features:"), COLOR_YELLOW, FontStyle{}, NormalFont);
 
     Extent btSize(200, 22);
     if(policy != AddonChangeAllowed::None)
-        AddTextButton(ID_btApply, DrawPoint(20, GetSize().y - 40), btSize, TC_GREEN2, _("Apply"), NormalFont,
+        AddTextButton(ID_btApply, DrawPoint(20, GetSize().y - 40), btSize, TextureColor::Green2, _("Apply"), NormalFont,
                       _("Apply Changes"));
 
-    AddTextButton(ID_btAbort, DrawPoint(250, GetSize().y - 40), btSize, TC_RED1, _("Abort"), NormalFont,
+    AddTextButton(ID_btAbort, DrawPoint(250, GetSize().y - 40), btSize, TextureColor::Red1, _("Abort"), NormalFont,
                   _("Close Without Saving"));
 
     if(policy != AddonChangeAllowed::None)
-        AddTextButton(ID_btS2Defaults, DrawPoint(480, GetSize().y - 40), btSize, TC_GREY, _("Default"), NormalFont,
-                      _("Use S2 Defaults"));
+        AddTextButton(ID_btS2Defaults, DrawPoint(480, GetSize().y - 40), btSize, TextureColor::Grey, _("Default"),
+                      NormalFont, _("Use S2 Defaults"));
 
     // Kategorien
-    ctrlOptionGroup* optiongroup = AddOptionGroup(ID_grpAddonGroup, ctrlOptionGroup::CHECK);
+    ctrlOptionGroup* optiongroup = AddOptionGroup(ID_grpAddonGroup, GroupSelectType::Check);
     btSize = Extent(120, 22);
     // "Alle"
-    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::All), DrawPoint(20, 50), btSize, TC_GREEN2, _("All"),
-                               NormalFont);
+    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::All), DrawPoint(20, 50), btSize, TextureColor::Green2,
+                               _("All"), NormalFont);
     // "Militär"
-    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::Military), DrawPoint(150, 50), btSize, TC_GREEN2,
-                               _("Military"), NormalFont);
+    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::Military), DrawPoint(150, 50), btSize,
+                               TextureColor::Green2, _("Military"), NormalFont);
     // "Wirtschaft"
-    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::Economy), DrawPoint(290, 50), btSize, TC_GREEN2,
-                               _("Economy"), NormalFont);
+    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::Economy), DrawPoint(290, 50), btSize,
+                               TextureColor::Green2, _("Economy"), NormalFont);
     // "Spielverhalten"
-    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::GamePlay), DrawPoint(430, 50), btSize, TC_GREEN2,
-                               _("Gameplay"), NormalFont);
+    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::GamePlay), DrawPoint(430, 50), btSize,
+                               TextureColor::Green2, _("Gameplay"), NormalFont);
     // "Sonstiges"
-    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::Other), DrawPoint(560, 50), btSize, TC_GREEN2,
-                               _("Other"), NormalFont);
+    optiongroup->AddTextButton(static_cast<unsigned>(AddonGroup::Other), DrawPoint(560, 50), btSize,
+                               TextureColor::Green2, _("Other"), NormalFont);
 
-    ctrlScrollBar* scrollbar = AddScrollBar(ID_scroll, DrawPoint(GetSize().x - SCROLLBAR_WIDTH - 20, 90),
-                                            Extent(SCROLLBAR_WIDTH, GetSize().y - 140), SCROLLBAR_WIDTH, TC_GREEN2, 1);
+    ctrlScrollBar* scrollbar =
+      AddScrollBar(ID_scroll, DrawPoint(GetSize().x - SCROLLBAR_WIDTH - 20, 90),
+                   Extent(SCROLLBAR_WIDTH, GetSize().y - 140), SCROLLBAR_WIDTH, TextureColor::Green2, 1);
     scrollbar->SetPageSize(scrollbar->GetSize().y / AddonGuiLineHeight);
 
     for(unsigned i = 0; i < ggs.getNumAddons(); ++i)
@@ -125,7 +113,7 @@ void iwAddons::Msg_ButtonClick(const unsigned ctrl_id)
                     case AddonChangeAllowed::All:
                     case AddonChangeAllowed::WhitelistOnly:
                         // send message via msgboxresult
-                        GetParent()->Msg_MsgBoxResult(GetID(), MSR_YES);
+                        GetParent()->Msg_MsgBoxResult(GetID(), MsgboxResult::Yes);
                         break;
                 }
             }

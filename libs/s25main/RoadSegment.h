@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -35,7 +22,10 @@ enum class RoadType : uint8_t
     Donkey, /// upgraded (with donkey) road
     Water   /// waterway
 };
-DEFINE_MAX_ENUM_VALUE(RoadType, RoadType::Water)
+constexpr auto maxEnumValue(RoadType)
+{
+    return RoadType::Water;
+}
 
 class RoadSegment : public GameObject
 {
@@ -44,11 +34,11 @@ public:
     RoadSegment(SerializedGameData& sgd, unsigned obj_id);
 
     /// zerstört das Objekt.
-    void Destroy() override { Destroy_RoadSegment(); }
+    void Destroy() override;
     /// serialisiert das Objekt.
-    void Serialize(SerializedGameData& sgd) const override { Serialize_RoadSegment(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
     /// liefert den GO-Type.
-    GO_Type GetGOT() const override { return GOT_ROADSEGMENT; }
+    GO_Type GetGOT() const final { return GO_Type::Roadsegment; }
     /// Gibt die ID (0 oder 1) eines RoadNodes dieser Straße zurück (die Flagge muss zu dieser Straße gehören, sonst
     /// kommt Müll raus!!)
     bool GetNodeID(const noRoadNode& rn) const;
@@ -116,12 +106,6 @@ public:
     const noFlag& GetOtherFlag(const noFlag& flag) const;
     /// given a flag returns last direction of the route towards the other flag
     Direction GetOtherFlagDir(const noFlag& flag) const;
-
-protected:
-    /// zerstört das Objekt.
-    void Destroy_RoadSegment();
-    /// serialisiert das Objekt.
-    void Serialize_RoadSegment(SerializedGameData& sgd) const;
 
 private:
     /// Straßentyp

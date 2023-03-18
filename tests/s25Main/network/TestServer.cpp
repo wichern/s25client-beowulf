@@ -1,22 +1,10 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "TestServer.h"
 #include "RTTR_Assert.h"
+#include "rttr/test/random.hpp"
 #include "s25util/Message.h"
 #include "s25util/SocketSet.h"
 
@@ -88,4 +76,15 @@ Connection TestServer::acceptConnection(unsigned /*id*/, const Socket& so)
 bool TestServer::listen(int16_t port)
 {
     return socket.Listen(port, false, false);
+}
+
+int TestServer::tryListen(const unsigned maxTries)
+{
+    for(unsigned i = 0; i < maxTries; i++)
+    {
+        const auto curPort = rttr::test::randomValue(1024, 49151);
+        if(listen(curPort))
+            return curPort;
+    }
+    return -1; // LCOV_EXCL_LINE
 }

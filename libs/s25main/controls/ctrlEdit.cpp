@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ctrlEdit.h"
 #include "CollisionDetection.h"
@@ -47,7 +34,7 @@ void ctrlEdit::SetText(const std::string& text)
 {
     text_ = s25util::utf8to32(text);
     if(numberOnly_)
-        helpers::remove_if(text_, [](char32_t c) { return !(c >= '0' && c <= '9'); });
+        helpers::erase_if(text_, [](char32_t c) { return !(c >= '0' && c <= '9'); });
     if(maxLength_ > 0 && text_.size() > maxLength_)
         text_.resize(maxLength_);
 
@@ -73,6 +60,14 @@ void ctrlEdit::SetFocus(bool focus)
     {
         focus_ = focus;
         txtCtrl->SetTextColor(focus_ ? 0xFFFFA000 : COLOR_YELLOW);
+        if(focus && GetParent())
+        {
+            for(auto* edit : GetParent()->GetCtrls<ctrlEdit>())
+            {
+                if(edit != this)
+                    edit->SetFocus(false);
+            }
+        }
     }
 }
 
@@ -250,11 +245,11 @@ bool ctrlEdit::Msg_KeyDown(const KeyEvent& ke)
     {
         default: return false;
         // Wird bereits über Char geliefert !!
-        case KT_SPACE: // Leertaste
+        case KeyType::Space: // Leertaste
             AddChar(0x20);
             break;
 
-        case KT_LEFT: // Cursor nach Links
+        case KeyType::Left: // Cursor nach Links
             // Blockweise nach links, falls Strg gedrückt
             if(ke.ctrl)
             {
@@ -274,7 +269,7 @@ bool ctrlEdit::Msg_KeyDown(const KeyEvent& ke)
                 CursorLeft(); // just one step
             break;
 
-        case KT_RIGHT: // Cursor nach Rechts
+        case KeyType::Right: // Cursor nach Rechts
             // Blockweise nach rechts, falls Strg gedrückt
             if(ke.ctrl)
             {
@@ -293,17 +288,17 @@ bool ctrlEdit::Msg_KeyDown(const KeyEvent& ke)
                 CursorRight(); // just one step
             break;
 
-        case KT_CHAR: // Zeichen eingegeben
+        case KeyType::Char: // Zeichen eingegeben
             if(!isDisabled_ && txtCtrl->GetFont()->CharExist(ke.c))
                 AddChar(ke.c);
             break;
 
-        case KT_BACKSPACE: // Backspace gedrückt
+        case KeyType::Backspace: // Backspace gedrückt
             if(!isDisabled_)
                 RemoveChar();
             break;
 
-        case KT_DELETE: // Entfernen gedrückt
+        case KeyType::Delete: // Entfernen gedrückt
             if(!isDisabled_ && cursorPos_ < text_.length())
             {
                 CursorRight();
@@ -311,12 +306,12 @@ bool ctrlEdit::Msg_KeyDown(const KeyEvent& ke)
             }
             break;
 
-        case KT_RETURN: // Enter gedrückt
+        case KeyType::Return: // Enter gedrückt
             if(!isDisabled_ && GetParent())
                 GetParent()->Msg_EditEnter(GetID());
             break;
 
-        case KT_HOME: // Pos1 gedrückt
+        case KeyType::Home: // Pos1 gedrückt
             if(cursorPos_ > 0)
             {
                 cursorPos_ = 0;
@@ -324,7 +319,7 @@ bool ctrlEdit::Msg_KeyDown(const KeyEvent& ke)
             }
             break;
 
-        case KT_END: // Ende gedrückt
+        case KeyType::End: // Ende gedrückt
             if(cursorPos_ < text_.length())
             {
                 cursorPos_ = text_.length();

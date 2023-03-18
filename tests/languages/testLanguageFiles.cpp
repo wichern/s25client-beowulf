@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #define BOOST_TEST_MODULE RTTR_LanguageFiles
 
@@ -24,6 +11,10 @@
 #include <boost/format.hpp>
 #include <boost/test/unit_test.hpp>
 #include <map>
+
+#if RTTR_HAS_VLD
+#    include <vld.h>
+#endif
 
 struct FormatProperties
 {
@@ -67,7 +58,7 @@ BOOST_AUTO_TEST_CASE(AllFilesHaveValidFormat)
     for(const auto& it : boost::filesystem::directory_iterator(RTTR_TRANSLATION_DIR))
     {
         if(!is_regular_file(it.status()) || it.path().extension() != ".mo")
-            continue;
+            continue; // LCOV_EXCL_LINE
         const auto translatedStrings = mygettext::readCatalog(it.path().string(), "UTF-8");
 
         BOOST_TEST_CONTEXT("Locale: " << it.path().stem())
@@ -87,8 +78,13 @@ BOOST_AUTO_TEST_CASE(AllFilesHaveValidFormat)
                     BOOST_TEST(fmt.expected_args() == entry.second.numParameters);
                 } catch(const std::exception&)
                 {
-                    if(entry.second.numParameters > 0) // Should have been a format string
+                    // Should have been a format string
+                    if(entry.second.numParameters > 0)
+                    {
+                        // LCOV_EXCL_START
                         BOOST_TEST_ERROR("Invalid format string");
+                        // LCOV_EXCL_STOP
+                    }
                 }
             }
         }

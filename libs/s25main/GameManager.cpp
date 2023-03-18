@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GameManager.h"
 #include "GlobalVars.h"
@@ -21,7 +8,6 @@
 #include "RTTR_Assert.h"
 #include "RttrConfig.h"
 #include "Settings.h"
-#include "SoundManager.h"
 #include "WindowManager.h"
 #include "desktops/dskLobby.h"
 #include "desktops/dskMainMenu.h"
@@ -33,9 +19,10 @@
 #include "network/GameServer.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "liblobby/LobbyClient.h"
-#include "s25util//dynamicUniqueCast.h"
+#include "libsiedler2/Archiv.h"
 #include "s25util/Log.h"
 #include "s25util/error.h"
+#include <boost/pointer_cast.hpp>
 
 GameManager::GameManager(Log& log, Settings& settings, VideoDriverWrapper& videoDriver, AudioDriverWrapper& audioDriver,
                          WindowManager& windowManager)
@@ -76,8 +63,8 @@ bool GameManager::Start()
     }
 
     /// Lautstärken gleich mit setzen
-    audioDriver_.SetMasterEffectVolume(settings_.sound.effekte_volume); //-V807
-    audioDriver_.SetMusicVolume(settings_.sound.musik_volume);
+    audioDriver_.SetMasterEffectVolume(settings_.sound.effectsVolume); //-V807
+    audioDriver_.SetMusicVolume(settings_.sound.musicVolume);
 
     // Treibereinstellungen abspeichern
     settings_.Save();
@@ -174,9 +161,12 @@ bool GameManager::ShowSplashscreen()
     libsiedler2::Archiv arSplash;
     if(!LOADER.Load(arSplash, RTTRCONFIG.ExpandPath(s25::files::splash)))
         return false;
-    auto image = libutil::dynamicUniqueCast<glArchivItem_Bitmap>(arSplash.release(0));
+    auto image = boost::dynamic_pointer_cast<glArchivItem_Bitmap>(arSplash.release(0));
     if(!image)
+    {
+        s25util::error(_("Splash screen couldn't be loaded!\n"));
         return false;
+    }
     windowManager_.Switch(std::make_unique<dskSplash>(std::move(image)));
     return true;
 }
@@ -188,7 +178,6 @@ bool GameManager::ShowMenu()
 {
     GAMECLIENT.Stop();
     GAMESERVER.Stop();
-    SOUNDMANAGER.StopAll();
 
     if(LOBBYCLIENT.IsLoggedIn())
         // Lobby zeigen

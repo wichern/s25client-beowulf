@@ -1,24 +1,31 @@
+<!--
+Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+
 # Return To The Roots
 
 "Return To The Roots" is a fan-project, which aims to renew the original The Settlers 2.
 
-We aim to extend new features such as a multiplayer mode via internet as well as the support for modern hardware and several operating systems like Windows XP/Vista/Seven, Linux and MacOS X.
+We aim to extend new features such as a multiplayer mode via internet as well as the support for modern hardware and several operating systems like Windows Vista/Seven/10, Linux and MacOS X.
 Likewise we want to invent some smaller upgrades.
 Unfortunately it is necessary to rewrite the whole game, but we will stick to the original graphics and sounds, because they are still common and nice to be heard or seen.
 So you will still need an original "The Settlers 2 Gold Edition" version to play Return To The Roots.
 
-see more information on <http://www.rttr.info>
+See more information on <http://www.rttr.info>
 
 ## Current Build Info
 
-Travis CI: [![Travis CI Build Info](https://travis-ci.com/Return-To-The-Roots/s25client.svg?branch=master)](https://travis-ci.com/Return-To-The-Roots/s25client)
-
-Appveyor: [![Appveyor CI Build Info](https://ci.appveyor.com/api/projects/status/ufw8v9mi80va1me7/branch/master?svg=true)](https://ci.appveyor.com/project/Flow86/s25client/branch/master)
+Build & Tests:
+ [![Appveyor CI Build Info](https://ci.appveyor.com/api/projects/status/ufw8v9mi80va1me7/branch/master?svg=true)](https://ci.appveyor.com/project/Flow86/s25client/branch/master)
+ ![GHA Unit tests](https://github.com/Return-To-The-Roots/s25client/workflows/Unit%20tests/badge.svg)
+ ![Static analysis](https://github.com/Return-To-The-Roots/s25client/workflows/Static%20analysis/badge.svg)
 
 Coverage:
-[![Coverage Status](https://coveralls.io/repos/github/Return-To-The-Roots/s25client/badge.svg?branch=master)](https://coveralls.io/github/Return-To-The-Roots/s25client?branch=master)
+[![Coverage Status Coveralls](https://coveralls.io/repos/github/Return-To-The-Roots/s25client/badge.svg?branch=master)](https://coveralls.io/github/Return-To-The-Roots/s25client?branch=master)
  /
-[![codecov](https://codecov.io/gh/Return-To-The-Roots/s25client/branch/master/graph/badge.svg)](https://codecov.io/gh/Return-To-The-Roots/s25client)
+[![Coverage Status Codecov](https://codecov.io/gh/Return-To-The-Roots/s25client/branch/master/graph/badge.svg)](https://codecov.io/gh/Return-To-The-Roots/s25client)
 
 ## How to install
 
@@ -42,13 +49,13 @@ Putting RttR in a symlinked folder should work though.
 - C++14 compatible compiler (e.g. GCC-6)
 - cmake
 - git
-- libboost-dev (at least v1.64.0, i.e <http://www.boost.org/>)
-  or only: libboost-test-dev libboost-locale-dev, libboost-iostreams-dev, libboost-filesystem-dev, libboost-program-options-dev (at least v1.64.0)
+- libboost-dev (at least v1.69.0, i.e <http://www.boost.org/>)
+  or only: libboost-test-dev libboost-locale-dev, libboost-iostreams-dev, libboost-filesystem-dev, libboost-program-options-dev (at least v1.69.0)
 - libsdl2-dev
 - libsdl2-mixer-dev
 - libcurl-dev (in libcurl4-openssl-dev)
 - libbz2-dev
-- lua5.2-dev
+- lua5.2-dev (Lua 5.1 to 5.3 are supported)
 - gettext
 - libminiupnpc-dev
 
@@ -135,7 +142,7 @@ Then just run (tests or application) as usual.
     - press OK
 - If you haven't installed boost, install boost
   Fast Way:
-  - extract boost-1.64.zip (i.e to external/boost, so that external/boost/bootstrap.bat exist)
+  - extract boost-1.69.zip (i.e to external/boost, so that external/boost/bootstrap.bat exist)
   - run that "bootstrap.bat"
   - run created "b2.exe": this should build boost
     Notice: if you have multiple Visual Studio versions installed, use the latest one with the "toolset"-parameter.
@@ -154,7 +161,7 @@ Then just run (tests or application) as usual.
     - Enter boost installation path for "Value"
     - Press ok
   - Press generate
-- Open and use build/s25client.sln
+- Open and use build/RTTR.sln
 
 --
 

@@ -1,53 +1,42 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "PreviewMinimap.h"
 #include "RttrForeachPt.h"
 #include "helpers/mathFuncs.h"
 #include "lua/GameDataLoader.h"
 #include "mygettext/mygettext.h"
-#include "ogl/glArchivItem_Map.h"
 #include "world/MapGeometry.h"
 #include "gameData/MinimapConsts.h"
 #include "gameData/TerrainDesc.h"
 #include "gameData/WorldDescription.h"
+#include "libsiedler2/ArchivItem_Map.h"
 #include "libsiedler2/ArchivItem_Map_Header.h"
 #include "s25util/Log.h"
 
-PreviewMinimap::PreviewMinimap(const glArchivItem_Map* const s2map)
+PreviewMinimap::PreviewMinimap(const libsiedler2::ArchivItem_Map* const s2map)
 {
     if(s2map)
         SetMap(*s2map);
 }
 
-void PreviewMinimap::SetMap(const glArchivItem_Map& s2map)
+void PreviewMinimap::SetMap(const libsiedler2::ArchivItem_Map& s2map)
 {
     const libsiedler2::ArchivItem_Map_Header& header = s2map.getHeader();
     mapSize.x = header.getWidth();
     mapSize.y = header.getHeight();
 
+    using libsiedler2::MapLayer;
+
     unsigned char gfxSet = header.getGfxSet();
-    objects = s2map.GetLayer(MAP_TYPE);
-    terrain1 = s2map.GetLayer(MAP_TERRAIN1);
-    terrain2 = s2map.GetLayer(MAP_TERRAIN2);
-    if(s2map.HasLayer(MAP_SHADOWS))
-        shadows = s2map.GetLayer(MAP_SHADOWS);
+    objects = s2map.getLayer(MapLayer::ObjectType);
+    terrain1 = s2map.getLayer(MapLayer::Terrain1);
+    terrain2 = s2map.getLayer(MapLayer::Terrain2);
+    if(s2map.hasLayer(MapLayer::Shadows))
+        shadows = s2map.getLayer(MapLayer::Shadows);
     else
-        CalcShadows(s2map.GetLayer(MAP_ALTITUDE));
+        CalcShadows(s2map.getLayer(MapLayer::Altitude));
 
     WorldDescription worldDesc;
     GameDataLoader gdLoader(worldDesc);
@@ -105,11 +94,11 @@ unsigned PreviewMinimap::CalcPixelColor(const MapPoint pt, const unsigned t)
 unsigned char PreviewMinimap::CalcShading(const MapPoint pt, const std::vector<unsigned char>& altitudes) const
 {
     int altitude = altitudes[GetMMIdx(pt)];
-    MapPoint tmp = MakeMapPoint(GetNeighbour(Position(pt), Direction::NORTHEAST), GetMapSize());
+    MapPoint tmp = MakeMapPoint(GetNeighbour(Position(pt), Direction::NorthEast), GetMapSize());
     int A = altitudes[GetMMIdx(tmp)] - altitude;
     tmp = MakeMapPoint(GetNeighbour2(Position(pt), 0), GetMapSize());
     int B = altitudes[GetMMIdx(tmp)] - altitude;
-    tmp = MakeMapPoint(GetNeighbour(Position(pt), Direction::WEST), GetMapSize());
+    tmp = MakeMapPoint(GetNeighbour(Position(pt), Direction::West), GetMapSize());
     int C = altitudes[GetMMIdx(tmp)] - altitude;
     tmp = MakeMapPoint(GetNeighbour2(Position(pt), 7), GetMapSize());
     int D = altitudes[GetMMIdx(tmp)] - altitude;

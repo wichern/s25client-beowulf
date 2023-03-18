@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -23,16 +10,18 @@
 #include <memory>
 #include <string>
 
-class GameWorldGame;
+class GameWorld;
 class LuaPlayer;
 class LuaWorld;
 class Serializer;
 class Game;
+enum class ResourceType : uint8_t;
 
 class LuaInterfaceGame : public LuaInterfaceGameBase
 {
 public:
-    LuaInterfaceGame(const std::weak_ptr<Game>& gameInstance, ILocalGameState& localGameState);
+    // Passing Game by reference here relies on LuaInterfaceGame being part of Game
+    LuaInterfaceGame(Game& gameInstance, ILocalGameState& localGameState);
     virtual ~LuaInterfaceGame();
 
     static void Register(kaguya::State& state);
@@ -44,7 +33,7 @@ public:
     void EventOccupied(unsigned player, MapPoint pt);
     void EventStart(bool isFirstStart);
     void EventGameFrame(unsigned nr);
-    void EventResourceFound(unsigned char player, MapPoint pt, unsigned char type, unsigned char quantity);
+    void EventResourceFound(unsigned char player, MapPoint pt, ResourceType type, unsigned char quantity);
     // Called if player wants to cancel a pact
     bool EventCancelPactRequest(PactType pt, unsigned char canceledByPlayerId, unsigned char targetPlayerId);
     // Called if player suggests a pact
@@ -71,8 +60,8 @@ public:
 
 private:
     ILocalGameState& localGameState;
-    GameWorldGame& gw;
-    std::weak_ptr<Game> game;
+    GameWorld& gw;
+    Game& game;
     LuaPlayer GetPlayer(int playerIdx);
     LuaWorld GetWorld();
 };

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -92,10 +79,10 @@ public:
     }
     /// Registers a window to be shown after a desktop switch
     IngameWindow* ShowAfterSwitch(std::unique_ptr<IngameWindow> window);
-    /// schliesst ein IngameWindow und entfernt es aus der Fensterliste.
-    void Close(const IngameWindow* window);
     /// Sucht ein Fenster mit der entsprechenden Fenster-ID und schließt es (falls es so eins gibt)
     void Close(unsigned id);
+    /// Close the window right away and free it.
+    void CloseNow(IngameWindow* window);
     /// merkt einen Desktop zum Wechsel vor.
     Desktop* Switch(std::unique_ptr<Desktop> desktop);
     /// Verarbeitung des Drückens der Linken Maustaste.
@@ -124,7 +111,7 @@ public:
     void Msg_ScreenResize(const Extent& newSize);
 
     /// Return the window currently on the top (probably active)
-    const IngameWindow* GetTopMostWindow() const;
+    IngameWindow* GetTopMostWindow() const;
     IngameWindow* FindWindowAtPos(const Position& pos) const;
     IngameWindow* FindNonModalWindow(unsigned id) const;
 
@@ -146,6 +133,8 @@ private:
     void DoDesktopSwitch();
     /// Actually close all ingame windows marked for closing
     void CloseMarkedIngameWnds();
+    /// Close the window and remove it from the window list
+    void DoClose(IngameWindow* window);
 
     Cursor cursor_;
     std::unique_ptr<Desktop> curDesktop;  /// aktueller Desktop

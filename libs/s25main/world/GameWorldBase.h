@@ -1,22 +1,10 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
+#include "EconomyModeHandler.h"
 #include "buildings/nobBaseMilitary.h"
 #include "enum_cast.hpp"
 #include "helpers/OptionalEnum.h"
@@ -29,31 +17,33 @@
 
 class EventManager;
 class FreePathFinder;
-class GamePlayer;
 class GameInterface;
+class GamePlayer;
 class GlobalGameSettings;
+class nobHarborBuilding;
 class noBuildingSite;
 class noFlag;
-class nobHarborBuilding;
 class nofPassiveSoldier;
 class RoadPathFinder;
+class SoundManager;
+class TradePathCache;
 
-inline Direction getOppositeDir(const RoadDir roadDir) noexcept
+constexpr Direction getOppositeDir(const RoadDir roadDir) noexcept
 {
-    static_assert(rttr::enum_cast(Direction::WEST) == rttr::enum_cast(RoadDir::East)
-                    && rttr::enum_cast(Direction::NORTHWEST) == rttr::enum_cast(RoadDir::SouthEast)
-                    && rttr::enum_cast(Direction::NORTHEAST) == rttr::enum_cast(RoadDir::SouthWest),
+    static_assert(rttr::enum_cast(Direction::West) == rttr::enum_cast(RoadDir::East)
+                    && rttr::enum_cast(Direction::NorthWest) == rttr::enum_cast(RoadDir::SouthEast)
+                    && rttr::enum_cast(Direction::NorthEast) == rttr::enum_cast(RoadDir::SouthWest),
                   "Opposite directions don't match");
-    return Direction::fromInt(rttr::enum_cast(roadDir));
+    return Direction(rttr::enum_cast(roadDir));
 }
 
-inline Direction toDirection(const RoadDir roadDir) noexcept
+constexpr Direction toDirection(const RoadDir roadDir) noexcept
 {
-    static_assert(rttr::enum_cast(Direction::EAST) == rttr::enum_cast(RoadDir::East) + 3u
-                    && rttr::enum_cast(Direction::SOUTHEAST) == rttr::enum_cast(RoadDir::SouthEast) + 3u
-                    && rttr::enum_cast(Direction::SOUTHWEST) == rttr::enum_cast(RoadDir::SouthWest) + 3u,
+    static_assert(rttr::enum_cast(Direction::East) == rttr::enum_cast(RoadDir::East) + 3u
+                    && rttr::enum_cast(Direction::SouthEast) == rttr::enum_cast(RoadDir::SouthEast) + 3u
+                    && rttr::enum_cast(Direction::SouthWest) == rttr::enum_cast(RoadDir::SouthWest) + 3u,
                   "Directions don't match");
-    return Direction::fromInt(rttr::enum_cast(roadDir) + 3u);
+    return Direction(rttr::enum_cast(roadDir) + 3u);
 }
 
 /// Grundlegende Klasse, die die Gamewelt darstellt, enth�lt nur deren Daten
@@ -67,13 +57,14 @@ class GameWorldBase : public World
     std::vector<GamePlayer> players;
     const GlobalGameSettings& gameSettings;
     EventManager& em;
-    std::unique_ptr<LuaInterfaceGame> lua;
+    std::unique_ptr<SoundManager> soundManager;
+    LuaInterfaceGame* lua;
 
 protected:
     /// Interface zum GUI
     GameInterface* gi;
-    /// harbor building sites created by ships
-    std::list<noBuildingSite*> harbor_building_sites_from_sea;
+    std::unique_ptr<EconomyModeHandler> econHandler;
+    std::unique_ptr<TradePathCache> tradePathCache;
 
 public:
     GameWorldBase(std::vector<GamePlayer> players, const GlobalGameSettings& gameSettings, EventManager& em);
@@ -81,11 +72,17 @@ public:
 
     // Grundlegende Initialisierungen
     void Init(const MapExtent& mapSize, DescIdx<LandscapeDesc> lt = DescIdx<LandscapeDesc>(0)) override;
+    /// Create Trade graphs
+    virtual void CreateTradeGraphs() = 0;
     // Remaining initialization after loading (BQ...)
     void InitAfterLoad();
 
     /// Setzt GameInterface
     void SetGameInterface(GameInterface* const gi) { this->gi = gi; }
+
+    /// Get the economy mode handler if set.
+    /// TODO: Add const correct version, but iwEconomicProgress still needs to be able to call UpdateAmounts
+    EconomyModeHandler* getEconHandler() const { return econHandler.get(); }
 
     /// Can a node be used for a road (no flag/bld, no other road, no danger...)
     /// Should only be used for the points between the 2 flags of a road
@@ -162,6 +159,7 @@ public:
     const GlobalGameSettings& GetGGS() const { return gameSettings; }
     EventManager& GetEvMgr() { return em; }
     const EventManager& GetEvMgr() const { return em; }
+    SoundManager& GetSoundMgr() { return *soundManager; }
     PostManager& GetPostMgr() { return postManager; }
     const PostManager& GetPostMgr() const { return postManager; }
     NotificationManager& GetNotifications() const
@@ -215,7 +213,7 @@ public:
 
     bool HasLua() const { return lua != nullptr; }
     LuaInterfaceGame& GetLua() const { return *lua; }
-    void SetLua(std::unique_ptr<LuaInterfaceGame> newLua) { lua = std::move(newLua); }
+    void SetLua(LuaInterfaceGame* newLua) { lua = newLua; }
 
 protected:
     /// Called when the visibility of point changed for a player

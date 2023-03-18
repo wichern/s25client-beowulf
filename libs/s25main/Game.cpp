@@ -1,34 +1,26 @@
-// Copyright (c) 2017 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Game.h"
+#include "EconomyModeHandler.h"
 #include "EventManager.h"
 #include "GameInterface.h"
 #include "GamePlayer.h"
+#include "addons/AddonEconomyModeGameLength.h"
+#include "addons/const_addons.h"
 #include "ai/AIPlayer.h"
 #include "lua/LuaInterfaceGame.h"
+#include "network/GameClient.h"
+#include "gameData/GameConsts.h"
 #include <boost/optional.hpp>
 
-Game::Game(const GlobalGameSettings& settings, unsigned startGF, const std::vector<PlayerInfo>& players)
-    : Game(settings, std::make_unique<EventManager>(startGF), players)
+Game::Game(GlobalGameSettings settings, unsigned startGF, const std::vector<PlayerInfo>& players)
+    : Game(std::move(settings), std::make_unique<EventManager>(startGF), players)
 {}
 
-Game::Game(const GlobalGameSettings& settings, std::unique_ptr<EventManager> em, const std::vector<PlayerInfo>& players)
-    : ggs_(settings), em_(std::move(em)), world_(players, ggs_, *em_), started_(false), finished_(false)
+Game::Game(GlobalGameSettings settings, std::unique_ptr<EventManager> em, const std::vector<PlayerInfo>& players)
+    : ggs_(std::move(settings)), em_(std::move(em)), world_(players, ggs_, *em_), started_(false), finished_(false)
 {}
 
 Game::~Game() = default;
@@ -41,14 +33,28 @@ void Game::Start(bool startFromSave)
     if(startFromSave)
         CheckObjective();
     else
+    {
+        if(ggs_.objective == GameObjective::EconomyMode)
+        {
+            unsigned int selection = ggs_.getSelection(AddonId::ECONOMY_MODE_GAME_LENGTH);
+            world_.setEconHandler(std::make_unique<EconomyModeHandler>(AddonEconomyModeGameLengthList[selection]
+                                                                       / SPEED_GF_LENGTHS[referenceSpeed]));
+        }
         StatisticStep();
+    }
     if(world_.HasLua())
         world_.GetLua().EventStart(!startFromSave);
 }
 
 void Game::AddAIPlayer(std::unique_ptr<AIPlayer> newAI)
 {
-    aiPlayers_.push_back(newAI.release());
+    aiPlayers_.push_back(std::move(newAI));
+}
+
+void Game::SetLua(std::unique_ptr<LuaInterfaceGame> newLua)
+{
+    lua = std::move(newLua);
+    world_.SetLua(lua.get());
 }
 
 namespace {
@@ -83,8 +89,9 @@ void Game::RunGF()
 
     if(world_.HasLua())
         world_.GetLua().EventGameFrame(em_->GetCurrentGF());
-    // Update statistic every 750 GFs (30 seconds on 'fast')
-    if(em_->GetCurrentGF() % 750 == 0)
+    // Update statistic every 30 seconds
+    constexpr unsigned GFsIn30s = std::chrono::duration<unsigned>(30) / SPEED_GF_LENGTHS[referenceSpeed];
+    if(em_->GetCurrentGF() % GFsIn30s == 0)
         StatisticStep();
     // If some players got defeated check objective
     if(getNumAlivePlayers(world_) < numPlayersAlive)
@@ -102,7 +109,7 @@ void Game::StatisticStep()
 void Game::CheckObjective()
 {
     // Check objective if there is one
-    if(finished_ || (ggs_.objective != GO_CONQUER3_4 && ggs_.objective != GO_TOTALDOMINATION))
+    if(finished_ || (ggs_.objective != GameObjective::Conquer3_4 && ggs_.objective != GameObjective::TotalDomination))
         return;
 
     unsigned maxPoints = 0, maxTeamPoints = 0, totalPoints = 0, bestPlayer = 0;
@@ -116,7 +123,7 @@ void Game::CheckObjective()
         const GamePlayer& player = world_.GetPlayer(i);
         if(player.IsDefeated())
             continue;
-        const unsigned points = player.GetStatisticCurrentValue(STAT_COUNTRY);
+        const unsigned points = player.GetStatisticCurrentValue(StatisticType::Country);
         if(points > maxPoints)
         {
             maxPoints = points;
@@ -135,7 +142,7 @@ void Game::CheckObjective()
                 curTeam = curTeam | getPlayerMask(j);
                 const GamePlayer& teamPlayer = world_.GetPlayer(j);
                 if(!teamPlayer.IsDefeated())
-                    teamPoints += teamPlayer.GetStatisticCurrentValue(STAT_COUNTRY);
+                    teamPoints += teamPlayer.GetStatisticCurrentValue(StatisticType::Country);
             }
             if(teamPoints > maxTeamPoints)
             {
@@ -150,12 +157,12 @@ void Game::CheckObjective()
 
     switch(ggs_.objective)
     {
-        case GO_CONQUER3_4: // at least 3/4 of the land
+        case GameObjective::Conquer3_4: // at least 3/4 of the land
             if(maxTeamPoints * 4u >= totalPoints * 3u || maxPoints * 4u >= totalPoints * 3u)
                 finished_ = true;
             break;
 
-        case GO_TOTALDOMINATION: // whole populated land
+        case GameObjective::TotalDomination: // whole populated land
             if(maxTeamPoints == totalPoints || maxPoints == totalPoints)
                 finished_ = true;
             break;

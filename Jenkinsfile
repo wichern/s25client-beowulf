@@ -1,3 +1,7 @@
+// Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 dockerRegistry = "registry.mytrap.de/"
 dockerCredentials = "gitlab-Flow86"
 dockerImages = [
@@ -37,6 +41,7 @@ pipeline {
 
     parameters {
         choice(name: 'DEPLOY_TO', choices: [ "none", "nightly", "stable"], description: 'deploy to this after build (none = disable deployment)')
+        booleanParam(name: 'FORCE_DEPLOY', defaultValue: false, description: 'deploy even if nothing has been changed (false = only deploy on changes)')
     }
 
     options {
@@ -93,6 +98,7 @@ pipeline {
                     def parallel_map = [:]
                     def buildScript = readTrusted("tools/ci/jenkins/build.sh")
                     buildScript = buildScript.replace("%deploy_to%", params.DEPLOY_TO)
+                    buildScript = buildScript.replace("%force_deploy%", params.FORCE_DEPLOY.toString())
 
                     dockerImages.each { architecture, image ->
                         echo "Adding Job ${architecture} (${image})"
@@ -115,10 +121,12 @@ pipeline {
                 script {
                     def prepareDeployScript = readTrusted("tools/ci/jenkins/prepare-deploy.sh")
                     prepareDeployScript = prepareDeployScript.replace("%deploy_to%", params.DEPLOY_TO)
+                    prepareDeployScript = prepareDeployScript.replace("%force_deploy%", params.FORCE_DEPLOY.toString())
                     sh prepareDeployScript
 
                     def deployScript = readTrusted("tools/ci/jenkins/deploy.sh")
                     deployScript = deployScript.replace("%deploy_to%", params.DEPLOY_TO)
+                    deployScript = deployScript.replace("%force_deploy%", params.FORCE_DEPLOY.toString())
                     sh deployScript
                 }
             }

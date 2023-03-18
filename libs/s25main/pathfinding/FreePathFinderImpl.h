@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -35,7 +22,7 @@ struct NodePtrCmpGreater
         if(lhs->estimatedDistance == rhs->estimatedDistance)
         {
             // Enforce strictly monotonic increasing order
-            return (lhs->idx > rhs->idx);
+            return (lhs > rhs);
         }
 
         return (lhs->estimatedDistance > rhs->estimatedDistance);
@@ -77,7 +64,8 @@ bool FreePathFinder::FindPath(const MapPoint start, const MapPoint dest, bool ra
 
     // Bei Zufälliger Richtung anfangen (damit man nicht immer denselben Weg geht, besonders für die Soldaten wichtig)
     // TODO confirm random: RANDOM.Rand(__FILE__, __LINE__, y_start * GetWidth() + x_start, 6);
-    const unsigned startDir = randomRoute ? (gwb_.GetIdx(start)) * gwb_.GetEvMgr().GetCurrentGF() % 6 : 0;
+    const Direction startDir =
+      randomRoute ? convertToDirection(gwb_.GetIdx(start) * gwb_.GetEvMgr().GetCurrentGF()) : Direction::West;
 
     while(!todo.empty())
     {
@@ -116,12 +104,11 @@ bool FreePathFinder::FindPath(const MapPoint start, const MapPoint dest, bool ra
             continue;
 
         // Knoten in alle 6 Richtungen bilden
-        for(unsigned z = startDir; z < startDir + 6; ++z)
+        const auto neighbors = gwb_.GetNeighbours(best.mapPt);
+        for(const Direction dir : helpers::enumRange(startDir))
         {
-            Direction dir(z);
-
             // Koordinaten des entsprechenden umliegenden Punktes bilden
-            MapPoint neighbourPos = gwb_.GetNeighbour(best.mapPt, dir);
+            MapPoint neighbourPos = neighbors[dir];
 
             // ID des umliegenden Knotens bilden
             unsigned nbId = gwb_.GetIdx(neighbourPos);

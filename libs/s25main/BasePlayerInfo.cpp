@@ -1,54 +1,44 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "BasePlayerInfo.h"
+#include "helpers/serializeEnums.h"
 #include "s25util/Serializer.h"
 #include "s25util/colors.h"
 
-BasePlayerInfo::BasePlayerInfo() : ps(PS_FREE), nation(NAT_ROMANS), color(PLAYER_COLORS[0]), team(TM_NOTEAM) {}
+BasePlayerInfo::BasePlayerInfo()
+    : ps(PlayerState::Free), nation(Nation::Romans), color(PLAYER_COLORS[0]), team(Team::None)
+{}
 
 BasePlayerInfo::BasePlayerInfo(Serializer& ser, bool lightData)
-    : ps(static_cast<PlayerState>(ser.PopUnsignedChar())), aiInfo(!lightData || ps == PS_AI ? ser : AI::Info())
+    : ps(helpers::popEnum<PlayerState>(ser)), aiInfo(!lightData || ps == PlayerState::AI ? ser : AI::Info())
 {
     if(lightData && !isUsed())
     {
-        nation = NAT_ROMANS;
-        team = TM_NOTEAM;
+        nation = Nation::Romans;
+        team = Team::None;
         color = PLAYER_COLORS[0];
     } else
     {
         name = ser.PopLongString();
-        nation = static_cast<Nation>(ser.PopUnsignedChar());
+        nation = helpers::popEnum<Nation>(ser);
         color = ser.PopUnsignedInt();
-        team = static_cast<Team>(ser.PopUnsignedChar());
+        team = helpers::popEnum<Team>(ser);
     }
 }
 
 void BasePlayerInfo::Serialize(Serializer& ser, bool lightData) const
 {
-    ser.PushUnsignedChar(static_cast<unsigned char>(ps));
+    helpers::pushEnum<uint8_t>(ser, ps);
     if(lightData && !isUsed())
         return;
-    if(!lightData || ps == PS_AI)
+    if(!lightData || ps == PlayerState::AI)
         aiInfo.serialize(ser);
     ser.PushLongString(name);
-    ser.PushUnsignedChar(static_cast<unsigned char>(nation));
+    helpers::pushEnum<uint8_t>(ser, nation);
     ser.PushUnsignedInt(color);
-    ser.PushUnsignedChar(static_cast<unsigned char>(team));
+    helpers::pushEnum<uint8_t>(ser, team);
 }
 
 int BasePlayerInfo::GetColorIdx() const

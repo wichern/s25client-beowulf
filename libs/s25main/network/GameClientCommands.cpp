@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Game.h"
 #include "GamePlayer.h"
@@ -68,7 +55,7 @@ void GameClient::Command_SetColor(unsigned newColor)
  */
 void GameClient::ChangePlayerIngame(const unsigned char playerId1, const unsigned char playerId2)
 {
-    RTTR_Assert(state == CS_GAME); // Must be ingame
+    RTTR_Assert(state == ClientState::Game); // Must be ingame
 
     LOG.write("GameClient::ChangePlayer %i - %i \n") % static_cast<unsigned>(playerId1)
       % static_cast<unsigned>(playerId2);
@@ -92,11 +79,11 @@ void GameClient::ChangePlayerIngame(const unsigned char playerId1, const unsigne
     {
         // old_id must be a player
         GamePlayer& player1 = GetPlayer(playerId1);
-        if(player1.ps != PS_OCCUPIED)
+        if(player1.ps != PlayerState::Occupied)
             return;
         // new_id must be an AI
         GamePlayer& player2 = GetPlayer(playerId2);
-        if(player2.ps != PS_AI)
+        if(player2.ps != PlayerState::AI)
             return;
 
         std::swap(player1.ps, player2.ps);
@@ -105,10 +92,10 @@ void GameClient::ChangePlayerIngame(const unsigned char playerId1, const unsigne
         {
             // Switch AIs
             game->aiPlayers_.erase_if([playerId2](const auto& player) { return player.GetPlayerId() == playerId2; });
-            game->AddAIPlayer(CreateAIPlayer(playerId1, AI::Info(AI::DUMMY)));
+            game->AddAIPlayer(CreateAIPlayer(playerId1, AI::Info(AI::Type::Dummy)));
         }
-        GetPlayer(playerId1).ps = PS_AI;
-        GetPlayer(playerId2).ps = PS_OCCUPIED;
+        GetPlayer(playerId1).ps = PlayerState::AI;
+        GetPlayer(playerId2).ps = PlayerState::Occupied;
     }
 
     // Wenn wir betroffen waren, unsere ID neu setzen

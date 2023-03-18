@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "helpers/containerUtils.h"
 #include "helpers/reverse.h"
@@ -84,26 +71,26 @@ BOOST_AUTO_TEST_CASE(IndexOf)
 {
     std::vector<int> vec;
     // Empty vector
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(vec, 1), -1);
+    BOOST_TEST_REQUIRE(helpers::indexOf(vec, 1) == -1);
     // 1 el
     vec.push_back(1);
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(vec, 1), 0);
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(vec, 2), -1);
+    BOOST_TEST_REQUIRE(helpers::indexOf(vec, 1) == 0);
+    BOOST_TEST_REQUIRE(helpers::indexOf(vec, 2) == -1);
     // 2 els
     vec.push_back(0);
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(vec, 1), 0);
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(vec, 0), 1);
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(vec, 2), -1);
+    BOOST_TEST_REQUIRE(helpers::indexOf(vec, 1) == 0);
+    BOOST_TEST_REQUIRE(helpers::indexOf(vec, 0) == 1);
+    BOOST_TEST_REQUIRE(helpers::indexOf(vec, 2) == -1);
 
     // Pointer vector
     std::vector<int*> ptrVec;
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(ptrVec, (int*)1337), -1);       //-V566
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(ptrVec, (const int*)1337), -1); //-V566
-    ptrVec.push_back((int*)1336);                                        //-V566
-    ptrVec.push_back((int*)1337);                                        //-V566
-    ptrVec.push_back((int*)1338);                                        //-V566
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(ptrVec, (int*)1337), 1);        //-V566
-    BOOST_REQUIRE_EQUAL(helpers::indexOf(ptrVec, (const int*)1337), 1);  //-V566
+    BOOST_TEST_REQUIRE(helpers::indexOf(ptrVec, (int*)1337) == -1);       //-V566
+    BOOST_TEST_REQUIRE(helpers::indexOf(ptrVec, (const int*)1337) == -1); //-V566
+    ptrVec.push_back((int*)1336);                                         //-V566
+    ptrVec.push_back((int*)1337);                                         //-V566
+    ptrVec.push_back((int*)1338);                                         //-V566
+    BOOST_TEST_REQUIRE(helpers::indexOf(ptrVec, (int*)1337) == 1);        //-V566
+    BOOST_TEST_REQUIRE(helpers::indexOf(ptrVec, (const int*)1337) == 1);  //-V566
 }
 
 BOOST_AUTO_TEST_CASE(Reverse)
@@ -125,24 +112,24 @@ BOOST_AUTO_TEST_CASE(Reverse)
     BOOST_TEST(vecIn == vecOut, boost::test_tools::per_element());
 }
 
-BOOST_AUTO_TEST_CASE(Remove)
+BOOST_AUTO_TEST_CASE(Erase)
 {
     std::vector<int> vecIn = {1, 2, 3, 4, 5}, vecExp;
-    helpers::remove(vecIn, 42);
+    helpers::erase(vecIn, 42);
     BOOST_TEST(vecIn == vecIn, boost::test_tools::per_element());
-    helpers::remove(vecIn, 2);
+    helpers::erase(vecIn, 2);
     vecExp = {1, 3, 4, 5};
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
-    helpers::remove(vecIn, 1);
+    helpers::erase(vecIn, 1);
     vecExp = {3, 4, 5};
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
-    helpers::remove(vecIn, 5);
+    helpers::erase(vecIn, 5);
     vecExp = {3, 4};
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
-    helpers::remove(vecIn, 4);
+    helpers::erase(vecIn, 4);
     vecExp = {3};
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
-    helpers::remove(vecIn, 3);
+    helpers::erase(vecIn, 3);
     vecExp = {};
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
 }
@@ -150,12 +137,28 @@ BOOST_AUTO_TEST_CASE(Remove)
 BOOST_AUTO_TEST_CASE(RemoveIf)
 {
     std::vector<int> vecIn = {1, 2, 3, 4, 5, 6}, vecExp = {1, 3, 5};
-    helpers::remove_if(vecIn, [](int i) { return i % 2 == 0; });
+    helpers::erase_if(vecIn, [](int i) { return i % 2 == 0; });
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
 
     vecIn = {1, 2, 3, 4, 5, 6}, vecExp = {2, 4, 6};
-    helpers::remove_if(vecIn, [](int i) { return i % 2 != 0; });
+    helpers::erase_if(vecIn, [](int i) { return i % 2 != 0; });
     BOOST_TEST(vecIn == vecExp, boost::test_tools::per_element());
+}
+
+BOOST_AUTO_TEST_CASE(Count)
+{
+    std::vector<int> values = {1, 2, 2, 4, 4, 4};
+    BOOST_TEST(helpers::count(values, 1) == 1u);
+    BOOST_TEST(helpers::count(values, 2) == 2u);
+    BOOST_TEST(helpers::count(values, 3) == 0u);
+    BOOST_TEST(helpers::count(values, 4) == 3u);
+}
+
+BOOST_AUTO_TEST_CASE(CountIf)
+{
+    std::vector<int> values = {1, 2, 3, 4, 5};
+    const auto isEven = [](int i) { return i % 2 == 0; };
+    BOOST_TEST(helpers::count_if(values, isEven) == 2u);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

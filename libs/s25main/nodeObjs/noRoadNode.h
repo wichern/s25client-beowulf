@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -50,24 +37,14 @@ public:
 
     noRoadNode(NodalObjectType nop, MapPoint pos, unsigned char player);
     noRoadNode(SerializedGameData& sgd, unsigned obj_id);
-
     ~noRoadNode() override;
-    /// Aufräummethoden
-protected:
-    void Destroy_noRoadNode();
 
-public:
-    void Destroy() override { Destroy_noRoadNode(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_noRoadNode(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_noRoadNode(sgd); }
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
     RoadSegment* GetRoute(const Direction dir) const { return routes[dir]; }
     void SetRoute(const Direction dir, RoadSegment* route) { routes[dir] = route; }
+    const auto& getRoutes() const { return routes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
     void DestroyRoad(Direction dir);
@@ -78,7 +55,7 @@ public:
     unsigned char GetPlayer() const { return player; }
 
     /// Legt eine Ware am Objekt ab (an allen Straßenknoten (Gebäude, Baustellen und Flaggen) kann man Waren ablegen
-    virtual void AddWare(Ware*& ware) = 0;
+    virtual void AddWare(std::unique_ptr<Ware> ware) = 0;
 
     /// Nur für Flagge, Gebäude können 0 zurückgeben, gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine
     /// bestimmte Richtung noch transportiert werden müssen

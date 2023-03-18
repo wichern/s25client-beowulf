@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskTextureTest.h"
 #include "Loader.h"
@@ -27,7 +14,6 @@
 #include "lua/GameDataLoader.h"
 #include "ogl/FontStyle.h"
 #include "ogl/glArchivItem_Bitmap.h"
-#include "s25util/strAlgos.h"
 #include <glad/glad.h>
 #include <boost/filesystem/path.hpp>
 #include <array>
@@ -44,9 +30,9 @@ enum
 dskTextureTest::dskTextureTest()
 {
     AddText(ID_txtTitle, DrawPoint(300, 20), "Test screen for textures", COLOR_ORANGE, FontStyle::CENTER, LargeFont);
-    AddComboBox(ID_cbTexture, DrawPoint(630, 50), Extent(100, 22), TC_GREEN2, NormalFont, 100);
+    AddComboBox(ID_cbTexture, DrawPoint(630, 50), Extent(100, 22), TextureColor::Green2, NormalFont, 100);
     Load();
-    AddTextButton(ID_btBack, DrawPoint(630, 565), Extent(150, 22), TC_RED1, _("Back"), NormalFont);
+    AddTextButton(ID_btBack, DrawPoint(630, 565), Extent(150, 22), TextureColor::Red1, _("Back"), NormalFont);
 }
 
 dskTextureTest::~dskTextureTest() = default;
@@ -57,8 +43,8 @@ void dskTextureTest::Load()
     GameDataLoader gdLoader(newDesc);
     if(!gdLoader.Load())
     {
-        WINDOWMANAGER.ShowAfterSwitch(
-          std::make_unique<iwMsgbox>(_("Error"), "Failed to load game data!", nullptr, MSB_OK, MSB_EXCLAMATIONRED));
+        WINDOWMANAGER.ShowAfterSwitch(std::make_unique<iwMsgbox>(_("Error"), "Failed to load game data!", nullptr,
+                                                                 MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
         return;
     }
     desc = newDesc;
@@ -66,8 +52,6 @@ void dskTextureTest::Load()
     auto* cb = GetCtrl<ctrlComboBox>(ID_cbTexture);
     const unsigned selection = cb->GetSelection().value_or(0);
     cb->DeleteAllItems();
-    LOADER.ClearOverrideFolders();
-    LOADER.AddOverrideFolder(s25::folders::gameLstsGlobal);
     for(DescIdx<TerrainDesc> i(0); i.value < desc.terrain.size(); i.value++)
         cb->AddString(desc.get(i).name);
     cb->SetSelection(selection);
@@ -81,7 +65,7 @@ void dskTextureTest::Msg_ComboSelectItem(const unsigned ctrl_id, const unsigned 
         return;
     const TerrainDesc& cur = desc.get(curTerrainIdx);
     LOADER.Load(RTTRCONFIG.ExpandPath(cur.texturePath));
-    std::string textureName = s25util::toLower(bfs::path(cur.texturePath).stem().string());
+    const auto textureName = ResourceId::make(bfs::path(cur.texturePath));
     glArchivItem_Bitmap* texBmp = LOADER.GetImageN(textureName, 0);
     curTexture = LOADER.ExtractTexture(*texBmp, cur.posInTexture);
 }
@@ -144,7 +128,7 @@ void dskTextureTest::Msg_PaintAfter()
 
 bool dskTextureTest::Msg_KeyDown(const KeyEvent& ke)
 {
-    if(ke.kt == KT_F5)
+    if(ke.kt == KeyType::F5)
     {
         Load();
         return true;

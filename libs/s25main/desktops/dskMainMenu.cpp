@@ -1,29 +1,13 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskMainMenu.h"
-
+#include "CollisionDetection.h"
 #include "GlobalVars.h"
 #include "Loader.h"
-#include "WindowManager.h"
-
 #include "Settings.h"
-
-#include "CollisionDetection.h"
+#include "WindowManager.h"
 #include "controls/ctrlButton.h"
 #include "controls/ctrlTimer.h"
 #include "desktops/dskCredits.h"
@@ -53,25 +37,28 @@ dskMainMenu::dskMainMenu()
     RTTR_Assert(dskMenuBase::ID_FIRST_FREE <= 3);
 
     // "Einzelspieler"
-    AddTextButton(ID_btSingleplayer, DrawPoint(115, 180), Extent(220, 22), TC_GREEN2, _("Singleplayer"), NormalFont);
+    AddTextButton(ID_btSingleplayer, DrawPoint(115, 180), Extent(220, 22), TextureColor::Green2, _("Singleplayer"),
+                  NormalFont);
     // "Mehrspieler"
-    AddTextButton(ID_btMultiplayer, DrawPoint(115, 210), Extent(220, 22), TC_GREEN2, _("Multiplayer"), NormalFont);
+    AddTextButton(ID_btMultiplayer, DrawPoint(115, 210), Extent(220, 22), TextureColor::Green2, _("Multiplayer"),
+                  NormalFont);
     // "Optionen"
-    AddTextButton(ID_btOptions, DrawPoint(115, 250), Extent(220, 22), TC_GREEN2, _("Options"), NormalFont);
+    AddTextButton(ID_btOptions, DrawPoint(115, 250), Extent(220, 22), TextureColor::Green2, _("Options"), NormalFont);
     // "Intro"
-    AddTextButton(ID_btIntro, DrawPoint(115, 280), Extent(220, 22), TC_GREEN2, _("Intro"), NormalFont)
+    AddTextButton(ID_btIntro, DrawPoint(115, 280), Extent(220, 22), TextureColor::Green2, _("Intro"), NormalFont)
       ->SetEnabled(false);
     // "ReadMe"
-    AddTextButton(ID_btReadme, DrawPoint(115, 310), Extent(220, 22), TC_GREEN2, _("Readme"), NormalFont);
+    AddTextButton(ID_btReadme, DrawPoint(115, 310), Extent(220, 22), TextureColor::Green2, _("Readme"), NormalFont);
     // "Credits"
-    AddTextButton(ID_btCredits, DrawPoint(115, 340), Extent(220, 22), TC_GREEN2, _("Credits"), NormalFont);
+    AddTextButton(ID_btCredits, DrawPoint(115, 340), Extent(220, 22), TextureColor::Green2, _("Credits"), NormalFont);
     // "Programm verlassen"
-    AddTextButton(ID_btQuit, DrawPoint(115, 390), Extent(220, 22), TC_RED1, _("Quit program"), NormalFont);
+    AddTextButton(ID_btQuit, DrawPoint(115, 390), Extent(220, 22), TextureColor::Red1, _("Quit program"), NormalFont);
 
     AddImage(ID_logo, DrawPoint(20, 20), LOADER.GetImageN("logo", 0));
 
+    using namespace std::chrono_literals;
     if(SETTINGS.global.submit_debug_data == 0)
-        AddTimer(ID_tmrDebugData, 250);
+        AddTimer(ID_tmrDebugData, 250ms);
 
     /*AddText(20, DrawPoint(50, 450), _("Font Test"), COLOR_YELLOW, FontStyle::LEFT, SmallFont);
     AddText(21, DrawPoint(50, 470), _("Font Test"), COLOR_YELLOW, FontStyle::LEFT, NormalFont);
@@ -85,14 +72,14 @@ void dskMainMenu::Msg_Timer(const unsigned ctrl_id)
     WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(
       _("Submit debug data?"),
       _("RttR now supports sending debug data. Would you like to help us improving this game by sending debug data?"),
-      this, MSB_YESNO, MSB_QUESTIONRED, 100));
+      this, MsgboxButton::YesNo, MsgboxIcon::QuestionRed, 100));
 }
 
 void dskMainMenu::Msg_MsgBoxResult(const unsigned msgbox_id, const MsgboxResult mbr)
 {
     if(msgbox_id == 100)
     {
-        if(mbr == MSR_YES)
+        if(mbr == MsgboxResult::Yes)
             SETTINGS.global.submit_debug_data = 1;
         else
             SETTINGS.global.submit_debug_data = 2;

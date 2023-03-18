@@ -1,3 +1,7 @@
+// Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+//
+// SPDX-License-Identifier: CC0-1.0
+
 // Microsoft Visual C++ generated resource script.
 //
 #include "s25clientResources.h"
@@ -27,18 +31,18 @@ LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE
 BEGIN
     "s25clientResources.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE
 BEGIN
     "\r\n"
     "\0"

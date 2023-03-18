@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -24,6 +11,7 @@
 #include "gameTypes/GoodTypes.h"
 #include "gameTypes/JobTypes.h"
 #include "gameTypes/PactTypes.h"
+#include "gameTypes/StatisticTypes.h"
 #include <map>
 #include <memory>
 #include <utility>
@@ -37,14 +25,14 @@ class Game;
 
 class LuaPlayer : public LuaPlayerBase
 {
-    std::weak_ptr<Game> game;
+    Game& game;
     GamePlayer& player;
 
 protected:
     const BasePlayerInfo& GetPlayer() const override;
 
 public:
-    LuaPlayer(std::weak_ptr<Game> game, GamePlayer& player) : game(std::move(game)), player(player) {}
+    LuaPlayer(Game& game, GamePlayer& player) : game(game), player(player) {}
     static void Register(kaguya::State& state);
 
     void EnableBuilding(lua::SafeEnum<BuildingType> bld, bool notify);
@@ -60,6 +48,7 @@ public:
     unsigned GetNumBuildingSites(lua::SafeEnum<BuildingType> bld) const;
     unsigned GetNumWares(lua::SafeEnum<GoodType> ware) const;
     unsigned GetNumPeople(lua::SafeEnum<Job> job) const;
+    unsigned GetStatisticsValue(lua::SafeEnum<StatisticType> stat) const;
     bool AIConstructionOrder(unsigned x, unsigned y, lua::SafeEnum<BuildingType> bld);
     void ModifyHQ(bool isTent);
     bool IsDefeated() const;

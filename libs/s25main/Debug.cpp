@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -64,7 +51,7 @@ typedef WINBOOL(WINAPI* StackWalkType)(DWORD MachineType, HANDLE hProcess, HANDL
 namespace {
 #ifdef RTTR_USE_WIN_API
 #    ifdef HAVE_DBGHELP_H
-bool captureBacktrace(std::vector<void*>& stacktrace, LPCONTEXT ctx = nullptr)
+bool captureBacktrace(std::vector<void*>& stacktrace, LPCONTEXT ctx = nullptr) noexcept
 {
     CONTEXT context;
 #        ifndef _MSC_VER
@@ -140,14 +127,14 @@ bool captureBacktrace(std::vector<void*>& stacktrace, LPCONTEXT ctx = nullptr)
     return true;
 }
 #    else  // HAVE_DBGHELP_H
-bool captureBacktrace(std::vector<void*>&, void* = nullptr)
+bool captureBacktrace(std::vector<void*>&, void* = nullptr) noexcept
 {
     return false;
 }
 #    endif // HAVE_DBGHELP_H
 
 #else
-void captureBacktrace(std::vector<void*>& stacktrace)
+void captureBacktrace(std::vector<void*>& stacktrace) noexcept
 {
     unsigned num_frames = backtrace(&stacktrace[0], stacktrace.size());
     stacktrace.resize(num_frames);
@@ -179,8 +166,8 @@ DebugInfo::DebugInfo()
     // Bits
     SendUnsigned(sizeof(void*) * 8u);
 
-    SendString(RTTR_Version::GetVersionDate());
-    SendString(RTTR_Version::GetRevision());
+    SendString(rttr::version::GetVersion());
+    SendString(rttr::version::GetRevision());
 
     SendUnsigned(GAMECLIENT.GetGFNumber());
 }
@@ -191,7 +178,7 @@ DebugInfo::~DebugInfo()
     sock.Close();
 }
 
-std::vector<void*> DebugInfo::GetStackTrace(void* ctx)
+std::vector<void*> DebugInfo::GetStackTrace(void* ctx) noexcept
 {
     std::vector<void*> stacktrace(256);
 #ifdef _MSC_VER
@@ -292,15 +279,17 @@ bool DebugInfo::SendReplay()
 
         if(!rpl || !rpl->IsRecording())
             return true;
+        const auto replayPath = rpl->GetPath();
+        rpl->Close();
 
-        BinaryFile& f = rpl->GetFile();
-
-        f.Flush();
-
-        if(!SendString("Replay"))
-            return false;
-        if(SendFile(f))
-            return true;
+        BinaryFile f;
+        if(f.Open(replayPath, OpenFileMode::OFM_READ))
+        {
+            if(!SendString("Replay"))
+                return false;
+            if(SendFile(f))
+                return true;
+        }
         // Empty replay
         SendUnsigned(0);
         return false;

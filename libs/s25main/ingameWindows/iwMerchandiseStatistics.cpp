@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMerchandiseStatistics.h"
 #include "GamePlayer.h"
@@ -47,55 +34,58 @@ const std::array<unsigned, 14> iwMerchandiseStatistics::BarColors = {
 iwMerchandiseStatistics::iwMerchandiseStatistics(const GamePlayer& player)
     : IngameWindow(CGI_MERCHANDISE_STATISTICS, IngameWindow::posLastOrCenter, Extent(252, 310), _("Merchandise"),
                    LOADER.GetImageN("resource", 41)),
-      player(player), currentTime(STAT_1H)
+      player(player), currentTime(StatisticTime::T1Hour)
 {
     // Statistikfeld
     AddImage(0, DrawPoint(10 + 115, 23 + 81), LOADER.GetImageN("io", 228));
 
     // Waren-Buttons
     // obere Reihe
-    ctrlMultiSelectGroup* types = AddMultiSelectGroup(22, ctrlOptionGroup::ILLUMINATE);
-    types->AddImageButton(1, DrawPoint(17, 192), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_WOOD), _("Wood"));
-    types->AddImageButton(2, DrawPoint(48, 192), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_BOARDS), _("Boards"));
-    types->AddImageButton(3, DrawPoint(79, 192), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_STONES), _("Stones"));
-    types->AddImageButton(4, DrawPoint(110, 192), Extent(30, 30), TC_GREY, LOADER.GetImageN("io", 80), _("Food"));
-    types->AddImageButton(5, DrawPoint(141, 192), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_WATER), _("Water"));
-    types->AddImageButton(6, DrawPoint(172, 192), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_BEER), _("Beer"));
-    types->AddImageButton(7, DrawPoint(203, 192), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_COAL), _("Coal"));
+    ctrlMultiSelectGroup* types = AddMultiSelectGroup(22, GroupSelectType::Illuminate);
+    types->AddImageButton(1, DrawPoint(17, 192), Extent(30, 30), TextureColor::Grey, LOADER.GetWareTex(GoodType::Wood),
+                          _("Wood"));
+    types->AddImageButton(2, DrawPoint(48, 192), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::Boards), _("Boards"));
+    types->AddImageButton(3, DrawPoint(79, 192), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::Stones), _("Stones"));
+    types->AddImageButton(4, DrawPoint(110, 192), Extent(30, 30), TextureColor::Grey, LOADER.GetImageN("io", 80),
+                          _("Food"));
+    types->AddImageButton(5, DrawPoint(141, 192), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::Water), _("Water"));
+    types->AddImageButton(6, DrawPoint(172, 192), Extent(30, 30), TextureColor::Grey, LOADER.GetWareTex(GoodType::Beer),
+                          _("Beer"));
+    types->AddImageButton(7, DrawPoint(203, 192), Extent(30, 30), TextureColor::Grey, LOADER.GetWareTex(GoodType::Coal),
+                          _("Coal"));
 
     // untere Reihe
-    types->AddImageButton(8, DrawPoint(17, 227), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_IRONORE), _("Ironore"));
-    types->AddImageButton(9, DrawPoint(48, 227), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_GOLD), _("Gold"));
-    types->AddImageButton(10, DrawPoint(79, 227), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_IRON), _("Iron"));
-    types->AddImageButton(11, DrawPoint(110, 227), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_COINS), _("Coins"));
-    types->AddImageButton(12, DrawPoint(141, 227), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_HAMMER), _("Tools"));
-    types->AddImageButton(13, DrawPoint(172, 227), Extent(30, 30), TC_GREY, LOADER.GetImageN("io", 111), _("Weapons"));
-    types->AddImageButton(14, DrawPoint(203, 227), Extent(30, 30), TC_GREY,
-                          LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_BOAT), _("Boats"));
+    types->AddImageButton(8, DrawPoint(17, 227), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::IronOre), _("Ironore"));
+    types->AddImageButton(9, DrawPoint(48, 227), Extent(30, 30), TextureColor::Grey, LOADER.GetWareTex(GoodType::Gold),
+                          _("Gold"));
+    types->AddImageButton(10, DrawPoint(79, 227), Extent(30, 30), TextureColor::Grey, LOADER.GetWareTex(GoodType::Iron),
+                          _("Iron"));
+    types->AddImageButton(11, DrawPoint(110, 227), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::Coins), _("Coins"));
+    types->AddImageButton(12, DrawPoint(141, 227), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::Hammer), _("Tools"));
+    types->AddImageButton(13, DrawPoint(172, 227), Extent(30, 30), TextureColor::Grey, LOADER.GetImageN("io", 111),
+                          _("Weapons"));
+    types->AddImageButton(14, DrawPoint(203, 227), Extent(30, 30), TextureColor::Grey,
+                          LOADER.GetWareTex(GoodType::Boat), _("Boats"));
 
     // Hilfe
-    AddImageButton(16, DrawPoint(17, 261), Extent(30, 32), TC_GREY, LOADER.GetImageN("io", 225), _("Help"));
+    AddImageButton(16, DrawPoint(17, 261), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io", 225), _("Help"));
 
     // Mülleimer
-    AddImageButton(17, DrawPoint(49, 263), Extent(30, 28), TC_GREY, LOADER.GetImageN("io", 106), _("Delete all"));
+    AddImageButton(17, DrawPoint(49, 263), Extent(30, 28), TextureColor::Grey, LOADER.GetImageN("io", 106),
+                   _("Delete all"));
 
     // Zeiten
-    ctrlOptionGroup* times = AddOptionGroup(23, ctrlOptionGroup::ILLUMINATE);
-    times->AddTextButton(18, DrawPoint(81, 263), Extent(36, 28), TC_GREY, _("15 m"), NormalFont);
-    times->AddTextButton(19, DrawPoint(119, 263), Extent(36, 28), TC_GREY, _("1 h"), NormalFont);
-    times->AddTextButton(20, DrawPoint(155, 263), Extent(36, 28), TC_GREY, _("4 h"), NormalFont);
-    times->AddTextButton(21, DrawPoint(191, 263), Extent(36, 28), TC_GREY, _("16 h"), NormalFont);
+    ctrlOptionGroup* times = AddOptionGroup(23, GroupSelectType::Illuminate);
+    times->AddTextButton(18, DrawPoint(81, 263), Extent(36, 28), TextureColor::Grey, _("15 m"), NormalFont);
+    times->AddTextButton(19, DrawPoint(119, 263), Extent(36, 28), TextureColor::Grey, _("1 h"), NormalFont);
+    times->AddTextButton(20, DrawPoint(155, 263), Extent(36, 28), TextureColor::Grey, _("4 h"), NormalFont);
+    times->AddTextButton(21, DrawPoint(191, 263), Extent(36, 28), TextureColor::Grey, _("16 h"), NormalFont);
     times->SetSelection(19);
 
     // Zeit-Werte an der x-Achse
@@ -143,10 +133,10 @@ void iwMerchandiseStatistics::Msg_OptionGroupChange(const unsigned ctrl_id, cons
         case 23: // Zeitbereich wählen
             switch(selection)
             {
-                case 18: currentTime = STAT_15M; break;
-                case 19: currentTime = STAT_1H; break;
-                case 20: currentTime = STAT_4H; break;
-                case 21: currentTime = STAT_16H; break;
+                case 18: currentTime = StatisticTime::T15Minutes; break;
+                case 19: currentTime = StatisticTime::T1Hour; break;
+                case 20: currentTime = StatisticTime::T4Hours; break;
+                case 21: currentTime = StatisticTime::T16Hours; break;
             }
             break;
     }
@@ -155,6 +145,10 @@ void iwMerchandiseStatistics::Msg_OptionGroupChange(const unsigned ctrl_id, cons
 void iwMerchandiseStatistics::Draw_()
 {
     IngameWindow::Draw_();
+
+    if(IsMinimized())
+        return;
+
     DrawRectangles();
     DrawAxis();
     DrawStatistic();
@@ -266,7 +260,7 @@ void iwMerchandiseStatistics::DrawAxis()
 
     switch(currentTime)
     {
-        case STAT_15M:
+        case StatisticTime::T15Minutes:
             // -15
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));
@@ -304,7 +298,7 @@ void iwMerchandiseStatistics::DrawAxis()
 
             timeAnnotations[5]->SetVisible(false);
             break;
-        case STAT_1H:
+        case StatisticTime::T1Hour:
             // -60
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));
@@ -347,7 +341,7 @@ void iwMerchandiseStatistics::DrawAxis()
             timeAnnotations[5]->SetText("-10");
             timeAnnotations[5]->SetVisible(true);
             break;
-        case STAT_4H:
+        case StatisticTime::T4Hours:
             // -240
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));
@@ -379,7 +373,7 @@ void iwMerchandiseStatistics::DrawAxis()
             timeAnnotations[4]->SetVisible(false);
             timeAnnotations[5]->SetVisible(false);
             break;
-        case STAT_16H:
+        case StatisticTime::T16Hours:
             // -960
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));

@@ -1,26 +1,15 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
+#include "helpers/PtrSpan.h"
 #include "noMovable.h"
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/ShipDirection.h"
 #include <list>
+#include <memory>
 #include <vector>
 
 #define SHIP_CAPACITY 40
@@ -38,28 +27,29 @@ class noShip : public noMovable
     unsigned char ownerId_;
 
     /// Was macht das Schiff gerade?
-    enum State
+    enum class State : uint8_t
     {
-        STATE_IDLE = 0, /// Schiff hat nix zu tun und hängt irgendwo an der Küste rum
-        STATE_GOTOHARBOR,
-        STATE_EXPEDITION_LOADING,
-        STATE_EXPEDITION_UNLOADING,
-        STATE_EXPEDITION_WAITING,
-        STATE_EXPEDITION_DRIVING,
-        STATE_EXPLORATIONEXPEDITION_LOADING,
-        STATE_EXPLORATIONEXPEDITION_UNLOADING,
-        STATE_EXPLORATIONEXPEDITION_WAITING,
-        STATE_EXPLORATIONEXPEDITION_DRIVING,
-        STATE_TRANSPORT_LOADING, // Schiff wird mit Waren/Figuren erst noch beladen, bleibt also für kurze Zeit am Hafen
-        STATE_TRANSPORT_DRIVING,   /// Schiff transportiert Waren/Figuren von einen Ort zum anderen
-        STATE_TRANSPORT_UNLOADING, /// Entlädt Schiff am Zielhafen, kurze Zeit ankern, bevor Waren im Hafengebäude
-                                   /// ankommen..
-        STATE_SEAATTACK_LOADING,
-        STATE_SEAATTACK_UNLOADING,
-        STATE_SEAATTACK_DRIVINGTODESTINATION, /// Fährt mit den Soldaten zum Zielhafenpunkt
-        STATE_SEAATTACK_WAITING,              /// wartet an der Küste, während die Soldaten was schönes machen
-        STATE_SEAATTACK_RETURN_DRIVING        /// fährt mit den Soldaten wieder zurück zum Heimathafen
+        Idle, /// Schiff hat nix zu tun und hängt irgendwo an der Küste rum
+        Gotoharbor,
+        ExpeditionLoading,
+        ExpeditionUnloading,
+        ExpeditionWaiting,
+        ExpeditionDriving,
+        ExplorationexpeditionLoading,
+        ExplorationexpeditionUnloading,
+        ExplorationexpeditionWaiting,
+        ExplorationexpeditionDriving,
+        TransportLoading,   // Schiff wird mit Waren/Figuren erst noch beladen, bleibt also für kurze Zeit am Hafen
+        TransportDriving,   /// Schiff transportiert Waren/Figuren von einen Ort zum anderen
+        TransportUnloading, /// Entlädt Schiff am Zielhafen, kurze Zeit ankern, bevor Waren im Hafengebäude
+                            /// ankommen..
+        SeaattackLoading,
+        SeaattackUnloading,
+        SeaattackDrivingToDestination, /// Fährt mit den Soldaten zum Zielhafenpunkt
+        SeaattackWaiting,              /// wartet an der Küste, während die Soldaten was schönes machen
+        SeaattackReturnDriving         /// fährt mit den Soldaten wieder zurück zum Heimathafen
     } state;
+    friend constexpr auto maxEnumValue(State) { return State::SeaattackReturnDriving; }
 
     /// Das Meer, auf dem dieses Schiff fährt
     unsigned short seaId_;
@@ -73,12 +63,12 @@ class noShip : public noMovable
     unsigned curRouteIdx;
     std::vector<Direction> route_;
     /// Ladung des Schiffes
-    std::list<noFigure*> figures;
-    std::list<Ware*> wares;
+    std::list<std::unique_ptr<noFigure>> figures;
+    std::list<std::unique_ptr<Ware>> wares;
     /// Gibt an, ob das Schiff verlassen auf dem Meer auf einen Anlegeplatz wartet,
     /// um sein Zeug auszuladen
     bool lost;
-    /// Bei Schiffen im STATE_SEAATTACK_WAITING:
+    /// Bei Schiffen im SeaattackWaiting:
     /// Anzahl der Soldaten, die noch kommen müssten
     unsigned remaining_sea_attackers;
     /// Heimathafen der Schiffs-Angreifer
@@ -99,12 +89,12 @@ private:
     void HandleState_SeaAttackDriving();
     void HandleState_SeaAttackReturn();
 
-    enum Result
+    enum class Result
     {
-        DRIVING = 0,
-        GOAL_REACHED,
-        NO_ROUTE_FOUND,
-        HARBOR_DOESNT_EXIST
+        Driving,
+        GoalReached,
+        NoRouteFound,
+        HarborDoesntExist
     };
 
     /// Fährt weiter zu einem Hafen
@@ -145,7 +135,7 @@ public:
     void Serialize(SerializedGameData& sgd) const override;
     void Destroy() override;
 
-    GO_Type GetGOT() const override { return GOT_SHIP; }
+    GO_Type GetGOT() const final { return GO_Type::Ship; }
 
     // An x,y zeichnen
     void Draw(DrawPoint drawPt) override;
@@ -159,34 +149,35 @@ public:
     /// Gibt den Schiffsnamen zurück
     const std::string& GetName() const { return name; }
     /// Hat das Schiff gerade nichts zu tun
-    bool IsIdling() const { return (state == STATE_IDLE); }
+    bool IsIdling() const { return (state == State::Idle); }
     bool IsLost() const { return lost; }
     /// Führt das Schiff gerade eine Expedition durch und wartet auf weitere Befehle?
-    bool IsWaitingForExpeditionInstructions() const { return (state == STATE_EXPEDITION_WAITING); }
+    bool IsWaitingForExpeditionInstructions() const { return (state == State::ExpeditionWaiting); }
     /// Ist das Schiff gerade irgendwie am Expeditionieren und hat entsprechenden Kram an Bord?
     bool IsOnExpedition() const
     {
-        return (state == STATE_EXPEDITION_LOADING || state == STATE_EXPEDITION_WAITING
-                || state == STATE_EXPEDITION_DRIVING);
+        return (state == State::ExpeditionLoading || state == State::ExpeditionWaiting
+                || state == State::ExpeditionDriving);
     }
     /// Ist das Schiff gerade irgendwie am Explorations-Expeditionieren und hat entsprechenden Kram an Bord?
     bool IsOnExplorationExpedition() const
     {
-        return (state == STATE_EXPLORATIONEXPEDITION_LOADING || state == STATE_EXPLORATIONEXPEDITION_UNLOADING
-                || state == STATE_EXPLORATIONEXPEDITION_WAITING || state == STATE_EXPLORATIONEXPEDITION_DRIVING);
+        return (state == State::ExplorationexpeditionLoading || state == State::ExplorationexpeditionUnloading
+                || state == State::ExplorationexpeditionWaiting || state == State::ExplorationexpeditionDriving);
     }
     bool IsOnAttackMission() const
     {
-        return (state == STATE_SEAATTACK_LOADING || state == STATE_SEAATTACK_UNLOADING
-                || state == STATE_SEAATTACK_DRIVINGTODESTINATION || state == STATE_SEAATTACK_WAITING
-                || state == STATE_SEAATTACK_RETURN_DRIVING);
+        return (state == State::SeaattackLoading || state == State::SeaattackUnloading
+                || state == State::SeaattackDrivingToDestination || state == State::SeaattackWaiting
+                || state == State::SeaattackReturnDriving);
     }
     bool IsLoading() const;
     bool IsUnloading() const;
     /// Gibt Liste der Waren an Bord zurück
-    const std::list<Ware*>& GetWares() const { return wares; }
+    auto GetWares() const { return helpers::nonNullPtrSpan(wares); }
     /// Gibt Liste der Menschen an Bord zurück
-    const std::list<noFigure*>& GetFigures() const { return figures; }
+    auto GetFigures() const { return helpers::nonNullPtrSpan(figures); }
+    bool IsOnBoard(const noFigure& figure) const;
     /// Gibt Sichtradius dieses Schiffes zurück
     unsigned GetVisualRange() const;
 
@@ -218,15 +209,15 @@ public:
     bool IsGoingToHarbor(const nobHarborBuilding& hb) const;
 
     /// Belädt das Schiff mit Waren und Figuren, um eine Transportfahrt zu starten
-    void PrepareTransport(unsigned homeHarborId, MapPoint goal, const std::list<noFigure*>& figures,
-                          const std::list<Ware*>& wares);
+    void PrepareTransport(unsigned homeHarborId, MapPoint goal, std::list<std::unique_ptr<noFigure>> figures,
+                          std::list<std::unique_ptr<Ware>> wares);
 
     /// Belädt das Schiff mit Schiffs-Angreifern
-    void PrepareSeaAttack(unsigned homeHarborId, MapPoint goal, const std::list<noFigure*>& figures);
+    void PrepareSeaAttack(unsigned homeHarborId, MapPoint goal, std::vector<std::unique_ptr<nofAttacker>> attackers);
     /// Sagt Bescheid, dass ein Schiffsangreifer nicht mehr mit nach Hause fahren will
     void SeaAttackerWishesNoReturn();
     /// Schiffs-Angreifer sind nach dem Angriff wieder zurückgekehrt
-    void AddReturnedAttacker(nofAttacker* attacker);
+    void AddReturnedAttacker(std::unique_ptr<nofAttacker> attacker);
 
     /// Sagt dem Schiff, das ein bestimmter Hafen zerstört wurde
     void HarborDestroyed(nobHarborBuilding* hb);

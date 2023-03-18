@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "glFont.h"
 #include "FontStyle.h"
@@ -179,10 +166,9 @@ inline void glFont::DrawChar(char32_t curChar, VertexArrays& vertices, DrawPoint
  *                      @p FontStyle::TOP     - Text oben ( standard )
  *                      @p FontStyle::VCENTER - Text vertikal zentriert
  *                      @p FontStyle::BOTTOM  - Text unten
- *  @param[in] color  Farbe des Textes
- *  @param[in] length Länge des Textes
- *  @param[in] max    maximale Länge
- *  @param     end    Suffix for displaying a truncation of the text (...)
+ *  @param[in] color    Farbe des Textes
+ *  @param[in] maxWidth maximale Länge
+ *  @param     end      Suffix for displaying a truncation of the text (...)
  */
 void glFont::Draw(DrawPoint pos, const std::string& text, FontStyle format, unsigned color, unsigned short maxWidth,
                   const std::string& end) const

@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "TestServer.h"
 #include "liblobby/LobbyClient.h"
@@ -38,10 +25,7 @@ struct TestLobbySever : public TestServer, public LobbyMessageInterface
         {
             Connection& con = connections[id];
             while(!con.recvQueue.empty())
-            {
-                std::unique_ptr<Message> msg(con.recvQueue.popFront());
-                BOOST_TEST(msg->run(this, id));
-            }
+                BOOST_TEST(con.recvQueue.pop()->run(this, id));
         }
     }
 
@@ -55,8 +39,8 @@ struct TestLobbySever : public TestServer, public LobbyMessageInterface
     bool OnNMSLobbyLogin(unsigned id, const unsigned /*revision*/, const std::string& user, const std::string& pass,
                          const std::string& /*version*/) override
     {
-        BOOST_REQUIRE_EQUAL(user, testUser);
-        BOOST_REQUIRE_EQUAL(pass, s25util::md5(testPw).toString());
+        BOOST_TEST_REQUIRE(user == testUser);
+        BOOST_TEST_REQUIRE(pass == s25util::md5(testPw).toString());
         connections[id].sendQueue.push(new LobbyMessage_Login_Done(testMail));
         return true;
     }
@@ -66,7 +50,7 @@ struct LobbyFixture
 {
     TestLobbySever lobbyServer;
     uint16_t lobbyPort;
-    LobbyFixture() : lobbyPort(5664) { BOOST_REQUIRE(lobbyServer.listen(lobbyPort)); }
+    LobbyFixture() : lobbyPort(5664) { BOOST_TEST_REQUIRE(lobbyServer.listen(lobbyPort)); }
     ~LobbyFixture() { LOBBYCLIENT.Stop(); } // To avoid error msg due to missing server
     void run()
     {
@@ -76,18 +60,16 @@ struct LobbyFixture
 };
 
 namespace {
-/* clang-format off */
-    MOCK_BASE_CLASS(MockLobbyInterface, LobbyInterface)
-    {
-    public:
-        MockLobbyInterface() { LOBBYCLIENT.AddListener(this); }
-        ~MockLobbyInterface() override { LOBBYCLIENT.RemoveListener(this); }
-        MOCK_METHOD(LC_Chat, 2)
-        MOCK_METHOD(LC_LoggedIn, 1)
-        MOCK_METHOD(LC_Connected, 0)
-    };
-/* clang-format on */
-}
+MOCK_BASE_CLASS(MockLobbyInterface, LobbyInterface)
+{
+public:
+    MockLobbyInterface() { LOBBYCLIENT.AddListener(this); }
+    ~MockLobbyInterface() override { LOBBYCLIENT.RemoveListener(this); }
+    MOCK_METHOD(LC_Chat, 2)
+    MOCK_METHOD(LC_LoggedIn, 1)
+    MOCK_METHOD(LC_Connected, 0)
+};
+} // namespace
 
 BOOST_FIXTURE_TEST_SUITE(Lobby, LobbyFixture)
 
@@ -99,7 +81,7 @@ BOOST_AUTO_TEST_CASE(LobbyConnectAndChat)
     MOCK_EXPECT(lobby.LC_Connected).once().in(s);
     MOCK_EXPECT(lobby.LC_LoggedIn).once().with(lobbyServer.testMail).in(s);
 
-    BOOST_REQUIRE(LOBBYCLIENT.Login("localhost", lobbyPort, lobbyServer.testUser, lobbyServer.testPw, false));
+    BOOST_TEST_REQUIRE(LOBBYCLIENT.Login("localhost", lobbyPort, lobbyServer.testUser, lobbyServer.testPw, false));
     RTTR_REQUIRE_LOG_CONTAINS("Connect", true);
     lobbyServer.run(true);
     for(unsigned i = 0; i < 50; i++)
@@ -108,7 +90,7 @@ BOOST_AUTO_TEST_CASE(LobbyConnectAndChat)
         if(LOBBYCLIENT.IsLoggedIn())
             break;
     }
-    BOOST_REQUIRE(LOBBYCLIENT.IsLoggedIn());
+    BOOST_TEST_REQUIRE(LOBBYCLIENT.IsLoggedIn());
     RTTR_REQUIRE_LOG_CONTAINS("NMS", true);
 
     // Send a chat message via lobby chat

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -31,13 +18,14 @@ private:
     static const short UP_MAX = 0;
     static const short DOWN_MAX = 16;
 
-    enum BuilderState
+    enum class BuilderState : uint8_t
     {
-        STATE_FIGUREWORK = 0,
-        STATE_WAITINGFREEWALK, // Bauarbeiter geht auf und ab und wartet auf Rohstoffe
-        STATE_BUILDFREEWALK,   // Bauarbeiter geht auf und ab und baut
-        STATE_BUILD            // Bauarbeiter "baut" gerade (hämmert auf Gebäude ein)
+        FigureWork,
+        WaitingFreewalk, // Bauarbeiter geht auf und ab und wartet auf Rohstoffe
+        BuildFreewalk,   // Bauarbeiter geht auf und ab und baut
+        Build            // Bauarbeiter "baut" gerade (hämmert auf Gebäude ein)
     } state;
+    friend constexpr auto maxEnumValue(BuilderState) { return BuilderState::Build; }
 
     /// Baustelle des Bauarbeiters
     noBuildingSite* building_site;
@@ -46,7 +34,7 @@ private:
 
     /// X,Y relativ zur Baustelle in Pixeln
     /// next ist der angesteuerte Punkt
-    Point<short> offsetSite, nextOffsetSite;
+    Point<int16_t> offsetSite, nextOffsetSite;
 
     /// Wie viele Bauschritte noch verfügbar sind, bis der nächste Rohstoff geholt werden muss
     unsigned char building_steps_available;
@@ -72,14 +60,9 @@ public:
         noFigure::Destroy();
     }
 
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofBuilder(SerializedGameData& sgd) const;
+    void Serialize(SerializedGameData& sgd) const override;
 
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofBuilder(sgd); }
-
-    GO_Type GetGOT() const override { return GOT_NOF_BUILDER; }
+    GO_Type GetGOT() const final { return GO_Type::NofBuilder; }
 
     void Draw(DrawPoint drawPt) override;
 

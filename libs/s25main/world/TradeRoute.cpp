@@ -1,39 +1,26 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/TradeRoute.h"
 #include "SerializedGameData.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/GameConsts.h"
 
-TradeRoute::TradeRoute(const GameWorldGame& gwg, unsigned char player, const MapPoint& start, const MapPoint& goal)
-    : gwg(gwg), player(player)
+TradeRoute::TradeRoute(const GameWorld& world, unsigned char player, const MapPoint& start, const MapPoint& goal)
+    : world(world), player(player)
 {
     AssignNewGoal(start, goal);
 }
 
-TradeRoute::TradeRoute(SerializedGameData& sgd, const GameWorldGame& gwg, const unsigned char player)
-    : gwg(gwg), player(player), path(sgd), curPos(sgd.PopMapPoint()), curRouteIdx(sgd.PopUnsignedInt())
+TradeRoute::TradeRoute(SerializedGameData& sgd, const GameWorld& world, const unsigned char player)
+    : world(world), player(player), path(sgd), curPos(sgd.PopMapPoint()), curRouteIdx(sgd.PopUnsignedInt())
 {}
 
 void TradeRoute::Serialize(SerializedGameData& sgd) const
 {
     path.Serialize(sgd);
-    sgd.PushMapPoint(curPos);
+    helpers::pushPoint(sgd, curPos);
     sgd.PushUnsignedInt(curRouteIdx);
 }
 
@@ -48,7 +35,7 @@ helpers::OptionalEnum<TradeDirection> TradeRoute::GetNextDir()
 
     Direction nextDir;
     // Check if the route is still valid
-    if(gwg.CheckTradeRoute(curPos, path.route, curRouteIdx, player))
+    if(world.CheckTradeRoute(curPos, path.route, curRouteIdx, player))
         nextDir = path.route[curRouteIdx];
     else
     {
@@ -62,7 +49,7 @@ helpers::OptionalEnum<TradeDirection> TradeRoute::GetNextDir()
 
     RTTR_Assert(nextDir == path.route[curRouteIdx]);
     curRouteIdx++;
-    curPos = gwg.GetNeighbour(curPos, nextDir);
+    curPos = world.GetNeighbour(curPos, nextDir);
     return TradeDirection(rttr::enum_cast(nextDir));
 }
 
@@ -76,7 +63,7 @@ helpers::OptionalEnum<TradeDirection> TradeRoute::RecalcRoute()
     path.start = curPos;
     path.route.clear();
     const auto nextDir =
-      gwg.FindTradePath(path.start, path.goal, player, std::numeric_limits<unsigned>::max(), false, &path.route);
+      world.FindTradePath(path.start, path.goal, player, std::numeric_limits<unsigned>::max(), false, &path.route);
     curRouteIdx = 0;
     if(nextDir)
         return TradeDirection(rttr::enum_cast(*nextDir));

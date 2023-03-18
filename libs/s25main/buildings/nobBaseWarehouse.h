@@ -1,29 +1,18 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "DataChangedObservable.h"
 #include "nobBaseMilitary.h"
+#include "gameTypes/GoodsAndPeopleArray.h"
 #include "gameTypes/InventorySetting.h"
 #include "gameTypes/VirtualInventory.h"
-#include <boost/variant/variant_fwd.hpp>
+#include <boost/variant.hpp>
 #include <array>
 #include <list>
+#include <memory>
 
 class nofCarrier;
 class noFigure;
@@ -48,11 +37,8 @@ class SetAllInventorySettings;
 } // namespace gc
 
 /// Ein/Auslagereinstellungsstruktur
-struct InventorySettings
-{
-    std::array<InventorySetting, NUM_WARE_TYPES> wares;
-    std::array<InventorySetting, NUM_JOB_TYPES> figures;
-};
+struct InventorySettings : GoodsAndPeopleArray<InventorySetting>
+{};
 
 /// Grundlegende Warenhausklasse, die alle Funktionen vereint, die für Warenhäuser (HQ, Lagerhaus, Häfen) wichtig sind.
 /// Change events: 1=InventorySettings
@@ -61,7 +47,7 @@ class nobBaseWarehouse : public nobBaseMilitary, public DataChangedObservable
 protected:
     // Liste von Waren, die noch rausgebracht werden müssen, was im Moment aber nicht möglich ist,
     // weil die Flagge voll ist vor dem Lagerhaus
-    std::list<Ware*> waiting_wares;
+    std::list<std::unique_ptr<Ware>> waiting_wares;
     // verhindert doppeltes Holen von Waren
     bool fetch_double_protection;
     /// Liste von Figuren, die auf dem Weg zu dem Lagerhaus sind bzw. Soldaten die von ihm kommen
@@ -92,9 +78,9 @@ private:
     bool AreRecruitingConditionsComply();
     /// Abgeleitete kann eine gerade erzeugte Ware ggf. sofort verwenden
     /// (muss in dem Fall true zurückgeben)
-    virtual bool UseWareAtOnce(Ware* ware, noBaseBuilding& goal);
+    virtual bool UseWareAtOnce(std::unique_ptr<Ware>& ware, noBaseBuilding& goal);
     /// Dasselbe für Menschen
-    virtual bool UseFigureAtOnce(noFigure* fig, noRoadNode& goal);
+    virtual bool UseFigureAtOnce(std::unique_ptr<noFigure>& fig, noRoadNode& goal);
     /// Prüft verschiedene Verwendungszwecke für eine neuangekommende Ware
     void CheckUsesForNewWare(GoodType gt);
     /// Prüft verschiedene Sachen, falls ein neuer Mensch das Haus betreten hat
@@ -103,13 +89,13 @@ private:
     friend class gc::SetInventorySetting;
     friend class gc::SetAllInventorySettings;
     /// Verändert Ein/Auslagerungseinstellungen
-    void SetInventorySetting(bool isJob, unsigned char type, InventorySetting state);
+    void SetInventorySetting(const boost::variant<GoodType, Job>& what, InventorySetting state);
 
     /// Verändert alle Ein/Auslagerungseinstellungen einer Kategorie (also Waren oder Figuren)(real)
     void SetAllInventorySettings(bool isJob, const std::vector<InventorySetting>& states);
 
     /// Lässt einen bestimmten Waren/Job-Typ ggf auslagern
-    void CheckOuthousing(bool isJob, unsigned job_ware_id);
+    void CheckOuthousing(const boost::variant<GoodType, Job>& what);
     void HandleCollectEvent();
     void HandleSendoutEvent();
     void HandleRecrutingEvent();
@@ -118,7 +104,7 @@ private:
 
 protected:
     /// Stellt Verteidiger zur Verfügung
-    nofDefender* ProvideDefender(nofAttacker* attacker) override;
+    std::unique_ptr<nofDefender> ProvideDefender(nofAttacker& attacker) override;
 
     void HandleBaseEvent(unsigned id);
 
@@ -143,10 +129,9 @@ public:
 
 protected:
     void DestroyBuilding() override;
-    void Serialize_nobBaseWarehouse(SerializedGameData& sgd) const;
 
 public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nobBaseWarehouse(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
     const Inventory& GetInventory() const;
 
@@ -184,7 +169,7 @@ public:
         return GetInventorySetting(ware).IsSet(setting);
     }
 
-    void SetInventorySettingVisual(bool isJob, unsigned char type, InventorySetting state);
+    void SetInventorySettingVisual(const boost::variant<GoodType, Job>& what, InventorySetting state);
 
     /// Bestellt einen Träger
     void OrderCarrier(noRoadNode& goal, RoadSegment& workplace);
@@ -199,7 +184,7 @@ public:
 
     /// Wird von den Lagerhaus-Arbeitern aufgerufen, wenn sie ein Ware wieder zurückbringen, die sie vorne nicht ablegen
     /// konnten
-    void AddWaitingWare(Ware*& ware);
+    void AddWaitingWare(std::unique_ptr<Ware> ware);
     /// Wird aufgerufen, wenn von der Fahne vor dem Gebäude ein Rohstoff aufgenommen wurde
     bool FreePlaceAtFlag() override;
     // Eine Ware liegt vor der Flagge des Warenhauses und will rein --> ein Warenhausmitarbeiter muss kommen und sie
@@ -209,14 +194,14 @@ public:
     void DontFetchNextWare() { fetch_double_protection = true; }
 
     /// Legt eine Ware im Lagerhaus ab
-    void AddWare(Ware*& ware) override;
+    void AddWare(std::unique_ptr<Ware> ware) override;
     /// Eine Figur geht ins Lagerhaus
-    virtual void AddFigure(noFigure* figure, bool increase_visual_counts = true);
+    virtual void AddFigure(std::unique_ptr<noFigure> figure, bool increase_visual_counts = true);
 
     /// Eine bestellte Ware konnte doch nicht kommen
-    void WareLost(Ware* ware) override;
+    void WareLost(Ware& ware) override;
     /// Bestellte Ware, die sich noch hier drin befindet, storniert ihre Auslieferung
-    void CancelWare(Ware* ware);
+    void CancelWare(Ware*& ware);
     /// Bestellte Figur, die sich noch inder Warteschlange befindet, kommt nicht mehr und will rausgehauen werden
     virtual void CancelFigure(noFigure* figure);
 
@@ -224,57 +209,56 @@ public:
     void TakeWare(Ware* ware) override;
 
     /// Fügt eine Figur hinzu, die auf dem Weg zum Lagerhaus ist
-    void AddDependentFigure(noFigure* figure)
+    void AddDependentFigure(noFigure& figure)
     {
         RTTR_Assert(!IsDependentFigure(figure));
-        dependent_figures.push_back(figure);
+        dependent_figures.push_back(&figure);
     }
     //// Entfernt eine abhängige Figur wieder aus der Liste
-    virtual void RemoveDependentFigure(noFigure* figure)
+    virtual void RemoveDependentFigure(noFigure& figure)
     {
         RTTR_Assert(IsDependentFigure(figure));
-        dependent_figures.remove(figure);
+        dependent_figures.remove(&figure);
     }
     /// Wird aufgerufen, wenn ein Arbeiter hierher kommt
-    void GotWorker(Job /*job*/, noFigure* worker) override
+    void GotWorker(Job /*job*/, noFigure& worker) override
     {
         RTTR_Assert(!IsDependentFigure(worker));
-        dependent_figures.push_back(worker);
+        dependent_figures.push_back(&worker);
     }
 
     //// Entfernt eine abhängige Ware wieder aus der Liste (wird mit TakeWare hinzugefügt)
-    void RemoveDependentWare(Ware* ware)
+    void RemoveDependentWare(Ware& ware)
     {
         RTTR_Assert(IsWareDependent(ware));
-        dependent_wares.remove(ware);
+        dependent_wares.remove(&ware);
     }
     /// Überprüft, ob Ware abhängig ist
-    bool IsWareDependent(Ware* ware);
+    bool IsWareDependent(const Ware& ware);
     /// Prüft, ob es Waren zum Auslagern gibt
     bool AreWaresToEmpty() const;
 
     /// Fügt aktiven Soldaten (der aus von einer Mission) zum Militärgebäude hinzu
-    void AddActiveSoldier(nofActiveSoldier* soldier) override;
+    void AddActiveSoldier(std::unique_ptr<nofActiveSoldier> soldier) override;
     /// Gibt Gesamtanzahl aller im Lager befindlichen Soldaten zurück
     unsigned GetNumSoldiers() const
     {
-        return GetNumRealFigures(JOB_PRIVATE) + GetNumRealFigures(JOB_PRIVATEFIRSTCLASS)
-               + GetNumRealFigures(JOB_SERGEANT) + GetNumRealFigures(JOB_OFFICER) + GetNumRealFigures(JOB_GENERAL);
+        return GetNumRealFigures(Job::Private) + GetNumRealFigures(Job::PrivateFirstClass)
+               + GetNumRealFigures(Job::Sergeant) + GetNumRealFigures(Job::Officer) + GetNumRealFigures(Job::General);
     }
     /// Bestellt Soldaten
     void OrderTroops(nobMilitary* goal, unsigned count, bool ignoresettingsendweakfirst = false);
 
     /// Schickt einen Verteidiger raus, der einem Angreifer in den Weg rennt
-    nofAggressiveDefender* SendAggressiveDefender(nofAttacker* attacker) override;
+    nofAggressiveDefender* SendAggressiveDefender(nofAttacker& attacker) override;
     /// Wird aufgerufen, wenn ein Soldat nicht mehr kommen kann
     void SoldierLost(nofSoldier* soldier) override;
 
     /// Sind noch Truppen drinne, die dieses Gebäude verteidigen könnten?
     bool DefendersAvailable() const override;
 
-    /// Verändert Reserveeinstellung - visuell (nur das geforderte natürlich) und gibt neue Anzahl zurück
-    unsigned IncreaseReserveVisual(unsigned rank);
-    unsigned DecreaseReserveVisual(unsigned rank);
+    /// Verändert Reserveeinstellung
+    void SetReserveVisual(unsigned rank, unsigned count);
     void SetRealReserve(unsigned rank, unsigned count);
 
     /// Versucht, die geforderten Reserve-Soldaten bereitzustellen
@@ -297,5 +281,5 @@ public:
                             nobBaseWarehouse* goal);
 
     /// For debug only
-    bool IsDependentFigure(noFigure* fig) const;
+    bool IsDependentFigure(const noFigure& fig) const;
 };

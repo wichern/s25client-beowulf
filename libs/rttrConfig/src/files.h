@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -26,18 +13,19 @@ RTTR_IGNORE_DIAGNOSTIC("-Wunused-variable")
 
 namespace s25 {
 namespace folders {
-    constexpr auto config = "<RTTR_CONFIG>";
+    constexpr auto assetsAddons = "<RTTR_RTTR>/assets/addons";       // Addon specifc assets
+    constexpr auto assetsBase = "<RTTR_RTTR>/assets/base";           // Assets introduced by rttr
+    constexpr auto assetsNations = "<RTTR_RTTR>/assets/nations";     // Addon specific assets
+    constexpr auto assetsOverrides = "<RTTR_RTTR>/assets/overrides"; // Assets overriding S2 files
+    constexpr auto assetsUserOverrides = "<RTTR_USERDATA>/LSTS";     // User overrides for assets
+    constexpr auto config = "<RTTR_USERDATA>";
     constexpr auto data = "<RTTR_GAME>/DATA"; // S2 game data
     constexpr auto driver = "<RTTR_DRIVER>";
-    constexpr auto gameLstsGlobal = "<RTTR_RTTR>/LSTS/GAME";   // global lst files loaded on game start
-    constexpr auto gameLstsUser = "<RTTR_USERDATA>/LSTS/GAME"; // user lst files  loaded on game start
-    constexpr auto gamedata = "<RTTR_RTTR>/gamedata";          // Path to the gamedata
-    constexpr auto languages = "<RTTR_RTTR>/languages";        // translation files
+    constexpr auto gamedata = "<RTTR_RTTR>/gamedata";   // Path to the gamedata
+    constexpr auto languages = "<RTTR_RTTR>/languages"; // translation files
     constexpr auto loadScreens = "<RTTR_GAME>/GFX/PICS";
     constexpr auto loadScreensMissions = "<RTTR_GAME>/GFX/PICS/MISSION";
     constexpr auto logs = "<RTTR_USERDATA>/LOGS";
-    constexpr auto lstsGlobal = "<RTTR_RTTR>/LSTS";   // global lst files loaded on program start
-    constexpr auto lstsUser = "<RTTR_USERDATA>/LSTS"; // user lst files  loaded on program start
     constexpr auto mapsCampaign = "<RTTR_GAME>/DATA/MAPS";
     constexpr auto mapsContinents = "<RTTR_GAME>/DATA/MAPS2";
     constexpr auto mapsNew = "<RTTR_GAME>/DATA/MAPS4";
@@ -58,7 +46,7 @@ namespace folders {
     constexpr auto textures = "<RTTR_GAME>/GFX/TEXTURES"; // Terrain textures
 } // namespace folders
 namespace files {
-    constexpr auto splash = "<RTTR_RTTR>/splash.bmp";
+    constexpr auto splash = "<RTTR_RTTR>/assets/base/splash.bmp";
     constexpr auto soundOrig = "<RTTR_GAME>/DATA/SOUNDDAT/SOUND.LST"; // original sound.lst
     constexpr auto soundScript = "<RTTR_RTTR>/sound.scs";             // converter script
     constexpr auto defaultPlaylist = "<RTTR_RTTR>/MUSIC/S2_Standard.pll";
@@ -67,10 +55,9 @@ namespace resources {
     constexpr auto boat = "<RTTR_GAME>/DATA/BOBS/BOAT.LST";
     constexpr auto boot_z = "<RTTR_GAME>/DATA/BOOT_Z.LST";
     constexpr auto carrier = "<RTTR_GAME>/DATA/BOBS/CARRIER.BOB";
-    constexpr auto colors = "<RTTR_RTTR>/COLORS.ACT";   // special palette for player colors
-    constexpr auto config = "<RTTR_CONFIG>/CONFIG.INI"; // main config file
+    constexpr auto config = "<RTTR_USERDATA>/CONFIG.INI"; // main config file
+    constexpr auto ingameOptions = "<RTTR_USERDATA>/IngameOptions.ini";
     constexpr auto io = "<RTTR_GAME>/DATA/IO/IO.DAT";
-    constexpr auto fonts = "<RTTR_RTTR>/LSTS/fonts.LST";
     constexpr auto jobs = "<RTTR_GAME>/DATA/BOBS/JOBS.BOB";
     constexpr auto mis0bobs = "<RTTR_GAME>/DATA/MIS0BOBS.LST";
     constexpr auto mis1bobs = "<RTTR_GAME>/DATA/MIS1BOBS.LST";
@@ -91,15 +78,10 @@ namespace resources {
 } // namespace resources
 } // namespace s25
 
+// TODO: Make this an array of ResourceId
 const std::array<const std::string, 21> LOAD_SCREENS = {
   {"setup666", "setup667", "setup801", "setup802", "setup803", "setup804", "setup805",
    "setup806", "setup810", "setup811", "setup895", "setup896", "africa",   "austra",
    "europe",   "green",    "japan",    "namerica", "nasia",    "samerica", "sasia"}};
-
-constexpr unsigned NUM_GFXSETS = 3;
-
-const std::array<const std::string, NUM_GFXSETS> MAP_GFXSET_Z = {{"MAP_0_Z", "MAP_1_Z", "MAP_2_Z"}};
-
-const std::array<const std::string, NUM_GFXSETS> TEX_GFXSET = {{"TEX5", "TEX6", "TEX7"}};
 
 RTTR_POP_DIAGNOSTIC

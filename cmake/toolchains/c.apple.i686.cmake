@@ -1,7 +1,11 @@
-SET(CMAKE_SYSTEM_NAME Darwin)
-SET(CMAKE_SYSTEM_PROCESSOR i386)
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-SET(CMAKE_OSX_ARCHITECTURES "i386" CACHE STRING "OSX-Architectures")
+set(CMAKE_SYSTEM_NAME Darwin)
+set(CMAKE_SYSTEM_PROCESSOR i386)
+
+set(CMAKE_OSX_ARCHITECTURES "i386" CACHE STRING "OSX-Architectures")
 
 # set compilers...
-INCLUDE("${CMAKE_CURRENT_LIST_DIR}/c.apple.common.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/c.apple.common.cmake")

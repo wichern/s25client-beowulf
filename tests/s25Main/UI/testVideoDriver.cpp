@@ -1,24 +1,12 @@
-// Copyright (c) 2016 - 2019 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "drivers/VideoDriverWrapper.h"
 #include "helpers/containerUtils.h"
 #include "mockupDrivers/MockupVideoDriver.h"
 #include "uiHelper/uiHelpers.hpp"
+#include "rttr/test/LogAccessor.hpp"
 #include <rttr/test/stubFunction.hpp>
 #include <s25util/warningSuppression.h>
 #include <glad/glad.h>
@@ -65,7 +53,7 @@ void APIENTRY glDeleteTextures(GLsizei n, const GLuint* textures)
     {
         BOOST_TEST(*textures != 0u);
         BOOST_TEST(helpers::contains(activeTextures, *textures));
-        helpers::remove(activeTextures, *(textures++));
+        helpers::erase(activeTextures, *(textures++));
     }
 }
 
@@ -75,8 +63,12 @@ RTTR_POP_DIAGNOSTIC
 BOOST_FIXTURE_TEST_CASE(CreateAndDestroyTextures, uiHelper::Fixture)
 {
     // Fresh start
-    VIDEODRIVER.DestroyScreen();
-    VIDEODRIVER.CreateScreen(VideoMode(800, 600), false);
+    {
+        rttr::test::LogAccessor logAcc;
+        VIDEODRIVER.DestroyScreen();
+        VIDEODRIVER.CreateScreen(VideoMode(800, 600), false);
+        logAcc.clearLog();
+    }
 
     RTTR_STUB_FUNCTION(glGenTextures, rttrOglMock2::glGenTextures);
     RTTR_STUB_FUNCTION(glDeleteTextures, rttrOglMock2::glDeleteTextures);
@@ -84,12 +76,20 @@ BOOST_FIXTURE_TEST_CASE(CreateAndDestroyTextures, uiHelper::Fixture)
     for(unsigned i = 1u; i <= 5u; ++i)
         BOOST_TEST(VIDEODRIVER.GenerateTexture() == i);
     BOOST_TEST_REQUIRE(rttrOglMock2::activeTextures.size() == 5u);
-    VIDEODRIVER.DestroyScreen();
+    {
+        rttr::test::LogAccessor logAcc;
+        VIDEODRIVER.DestroyScreen();
+        logAcc.clearLog();
+    }
     BOOST_TEST_REQUIRE(rttrOglMock2::activeTextures.empty());
     // Next cleanup call is a no-op (validated inside glDeleteTextures)
     VIDEODRIVER.CleanUp();
 
-    VIDEODRIVER.CreateScreen(VideoMode(800, 600), false);
+    {
+        rttr::test::LogAccessor logAcc;
+        VIDEODRIVER.CreateScreen(VideoMode(800, 600), false);
+        logAcc.clearLog();
+    }
     glGenTextures = rttrOglMock2::glGenTextures;
     glDeleteTextures = rttrOglMock2::glDeleteTextures;
     for(unsigned i = 1u; i <= 5u; ++i)

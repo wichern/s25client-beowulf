@@ -1,25 +1,13 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "DrawPoint.h"
 #include "GameObject.h"
 #include "NodalObjectTypes.h"
+#include <memory>
 
 class FOWObject;
 class SerializedGameData;
@@ -47,21 +35,16 @@ public:
 
     /// Type zurückgeben.
     NodalObjectType GetType() const { return nop; }
-    /// Serialisierungsfunktion.
-    void Serialize(SerializedGameData& sgd) const override { Serialize_noBase(sgd); }
+
+    void Serialize(SerializedGameData& sgd) const override;
 
     /// Erzeugt von ihnen selbst ein FOW Objekt als visuelle "Erinnerung" für den Fog of War
-    virtual FOWObject* CreateFOWObject() const;
+    virtual std::unique_ptr<FOWObject> CreateFOWObject() const;
 
     virtual BlockingManner GetBM() const;
     /// Gibt zurück, ob sich das angegebene Objekt zwischen zwei Punkten bewegt
     virtual bool IsMoving() const;
 
-protected:
-    /// Räumt das Basisobjekt auf.
-    void Destroy_noBase() {}
-    /// serialisiert das Basisobjekt.
-    void Serialize_noBase(SerializedGameData& sgd) const;
-
+private:
     NodalObjectType nop; /// Typ des NodeObjekt ( @see NodalObjectTypes.h )
 };

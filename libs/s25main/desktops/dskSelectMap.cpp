@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskSelectMap.h"
 #include "ListDir.h"
@@ -28,7 +15,6 @@
 #include "controls/ctrlTable.h"
 #include "controls/ctrlText.h"
 #include "desktops/dskDirectIP.h"
-#include "desktops/dskHostGame.h"
 #include "desktops/dskLAN.h"
 #include "desktops/dskLobby.h"
 #include "desktops/dskSinglePlayer.h"
@@ -36,29 +22,31 @@
 #include "helpers/containerUtils.h"
 #include "helpers/format.hpp"
 #include "helpers/toString.h"
+#include "ingameWindows/iwConnecting.h"
 #include "ingameWindows/iwMapGenerator.h"
 #include "ingameWindows/iwMsgbox.h"
 #include "ingameWindows/iwPleaseWait.h"
 #include "ingameWindows/iwSave.h"
 #include "lua/GameDataLoader.h"
-#include "mapGenerator/MapGenerator.h"
+#include "mapGenerator/RandomMap.h"
 #include "network/GameClient.h"
 #include "ogl/FontStyle.h"
-#include "ogl/glArchivItem_Map.h"
 #include "gameData/MapConsts.h"
 #include "gameData/WorldDescription.h"
 #include "liblobby/LobbyClient.h"
+#include "libsiedler2/ArchivItem_Map.h"
 #include "libsiedler2/ArchivItem_Map_Header.h"
 #include "libsiedler2/ErrorCodes.h"
 #include "libsiedler2/prototypen.h"
 #include "s25util/Log.h"
-#include "s25util/dynamicUniqueCast.h"
 #include "s25util/utf8.h"
 #include <boost/filesystem/operations.hpp>
+#include <boost/pointer_cast.hpp>
 #include <stdexcept>
 #include <utility>
 
 namespace bfs = boost::filesystem;
+constexpr unsigned ID_msgBoxError = 0;
 
 /**
  *  Konstruktor von @p dskSelectMap.
@@ -83,7 +71,7 @@ dskSelectMap::dskSelectMap(CreateServerInfo csi)
 
     // Die Tabelle für die Maps
     using SRT = ctrlTable::SortType;
-    AddTable(1, DrawPoint(110, 35), Extent(680, 400), TC_GREY, NormalFont,
+    AddTable(1, DrawPoint(110, 35), Extent(680, 400), TextureColor::Grey, NormalFont,
              ctrlTable::Columns{{_("Name"), 250, SRT::String},
                                 {_("Author"), 216, SRT::String},
                                 {_("Player"), 170, SRT::Number},
@@ -95,45 +83,45 @@ dskSelectMap::dskSelectMap(CreateServerInfo csi)
     AddText(2, DrawPoint(400, 5), _("Selection of maps"), COLOR_YELLOW, FontStyle::CENTER, LargeFont);
 
     // "Zurück"
-    AddTextButton(3, DrawPoint(380, 560), Extent(200, 22), TC_RED1, _("Back"), NormalFont);
+    AddTextButton(3, DrawPoint(380, 560), Extent(200, 22), TextureColor::Red1, _("Back"), NormalFont);
     // "Spiel laden..."
-    AddTextButton(4, DrawPoint(590, 530), Extent(200, 22), TC_GREEN2, _("Load game..."), NormalFont);
+    AddTextButton(4, DrawPoint(590, 530), Extent(200, 22), TextureColor::Green2, _("Load game..."), NormalFont);
     // "Weiter"
-    AddTextButton(5, DrawPoint(590, 560), Extent(200, 22), TC_GREEN2, _("Continue"), NormalFont);
+    AddTextButton(5, DrawPoint(590, 560), Extent(200, 22), TextureColor::Green2, _("Continue"), NormalFont);
     // random map generation
-    AddTextButton(6, DrawPoint(380, 530), Extent(150, 22), TC_GREEN2, _("Random Map"), NormalFont);
+    AddTextButton(6, DrawPoint(380, 530), Extent(150, 22), TextureColor::Green2, _("Random Map"), NormalFont);
     // random map settings
-    AddTextButton(7, DrawPoint(540, 530), Extent(40, 22), TC_GREEN2, _("..."), NormalFont);
+    AddTextButton(7, DrawPoint(540, 530), Extent(40, 22), TextureColor::Green2, _("..."), NormalFont);
 
-    ctrlOptionGroup* optiongroup = AddOptionGroup(10, ctrlOptionGroup::CHECK);
+    ctrlOptionGroup* optiongroup = AddOptionGroup(10, GroupSelectType::Check);
     Extent catBtSize = Extent(90, 22);
     // "Alte"
     DrawPoint curBtPos = DrawPoint(10, 35);
-    optiongroup->AddTextButton(0, curBtPos, catBtSize, TC_GREY, _("Old maps"), NormalFont);
+    optiongroup->AddTextButton(0, curBtPos, catBtSize, TextureColor::Grey, _("Old maps"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Neue"
-    optiongroup->AddTextButton(1, curBtPos, catBtSize, TC_GREY, _("New maps"), NormalFont);
+    optiongroup->AddTextButton(1, curBtPos, catBtSize, TextureColor::Grey, _("New maps"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Eigene"
-    optiongroup->AddTextButton(2, curBtPos, catBtSize, TC_GREY, _("Own maps"), NormalFont);
+    optiongroup->AddTextButton(2, curBtPos, catBtSize, TextureColor::Grey, _("Own maps"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Kontinente"
-    optiongroup->AddTextButton(3, curBtPos, catBtSize, TC_GREY, _("Continents"), NormalFont);
+    optiongroup->AddTextButton(3, curBtPos, catBtSize, TextureColor::Grey, _("Continents"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Kampagne"
-    optiongroup->AddTextButton(4, curBtPos, catBtSize, TC_GREY, _("Campaign"), NormalFont);
+    optiongroup->AddTextButton(4, curBtPos, catBtSize, TextureColor::Grey, _("Campaign"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "RTTR"
-    optiongroup->AddTextButton(5, curBtPos, catBtSize, TC_GREY, _("RTTR"), NormalFont);
+    optiongroup->AddTextButton(5, curBtPos, catBtSize, TextureColor::Grey, _("RTTR"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Andere"
-    optiongroup->AddTextButton(6, curBtPos, catBtSize, TC_GREY, _("Other"), NormalFont);
+    optiongroup->AddTextButton(6, curBtPos, catBtSize, TextureColor::Grey, _("Other"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Andere"
-    optiongroup->AddTextButton(7, curBtPos, catBtSize, TC_GREY, _("Sea"), NormalFont);
+    optiongroup->AddTextButton(7, curBtPos, catBtSize, TextureColor::Grey, _("Sea"), NormalFont);
     curBtPos.y += catBtSize.y + 3;
     // "Heruntergeladene"
-    optiongroup->AddTextButton(8, curBtPos, catBtSize, TC_GREY, _("Played"), NormalFont);
+    optiongroup->AddTextButton(8, curBtPos, catBtSize, TextureColor::Grey, _("Played"), NormalFont);
 
     AddPreviewMinimap(11, DrawPoint(110, 445), Extent(140, 140), nullptr);
     AddText(12, DrawPoint(260, 470), _("Map: "), COLOR_YELLOW, FontStyle::LEFT, NormalFont);
@@ -143,7 +131,6 @@ dskSelectMap::dskSelectMap(CreateServerInfo csi)
     optiongroup->SetSelection(5, true);
 
     LOBBYCLIENT.AddListener(this);
-    GAMECLIENT.SetInterface(this);
 }
 
 dskSelectMap::~dskSelectMap()
@@ -151,7 +138,6 @@ dskSelectMap::~dskSelectMap()
     // if(mapGenThread)
     //    mapGenThread->join();
     LOBBYCLIENT.RemoveListener(this);
-    GAMECLIENT.RemoveInterface(this);
 }
 
 void dskSelectMap::Msg_OptionGroupChange(const unsigned /*ctrl_id*/, unsigned selection)
@@ -183,7 +169,8 @@ void dskSelectMap::Msg_OptionGroupChange(const unsigned /*ctrl_id*/, unsigned se
     {
         std::string errorTxt = helpers::format(_("%1% map(s) could not be loaded. Check the log for details"),
                                                brokenMapPaths.size() - numFaultyMapsPrior);
-        WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), errorTxt, this, MSB_OK, MSB_EXCLAMATIONRED, 1));
+        WINDOWMANAGER.Show(
+          std::make_unique<iwMsgbox>(_("Error"), errorTxt, this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed, 1));
     }
 
     // Dann noch sortieren
@@ -194,12 +181,12 @@ void dskSelectMap::Msg_OptionGroupChange(const unsigned /*ctrl_id*/, unsigned se
 }
 
 /// Load a map, throw on error
-static std::unique_ptr<glArchivItem_Map> loadAndVerifyMap(const std::string& path)
+static std::unique_ptr<libsiedler2::ArchivItem_Map> loadAndVerifyMap(const std::string& path)
 {
     libsiedler2::Archiv archive;
     if(int ec = libsiedler2::loader::LoadMAP(path, archive))
         throw std::runtime_error(libsiedler2::getErrorString(ec));
-    auto map = libutil::dynamicUniqueCast<glArchivItem_Map>(archive.release(0));
+    auto map = boost::dynamic_pointer_cast<libsiedler2::ArchivItem_Map>(archive.release(0));
     if(!map)
         throw std::runtime_error(_("Unexpected dynamic type of map"));
     if(map->getHeader().getWidth() > MAX_MAP_SIZE || map->getHeader().getHeight() > MAX_MAP_SIZE)
@@ -235,7 +222,7 @@ void dskSelectMap::Msg_TableSelectItem(const unsigned ctrl_id, const boost::opti
         {
             try
             {
-                std::unique_ptr<glArchivItem_Map> map = loadAndVerifyMap(path);
+                std::unique_ptr<libsiedler2::ArchivItem_Map> map = loadAndVerifyMap(path);
                 RTTR_Assert(map);
                 preview.SetMap(map.get());
                 txtMapName.SetText(s25util::ansiToUTF8(map->getHeader().getName()));
@@ -245,8 +232,8 @@ void dskSelectMap::Msg_TableSelectItem(const unsigned ctrl_id, const boost::opti
             {
                 const std::string errorTxt = helpers::format(_("Could not load map:\n%1%\n%2%"), path, e.what());
                 LOG.write("%1%\n") % errorTxt;
-                WINDOWMANAGER.Show(
-                  std::make_unique<iwMsgbox>(_("Error"), errorTxt, this, MSB_OK, MSB_EXCLAMATIONRED, 1));
+                WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), errorTxt, this, MsgboxButton::Ok,
+                                                              MsgboxIcon::ExclamationRed, 1));
                 brokenMapPaths.insert(path);
                 table.RemoveRow(*selection);
             }
@@ -259,11 +246,11 @@ void dskSelectMap::Msg_TableSelectItem(const unsigned ctrl_id, const boost::opti
 
 void dskSelectMap::GoBack() const
 {
-    if(csi.type == ServerType::LOCAL)
+    if(csi.type == ServerType::Local)
         WINDOWMANAGER.Switch(std::make_unique<dskSinglePlayer>());
     else if(csi.type == ServerType::LAN)
         WINDOWMANAGER.Switch(std::make_unique<dskLAN>());
-    else if(csi.type == ServerType::LOBBY && LOBBYCLIENT.IsLoggedIn())
+    else if(csi.type == ServerType::Lobby && LOBBYCLIENT.IsLoggedIn())
         WINDOWMANAGER.Switch(std::make_unique<dskLobby>());
     else
         WINDOWMANAGER.Switch(std::make_unique<dskDirectIP>());
@@ -323,7 +310,7 @@ void dskSelectMap::CreateRandomMap()
     try
     {
         // create a random map and save filepath
-        MapGenerator::Create(mapPath, rndMapSettings);
+        rttr::mapGenerator::CreateRandomMap(mapPath, rndMapSettings);
         newRandMapPath = mapPath;
     } catch(std::runtime_error& e)
     {
@@ -333,11 +320,6 @@ void dskSelectMap::CreateRandomMap()
 
 void dskSelectMap::OnMapCreated(const boost::filesystem::path& mapPath)
 {
-    if(waitWnd)
-    {
-        waitWnd->Close();
-        waitWnd = nullptr;
-    }
     // select the "played maps" entry
     auto* optionGroup = GetCtrl<ctrlOptionGroup>(10);
     optionGroup->SetSelection(8, true);
@@ -368,25 +350,32 @@ void dskSelectMap::StartServer()
         const std::string& mapPath = table->GetItemText(*selection, 5);
 
         // Server starten
-        if(!GAMECLIENT.HostGame(csi, mapPath, MAPTYPE_OLDMAP))
+        if(!GAMECLIENT.HostGame(csi, mapPath, MapType::OldMap))
             GoBack();
         else
         {
-            // Verbindungsfenster anzeigen
-            WINDOWMANAGER.Show(std::make_unique<iwPleaseWait>());
+            std::unique_ptr<ILobbyClient> lobbyClient;
+            if(csi.type == ServerType::Lobby)
+                lobbyClient = std::make_unique<RttrLobbyClient>(LOBBYCLIENT);
+            iwConnecting& wnd = WINDOWMANAGER.Show(std::make_unique<iwConnecting>(csi.type, std::move(lobbyClient)));
+            onErrorConnection_ = wnd.onError.connect([this](ClientError error) {
+                WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), ClientErrorToStr(error), this,
+                                                              MsgboxButton::Ok, MsgboxIcon::ExclamationRed,
+                                                              ID_msgBoxError));
+            });
         }
     }
 }
 
 void dskSelectMap::Msg_MsgBoxResult(const unsigned msgbox_id, const MsgboxResult /*mbr*/)
 {
-    if(msgbox_id == 0) // Verbindung zu Server verloren?
+    if(msgbox_id == ID_msgBoxError)
     {
         GAMECLIENT.Stop();
 
-        if(csi.type == ServerType::LOBBY && LOBBYCLIENT.IsLoggedIn()) // steht die Lobbyverbindung noch?
+        if(csi.type == ServerType::Lobby && LOBBYCLIENT.IsLoggedIn()) // steht die Lobbyverbindung noch?
             WINDOWMANAGER.Switch(std::make_unique<dskLobby>());
-        else if(csi.type == ServerType::LOBBY)
+        else if(csi.type == ServerType::Lobby)
             WINDOWMANAGER.Switch(std::make_unique<dskDirectIP>());
         else if(csi.type == ServerType::LAN)
             WINDOWMANAGER.Switch(std::make_unique<dskLAN>());
@@ -395,47 +384,29 @@ void dskSelectMap::Msg_MsgBoxResult(const unsigned msgbox_id, const MsgboxResult
     }
 }
 
-void dskSelectMap::CI_NextConnectState(const ConnectState cs)
-{
-    switch(cs)
-    {
-        case CS_FINISHED:
-        {
-            std::unique_ptr<ILobbyClient> lobbyClient;
-            if(csi.type == ServerType::LOBBY)
-                lobbyClient = std::make_unique<RttrLobbyClient>(LOBBYCLIENT);
-            WINDOWMANAGER.Switch(std::make_unique<dskHostGame>(csi.type, GAMECLIENT.GetGameLobby(),
-                                                               GAMECLIENT.GetPlayerId(), std::move(lobbyClient)));
-            break;
-        }
-        default: break;
-    }
-}
-
-void dskSelectMap::CI_Error(const ClientError ce)
-{
-    WINDOWMANAGER.Show(
-      std::make_unique<iwMsgbox>(_("Error"), ClientErrorToStr(ce), this, MSB_OK, MSB_EXCLAMATIONRED, 0));
-}
-
 /**
  *  (Lobby-)Status: Benutzerdefinierter Fehler (kann auch Conn-Loss o.ä sein)
  */
 void dskSelectMap::LC_Status_Error(const std::string& error)
 {
-    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), error, this, MSB_OK, MSB_EXCLAMATIONRED, 0));
+    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), error, this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed,
+                                                  ID_msgBoxError));
 }
 
 void dskSelectMap::Draw_()
 {
     if(!newRandMapPath.empty() || !randMapGenError.empty())
     {
-        // mapGenThread->join();
-        // mapGenThread = nullptr;
+        if(waitWnd)
+        {
+            waitWnd->Close();
+            waitWnd = nullptr;
+        }
         if(!randMapGenError.empty())
         {
             const std::string errorTxt = _("Failed to generate random map.\nReason: ") + randMapGenError;
-            WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), errorTxt, nullptr, MSB_OK, MSB_EXCLAMATIONRED));
+            WINDOWMANAGER.Show(
+              std::make_unique<iwMsgbox>(_("Error"), errorTxt, nullptr, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
         } else
             OnMapCreated(newRandMapPath);
         newRandMapPath.clear();
@@ -461,7 +432,8 @@ void dskSelectMap::FillTable(const std::vector<bfs::path>& files)
             continue;
         }
 
-        const libsiedler2::ArchivItem_Map_Header& header = checkedCast<const glArchivItem_Map*>(map[0])->getHeader();
+        const libsiedler2::ArchivItem_Map_Header& header =
+          checkedCast<const libsiedler2::ArchivItem_Map*>(map[0])->getHeader();
 
         const bfs::path luaFilepath = bfs::path(filePath).replace_extension("lua");
         const bool hasLua = bfs::is_regular_file(luaFilepath);

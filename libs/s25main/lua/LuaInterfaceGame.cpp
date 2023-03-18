@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "LuaInterfaceGame.h"
 #include "EventManager.h"
@@ -26,127 +13,147 @@
 #include "lua/LuaPlayer.h"
 #include "lua/LuaWorld.h"
 #include "postSystem/PostMsg.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameTypes/Resource.h"
 #include "s25util/Serializer.h"
+#include "s25util/strAlgos.h"
 
-LuaInterfaceGame::LuaInterfaceGame(const std::weak_ptr<Game>& gameInstance, ILocalGameState& localGameState)
-    : LuaInterfaceGameBase(localGameState), localGameState(localGameState), gw(gameInstance.lock()->world_),
-      game(gameInstance)
+LuaInterfaceGame::LuaInterfaceGame(Game& gameInstance, ILocalGameState& localGameState)
+    : LuaInterfaceGameBase(localGameState), localGameState(localGameState), gw(gameInstance.world_), game(gameInstance)
 {
 #pragma region ConstDefs
+#define ADD_LUA_CONST(name) lua["BLD_" + s25util::toUpper(#name)] = BuildingType::name
+    ADD_LUA_CONST(Headquarters);
+    ADD_LUA_CONST(Barracks);
+    ADD_LUA_CONST(Guardhouse);
+    ADD_LUA_CONST(Watchtower);
+    ADD_LUA_CONST(Fortress);
+    ADD_LUA_CONST(GraniteMine);
+    ADD_LUA_CONST(CoalMine);
+    ADD_LUA_CONST(IronMine);
+    ADD_LUA_CONST(GoldMine);
+    ADD_LUA_CONST(LookoutTower);
+    ADD_LUA_CONST(Catapult);
+    ADD_LUA_CONST(Woodcutter);
+    ADD_LUA_CONST(Fishery);
+    ADD_LUA_CONST(Quarry);
+    ADD_LUA_CONST(Forester);
+    ADD_LUA_CONST(Slaughterhouse);
+    ADD_LUA_CONST(Hunter);
+    ADD_LUA_CONST(Brewery);
+    ADD_LUA_CONST(Armory);
+    ADD_LUA_CONST(Metalworks);
+    ADD_LUA_CONST(Ironsmelter);
+    ADD_LUA_CONST(Charburner);
+    ADD_LUA_CONST(PigFarm);
+    ADD_LUA_CONST(Storehouse);
+    ADD_LUA_CONST(Mill);
+    ADD_LUA_CONST(Bakery);
+    ADD_LUA_CONST(Sawmill);
+    ADD_LUA_CONST(Mint);
+    ADD_LUA_CONST(Well);
+    ADD_LUA_CONST(Shipyard);
+    ADD_LUA_CONST(Farm);
+    ADD_LUA_CONST(DonkeyBreeder);
+    ADD_LUA_CONST(HarborBuilding);
+#undef ADD_LUA_CONST
+
+#define ADD_LUA_CONST(name) lua["JOB_" + s25util::toUpper(#name)] = Job::name
+    ADD_LUA_CONST(Helper);
+    ADD_LUA_CONST(Woodcutter);
+    ADD_LUA_CONST(Fisher);
+    ADD_LUA_CONST(Forester);
+    ADD_LUA_CONST(Carpenter);
+    ADD_LUA_CONST(Stonemason);
+    ADD_LUA_CONST(Hunter);
+    ADD_LUA_CONST(Farmer);
+    ADD_LUA_CONST(Miller);
+    ADD_LUA_CONST(Baker);
+    ADD_LUA_CONST(Butcher);
+    ADD_LUA_CONST(Miner);
+    ADD_LUA_CONST(Brewer);
+    ADD_LUA_CONST(PigBreeder);
+    ADD_LUA_CONST(DonkeyBreeder);
+    ADD_LUA_CONST(IronFounder);
+    ADD_LUA_CONST(Minter);
+    ADD_LUA_CONST(Metalworker);
+    ADD_LUA_CONST(Armorer);
+    ADD_LUA_CONST(Builder);
+    ADD_LUA_CONST(Planer);
+    ADD_LUA_CONST(Private);
+    ADD_LUA_CONST(PrivateFirstClass);
+    ADD_LUA_CONST(Sergeant);
+    ADD_LUA_CONST(Officer);
+    ADD_LUA_CONST(General);
+    ADD_LUA_CONST(Geologist);
+    ADD_LUA_CONST(Shipwright);
+    ADD_LUA_CONST(Scout);
+    ADD_LUA_CONST(PackDonkey);
+    ADD_LUA_CONST(BoatCarrier);
+    ADD_LUA_CONST(CharBurner);
+#undef ADD_LUA_CONST
+
+#define ADD_LUA_CONST(name) lua["STAT_" + s25util::toUpper(#name)] = StatisticType::name
+    ADD_LUA_CONST(Country);
+    ADD_LUA_CONST(Buildings);
+    ADD_LUA_CONST(Inhabitants);
+    ADD_LUA_CONST(Merchandise);
+    ADD_LUA_CONST(Military);
+    ADD_LUA_CONST(Gold);
+    ADD_LUA_CONST(Productivity);
+    ADD_LUA_CONST(Vanquished);
+    ADD_LUA_CONST(Tournament);
+#undef ADD_LUA_CONST
+
+#define ADD_LUA_CONST(name) lua["GD_" + s25util::toUpper(#name)] = GoodType::name
+    ADD_LUA_CONST(Beer);
+    ADD_LUA_CONST(Tongs);
+    ADD_LUA_CONST(Hammer);
+    ADD_LUA_CONST(Axe);
+    ADD_LUA_CONST(Saw);
+    ADD_LUA_CONST(PickAxe);
+    ADD_LUA_CONST(Shovel);
+    ADD_LUA_CONST(Crucible);
+    ADD_LUA_CONST(RodAndLine);
+    ADD_LUA_CONST(Scythe);
+    ADD_LUA_CONST(Water);
+    ADD_LUA_CONST(Cleaver);
+    ADD_LUA_CONST(Rollingpin);
+    ADD_LUA_CONST(Bow);
+    ADD_LUA_CONST(Boat);
+    ADD_LUA_CONST(Sword);
+    ADD_LUA_CONST(Iron);
+    ADD_LUA_CONST(Flour);
+    ADD_LUA_CONST(Fish);
+    ADD_LUA_CONST(Bread);
+    lua["GD_SHIELD"] = GoodType::ShieldRomans;
+    ADD_LUA_CONST(Wood);
+    ADD_LUA_CONST(Boards);
+    ADD_LUA_CONST(Stones);
+    ADD_LUA_CONST(Grain);
+    ADD_LUA_CONST(Coins);
+    ADD_LUA_CONST(Gold);
+    ADD_LUA_CONST(IronOre);
+    ADD_LUA_CONST(Coal);
+    ADD_LUA_CONST(Meat);
+    ADD_LUA_CONST(Ham);
+#undef ADD_LUA_CONST
+
+#define ADD_LUA_CONST(name) lua["RES_" + s25util::toUpper(#name)] = ResourceType::name
+    ADD_LUA_CONST(Iron);
+    ADD_LUA_CONST(Gold);
+    ADD_LUA_CONST(Coal);
+    ADD_LUA_CONST(Granite);
+    ADD_LUA_CONST(Water);
+#undef ADD_LUA_CONST
+
 #define ADD_LUA_CONST(name) lua[#name] = name
-
-    ADD_LUA_CONST(BLD_HEADQUARTERS);
-    ADD_LUA_CONST(BLD_BARRACKS);
-    ADD_LUA_CONST(BLD_GUARDHOUSE);
-    ADD_LUA_CONST(BLD_WATCHTOWER);
-    ADD_LUA_CONST(BLD_FORTRESS);
-    ADD_LUA_CONST(BLD_GRANITEMINE);
-    ADD_LUA_CONST(BLD_COALMINE);
-    ADD_LUA_CONST(BLD_IRONMINE);
-    ADD_LUA_CONST(BLD_GOLDMINE);
-    ADD_LUA_CONST(BLD_LOOKOUTTOWER);
-    ADD_LUA_CONST(BLD_CATAPULT);
-    ADD_LUA_CONST(BLD_WOODCUTTER);
-    ADD_LUA_CONST(BLD_FISHERY);
-    ADD_LUA_CONST(BLD_QUARRY);
-    ADD_LUA_CONST(BLD_FORESTER);
-    ADD_LUA_CONST(BLD_SLAUGHTERHOUSE);
-    ADD_LUA_CONST(BLD_HUNTER);
-    ADD_LUA_CONST(BLD_BREWERY);
-    ADD_LUA_CONST(BLD_ARMORY);
-    ADD_LUA_CONST(BLD_METALWORKS);
-    ADD_LUA_CONST(BLD_IRONSMELTER);
-    ADD_LUA_CONST(BLD_CHARBURNER);
-    ADD_LUA_CONST(BLD_PIGFARM);
-    ADD_LUA_CONST(BLD_STOREHOUSE);
-    ADD_LUA_CONST(BLD_MILL);
-    ADD_LUA_CONST(BLD_BAKERY);
-    ADD_LUA_CONST(BLD_SAWMILL);
-    ADD_LUA_CONST(BLD_MINT);
-    ADD_LUA_CONST(BLD_WELL);
-    ADD_LUA_CONST(BLD_SHIPYARD);
-    ADD_LUA_CONST(BLD_FARM);
-    ADD_LUA_CONST(BLD_DONKEYBREEDER);
-    ADD_LUA_CONST(BLD_HARBORBUILDING);
-
-    ADD_LUA_CONST(JOB_HELPER);
-    ADD_LUA_CONST(JOB_WOODCUTTER);
-    ADD_LUA_CONST(JOB_FISHER);
-    ADD_LUA_CONST(JOB_FORESTER);
-    ADD_LUA_CONST(JOB_CARPENTER);
-    ADD_LUA_CONST(JOB_STONEMASON);
-    ADD_LUA_CONST(JOB_HUNTER);
-    ADD_LUA_CONST(JOB_FARMER);
-    ADD_LUA_CONST(JOB_MILLER);
-    ADD_LUA_CONST(JOB_BAKER);
-    ADD_LUA_CONST(JOB_BUTCHER);
-    ADD_LUA_CONST(JOB_MINER);
-    ADD_LUA_CONST(JOB_BREWER);
-    ADD_LUA_CONST(JOB_PIGBREEDER);
-    ADD_LUA_CONST(JOB_DONKEYBREEDER);
-    ADD_LUA_CONST(JOB_IRONFOUNDER);
-    ADD_LUA_CONST(JOB_MINTER);
-    ADD_LUA_CONST(JOB_METALWORKER);
-    ADD_LUA_CONST(JOB_ARMORER);
-    ADD_LUA_CONST(JOB_BUILDER);
-    ADD_LUA_CONST(JOB_PLANER);
-    ADD_LUA_CONST(JOB_PRIVATE);
-    ADD_LUA_CONST(JOB_PRIVATEFIRSTCLASS);
-    ADD_LUA_CONST(JOB_SERGEANT);
-    ADD_LUA_CONST(JOB_OFFICER);
-    ADD_LUA_CONST(JOB_GENERAL);
-    ADD_LUA_CONST(JOB_GEOLOGIST);
-    ADD_LUA_CONST(JOB_SHIPWRIGHT);
-    ADD_LUA_CONST(JOB_SCOUT);
-    ADD_LUA_CONST(JOB_PACKDONKEY);
-    ADD_LUA_CONST(JOB_CHARBURNER);
-
-    ADD_LUA_CONST(GD_BEER);
-    ADD_LUA_CONST(GD_TONGS);
-    ADD_LUA_CONST(GD_HAMMER);
-    ADD_LUA_CONST(GD_AXE);
-    ADD_LUA_CONST(GD_SAW);
-    ADD_LUA_CONST(GD_PICKAXE);
-    ADD_LUA_CONST(GD_SHOVEL);
-    ADD_LUA_CONST(GD_CRUCIBLE);
-    ADD_LUA_CONST(GD_RODANDLINE);
-    ADD_LUA_CONST(GD_SCYTHE);
-    ADD_LUA_CONST(GD_WATER);
-    ADD_LUA_CONST(GD_CLEAVER);
-    ADD_LUA_CONST(GD_ROLLINGPIN);
-    ADD_LUA_CONST(GD_BOW);
-    ADD_LUA_CONST(GD_BOAT);
-    ADD_LUA_CONST(GD_SWORD);
-    ADD_LUA_CONST(GD_IRON);
-    ADD_LUA_CONST(GD_FLOUR);
-    ADD_LUA_CONST(GD_FISH);
-    ADD_LUA_CONST(GD_BREAD);
-    lua["GD_SHIELD"] = GD_SHIELDROMANS;
-    ADD_LUA_CONST(GD_WOOD);
-    ADD_LUA_CONST(GD_BOARDS);
-    ADD_LUA_CONST(GD_STONES);
-    ADD_LUA_CONST(GD_GRAIN);
-    ADD_LUA_CONST(GD_COINS);
-    ADD_LUA_CONST(GD_GOLD);
-    ADD_LUA_CONST(GD_IRONORE);
-    ADD_LUA_CONST(GD_COAL);
-    ADD_LUA_CONST(GD_MEAT);
-    ADD_LUA_CONST(GD_HAM);
-
-    lua["RES_IRON"] = Resource::Iron;
-    lua["RES_GOLD"] = Resource::Gold;
-    lua["RES_COAL"] = Resource::Coal;
-    lua["RES_GRANITE"] = Resource::Granite;
-    lua["RES_WATER"] = Resource::Water;
-
-    ADD_LUA_CONST(NON_AGGRESSION_PACT);
-    ADD_LUA_CONST(TREATY_OF_ALLIANCE);
+    lua["NON_AGGRESSION_PACT"] = PactType::NonAgressionPact;
+    lua["TREATY_OF_ALLIANCE"] = PactType::TreatyOfAlliance;
     // infinite pact duration, see GamePlayer::GetRemainingPactTime
     ADD_LUA_CONST(DURATION_INFINITE);
-
 #undef ADD_LUA_CONST
+
 #define ADD_LUA_CONST(name) lua[#name] = iwMissionStatement::name
     ADD_LUA_CONST(IM_NONE);
     ADD_LUA_CONST(IM_SWORDSMAN);
@@ -355,7 +362,7 @@ void LuaInterfaceGame::EventGameFrame(unsigned nr)
         onGameFrame.call<void>(nr);
 }
 
-void LuaInterfaceGame::EventResourceFound(unsigned char player, const MapPoint pt, unsigned char type,
+void LuaInterfaceGame::EventResourceFound(unsigned char player, const MapPoint pt, ResourceType type,
                                           unsigned char quantity)
 {
     kaguya::LuaRef onResourceFound = lua["onResourceFound"];
@@ -375,10 +382,7 @@ bool LuaInterfaceGame::EventCancelPactRequest(PactType pt, unsigned char cancele
 void LuaInterfaceGame::EventSuggestPact(const PactType pt, unsigned char suggestedByPlayerId,
                                         unsigned char targetPlayerId, const unsigned duration)
 {
-    auto gameInst = game.lock();
-    if(!gameInst)
-        return;
-    AIPlayer* ai = gameInst->GetAIPlayer(targetPlayerId);
+    AIPlayer* ai = game.GetAIPlayer(targetPlayerId);
     if(ai != nullptr)
     {
         kaguya::LuaRef onPactCancel = lua["onSuggestPact"];

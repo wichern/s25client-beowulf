@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -26,12 +13,13 @@
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/MapTypes.h"
 
-class GamePlayer;
 class FOWObject;
+class GamePlayer;
 class GameWorldBase;
-struct MapNode;
-struct FoWNode;
 class noShip;
+class SoundManager;
+struct FoWNode;
+struct MapNode;
 struct RoadNote;
 
 /// This is a players View(er) on the GameWorld
@@ -48,6 +36,8 @@ public:
     /// Return non-const world (TODO: Remove, this is a view only!)
     GameWorldBase& GetWorldNonConst() { return gwb; }
     const TerrainRenderer& GetTerrainRenderer() const { return tr; }
+    auto getMaxNodeAltitude() const { return maxNodeAltitude_; }
+    SoundManager& GetSoundMgr();
     /// Get the player instance for this view
     const GamePlayer& GetPlayer() const;
     /// Get the ID of the views player
@@ -100,6 +90,8 @@ public:
     /// Makes this a viewer for another player
     void ChangePlayer(unsigned player, bool updateVisualData = true);
 
+    helpers::EnumArray<MapPoint, Direction> GetNeighbours(MapPoint pt) const;
+
 private:
     /// Visual node status (might be different than world if GameCommand is just sent) to hide network latency
     struct VisualMapNode
@@ -113,6 +105,8 @@ private:
     TerrainRenderer tr;
     Subscription evVisibilityChanged, evAltitudeChanged, evRoadConstruction, evBQChanged;
     NodeMapBase<VisualMapNode> visualNodes;
+    /// Max height of any node
+    uint8_t maxNodeAltitude_ = 0;
 
     void InitVisualData();
     inline void VisibilityChanged(const MapPoint& pt, unsigned player);

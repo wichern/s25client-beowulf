@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/World.h"
 #include "nodeObjs/noFlag.h"
@@ -25,6 +12,7 @@
 #include "RoadSegment.h"
 #include "enum_cast.hpp"
 #include "helpers/containerUtils.h"
+#include "helpers/pointerContainerUtils.h"
 #include "gameTypes/ShipDirection.h"
 #include "gameData/TerrainDesc.h"
 #include <memory>
@@ -49,7 +37,7 @@ void World::Init(const MapExtent& mapSize, DescIdx<LandscapeDesc> lt)
     GameObject::ResetCounters();
 
     // Dummy so that the harbor "0" might be used for ships with no particular destination
-    harbor_pos.push_back(MapPoint::Invalid());
+    harbor_pos.push_back(HarborPos(MapPoint::Invalid()));
     noNodeObj = std::make_unique<noNothing>();
 }
 
@@ -59,7 +47,7 @@ void World::Unload()
     std::set<RoadSegment*> roadsegments;
     for(const auto& node : nodes)
     {
-        if(!node.obj || node.obj->GetGOT() != GOT_FLAG)
+        if(!node.obj || node.obj->GetGOT() != GO_Type::Flag)
             continue;
         for(const auto dir : helpers::EnumRange<Direction>{})
         {
@@ -75,27 +63,15 @@ void World::Unload()
 
     // Objekte vernichten
     for(auto& node : nodes)
-    {
         deletePtr(node.obj);
-
-        for(auto& z : node.fow)
-        {
-            deletePtr(z.object);
-        }
-    }
 
     // Figuren vernichten
     for(auto& node : nodes)
-    {
-        std::list<noBase*>& nodeFigures = node.figures;
-        for(auto& nodeFigure : nodeFigures)
-            delete nodeFigure;
-
-        nodeFigures.clear();
-    }
+        node.figures.clear();
 
     catapult_stones.clear();
     harbor_pos.clear();
+    description_ = WorldDescription();
     noNodeObj.reset();
     Resize(MapExtent::all(0));
 }
@@ -112,28 +88,25 @@ void World::Resize(const MapExtent& newSize)
     }
 }
 
-void World::AddFigure(const MapPoint pt, noBase* fig)
+noBase& World::AddFigureImpl(const MapPoint pt, std::unique_ptr<noBase> fig)
 {
-    if(!fig)
-        return;
+    RTTR_Assert(fig);
 
-    std::list<noBase*>& figures = GetNodeInt(pt).figures;
-    RTTR_Assert(!helpers::contains(figures, fig));
-    figures.push_back(fig);
-
+    auto& figures = GetNodeInt(pt).figures;
 #if RTTR_ENABLE_ASSERTS
-    for(const auto dir : helpers::EnumRange<Direction>{})
-    {
-        MapPoint nb = GetNeighbour(pt, dir);
-        RTTR_Assert(!helpers::contains(GetNode(nb).figures, fig)); // Added figure that is in surrounding?
-    }
+    RTTR_Assert(!helpers::containsPtr(figures, fig.get()));
+    for(const MapPoint nb : GetNeighbours(pt))
+        RTTR_Assert(!helpers::containsPtr(GetNode(nb).figures, fig.get())); // Added figure that is in surrounding?
 #endif
+
+    noBase& result = *fig;
+    figures.push_back(std::move(fig));
+    return result;
 }
 
-void World::RemoveFigure(const MapPoint pt, noBase* fig)
+noBase* World::RemoveFigureImpl(const MapPoint pt, noBase& fig)
 {
-    RTTR_Assert(helpers::contains(GetNode(pt).figures, fig));
-    GetNodeInt(pt).figures.remove(fig);
+    return helpers::extractPtr(GetNodeInt(pt).figures, &fig).release();
 }
 
 noBase* World::GetNO(const MapPoint pt)
@@ -182,7 +155,7 @@ GO_Type World::GetGOT(const MapPoint pt) const
     if(obj)
         return obj->GetGOT();
     else
-        return GOT_NOTHING;
+        return GO_Type::Nothing;
 }
 
 void World::ReduceResource(const MapPoint pt)
@@ -206,9 +179,9 @@ void World::SetVisibility(const MapPoint pt, unsigned char player, Visibility vi
         return;
 
     node.visibility = vis;
-    if(vis == VIS_VISIBLE)
-        deletePtr(node.object);
-    else if(vis == VIS_FOW)
+    if(vis == Visibility::Visible)
+        node.object.reset();
+    else if(vis == Visibility::FogOfWar)
         SaveFOWNode(pt, player, fowTime);
     VisibilityChanged(pt, player, oldVis, vis);
 }
@@ -219,8 +192,8 @@ void World::ChangeAltitude(const MapPoint pt, const unsigned char altitude)
 
     // Schattierung neu berechnen von diesem Punkt und den Punkten drumherum
     RecalcShadow(pt);
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        RecalcShadow(GetNeighbour(pt, dir));
+    for(const MapPoint nb : GetNeighbours(pt))
+        RecalcShadow(nb);
 
     // Abgeleiteter Klasse Bescheid sagen
     AltitudeChanged(pt);
@@ -234,9 +207,9 @@ bool World::IsPlayerTerritory(const MapPoint pt, const unsigned char owner) cons
         return false;
 
     // Neighbour nodes must belong to this player
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const MapPoint nb : GetNeighbours(pt))
     {
-        if(GetNeighbourNode(pt, dir).owner != ptOwner)
+        if(GetNode(nb).owner != ptOwner)
             return false;
     }
 
@@ -250,40 +223,91 @@ BuildingQuality World::GetBQ(const MapPoint pt, const unsigned char player) cons
 
 BuildingQuality World::AdjustBQ(const MapPoint pt, unsigned char player, BuildingQuality nodeBQ) const
 {
-    if(nodeBQ == BQ_NOTHING || !IsPlayerTerritory(pt, player + 1))
-        return BQ_NOTHING;
+    if(nodeBQ == BuildingQuality::Nothing || !IsPlayerTerritory(pt, player + 1))
+        return BuildingQuality::Nothing;
     // If we could build a building, but the buildings flag point is at the border, we can only build a flag
-    if(nodeBQ != BQ_FLAG && !IsPlayerTerritory(GetNeighbour(pt, Direction::SOUTHEAST)))
+    if(nodeBQ != BuildingQuality::Flag && !IsPlayerTerritory(GetNeighbour(pt, Direction::SouthEast)))
     {
         // Check for close flags, that prohibit to build a flag but not a building at this spot
-        for(const Direction dir : {Direction::WEST, Direction::NORTHWEST, Direction::NORTHEAST})
+        for(const Direction dir : {Direction::West, Direction::NorthWest, Direction::NorthEast})
         {
             if(GetNO(GetNeighbour(pt, dir))->GetBM() == BlockingManner::Flag)
-                return BQ_NOTHING;
+                return BuildingQuality::Nothing;
         }
-        return BQ_FLAG;
+        return BuildingQuality::Flag;
     } else
         return nodeBQ;
 }
 
-DescIdx<TerrainDesc> World::GetRightTerrain(const MapPoint pt, Direction dir) const
+bool World::HasFigureAt(const MapPoint pt, const noBase& figure) const
 {
-    switch(dir.native_value())
+    return helpers::containsPtr(GetNode(pt).figures, &figure);
+}
+
+WalkTerrain World::GetTerrain(MapPoint pt, Direction dir) const
+{
+    // Manually inlined code from GetNeighbors. Measured to greatly improve performance
+    const MapExtent size = GetSize();
+    const MapCoord yminus1 = (pt.y == 0 ? size.y : pt.y) - 1;
+    const MapCoord xplus1 = pt.x == size.x - 1 ? 0 : pt.x + 1;
+    const MapCoord xminus1 = (pt.x == 0 ? size.x : pt.x) - 1;
+    const bool isEvenRow = (pt.y & 1) == 0;
+
+    const MapPoint wPt(xminus1, pt.y);
+    const MapPoint nwPt(!isEvenRow ? pt.x : xminus1, yminus1);
+    const MapPoint nePt(isEvenRow ? pt.x : xplus1, yminus1);
+    switch(dir)
     {
-        case Direction::WEST: return GetNeighbourNode(pt, Direction::NORTHWEST).t1;
-        case Direction::NORTHWEST: return GetNeighbourNode(pt, Direction::NORTHWEST).t2;
-        case Direction::NORTHEAST: return GetNeighbourNode(pt, Direction::NORTHEAST).t1;
-        case Direction::EAST: return GetNode(pt).t2;
-        case Direction::SOUTHEAST: return GetNode(pt).t1;
-        case Direction::SOUTHWEST: return GetNeighbourNode(pt, Direction::WEST).t2;
+        case Direction::West:
+        {
+            return {GetNode(wPt).t2, GetNode(nwPt).t1};
+        }
+        case Direction::NorthWest:
+        {
+            const MapNode& node = GetNode(nwPt);
+            return {node.t1, node.t2};
+        }
+        case Direction::NorthEast:
+        {
+            return {GetNode(nwPt).t2, GetNode(nePt).t1};
+        }
+        case Direction::East:
+        {
+            return {GetNode(nePt).t1, GetNode(pt).t2};
+        }
+        case Direction::SouthEast:
+        {
+            const MapNode& node = GetNode(pt);
+            return {node.t2, node.t1};
+        }
+        case Direction::SouthWest:
+        {
+            return {GetNode(pt).t1, GetNode(wPt).t2};
+        }
     }
     throw std::logic_error("Invalid direction");
 }
 
-DescIdx<TerrainDesc> World::GetLeftTerrain(const MapPoint pt, Direction dir) const
+helpers::EnumArray<DescIdx<TerrainDesc>, Direction> World::GetTerrainsAround(MapPoint pt) const
 {
-    // We can find the left terrain by going a bit more left/counter-clockwise and take the right terrain
-    return GetRightTerrain(pt, dir - 1u);
+    // Manually inlined code from GetNeighbors. Measured to greatly improve performance
+    const MapExtent size = GetSize();
+    const MapCoord yminus1 = (pt.y == 0 ? size.y : pt.y) - 1;
+    const MapCoord xplus1 = pt.x == size.x - 1 ? 0 : pt.x + 1;
+    const MapCoord xminus1 = (pt.x == 0 ? size.x : pt.x) - 1;
+    const bool isEvenRow = (pt.y & 1) == 0;
+
+    const MapPoint wPt(xminus1, pt.y);
+    const MapPoint nwPt(!isEvenRow ? pt.x : xminus1, yminus1);
+    const MapPoint nePt(isEvenRow ? pt.x : xplus1, yminus1);
+
+    const MapNode& nwNode = GetNode(nwPt);
+    const MapNode& neNode = GetNode(nePt);
+    const MapNode& curNode = GetNode(pt);
+    const MapNode& wNode = GetNode(wPt);
+    helpers::EnumArray<DescIdx<TerrainDesc>, Direction> result{nwNode.t1,  nwNode.t2,  neNode.t1,
+                                                               curNode.t2, curNode.t1, wNode.t2};
+    return result;
 }
 
 void World::SaveFOWNode(const MapPoint pt, const unsigned player, unsigned curTime)
@@ -292,9 +316,7 @@ void World::SaveFOWNode(const MapPoint pt, const unsigned player, unsigned curTi
     fow.last_update_time = curTime;
 
     // FOW-Objekt erzeugen
-    noBase* obj = GetNO(pt);
-    deletePtr(fow.object);
-    fow.object = obj->CreateFOWObject();
+    fow.object = GetNO(pt)->CreateFOWObject();
 
     // Wege speichern, aber nur richtige, keine, die gerade gebaut werden
     for(const auto dir : helpers::EnumRange<RoadDir>{})
@@ -313,7 +335,7 @@ bool World::IsSeaPoint(const MapPoint pt) const
 
 bool World::IsWaterPoint(const MapPoint pt) const
 {
-    return World::IsOfTerrain(pt, [](const auto& desc) { return desc.kind == TerrainKind::WATER; });
+    return World::IsOfTerrain(pt, [](const auto& desc) { return desc.kind == TerrainKind::Water; });
 }
 
 bool World::IsMineable(const MapPoint pt) const
@@ -335,7 +357,7 @@ unsigned World::GetSeaSize(const unsigned seaId) const
 unsigned short World::GetSeaId(const unsigned harborId, const Direction dir) const
 {
     RTTR_Assert(harborId);
-    return harbor_pos[harborId].cps[dir].seaId;
+    return harbor_pos[harborId].seaIds[dir];
 }
 
 /// Grenzt der Hafen an ein bestimmtes Meer an?
@@ -349,11 +371,10 @@ MapPoint World::GetCoastalPoint(const unsigned harborId, const unsigned short se
     RTTR_Assert(harborId);
     RTTR_Assert(seaId);
 
-    for(auto dir : helpers::EnumRange<Direction>{})
+    // Take point at NW last as often there is no path from it if the harbor is north of an island
+    for(auto dir : helpers::enumRange(Direction::NorthEast))
     {
-        // Take point at NW last as often there is no path from it if the harbor is north of an island
-        dir += 2u;
-        if(harbor_pos[harborId].cps[dir].seaId == seaId)
+        if(harbor_pos[harborId].seaIds[dir] == seaId)
             return GetNeighbour(harbor_pos[harborId].pos, dir);
     }
 
@@ -432,9 +453,9 @@ unsigned short World::GetSeaFromCoastalPoint(const MapPoint pt) const
         return 0;
 
     // Surrounding must be valid sea
-    for(const auto dir : helpers::EnumRange<Direction>{})
+    for(const MapPoint nb : GetNeighbours(pt))
     {
-        unsigned short seaId = GetNeighbourNode(pt, dir).seaId;
+        unsigned short seaId = GetNode(nb).seaId;
         if(seaId)
         {
             // Check size (TODO: Others checks like harbor spots?)
@@ -461,9 +482,9 @@ bool World::SetBQ(const MapPoint pt, BuildingQuality bq)
 void World::RecalcShadow(const MapPoint pt)
 {
     int altitude = GetNode(pt).altitude;
-    int A = GetNeighbourNode(pt, Direction::NORTHEAST).altitude - altitude;
+    int A = GetNeighbourNode(pt, Direction::NorthEast).altitude - altitude;
     int B = GetNode(GetNeighbour2(pt, 0)).altitude - altitude;
-    int C = GetNode(GetNeighbour(pt, Direction::WEST)).altitude - altitude;
+    int C = GetNode(GetNeighbour(pt, Direction::West)).altitude - altitude;
     int D = GetNode(GetNeighbour2(pt, 11)).altitude - altitude;
 
     int shadingS2 = 64 + 9 * A - 3 * B - 6 * C - 9 * D;
@@ -472,4 +493,16 @@ void World::RecalcShadow(const MapPoint pt)
     else if(shadingS2 < 0)
         shadingS2 = 0;
     GetNodeInt(pt).shadow = shadingS2;
+}
+
+void World::MakeWholeMapVisibleForAllPlayers()
+{
+    for(auto& mapNode : nodes)
+    {
+        for(auto& fowNode : mapNode.fow)
+        {
+            fowNode.visibility = Visibility::Visible;
+            fowNode.object.reset();
+        }
+    }
 }

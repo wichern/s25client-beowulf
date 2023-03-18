@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Messenger.h"
 #include "Loader.h"
 #include "drivers/VideoDriverWrapper.h"
+#include "helpers/EnumArray.h"
 #include "helpers/format.hpp"
 #include "mygettext/mygettext.h"
 #include "ogl/FontStyle.h"
@@ -26,10 +14,10 @@
 #include <array>
 
 /// Chat-Destination-String, der entsprechend angezeigt wird
-const std::array<std::string, 4> CD_STRINGS = {"", "(All) ", "(Team) ", "(Enemies) "};
+const helpers::EnumArray<std::string, ChatDestination> CD_STRINGS = {{"", "(All) ", "(Team) ", "(Enemies) "}};
 
 /// Farbe für die einzelnen CDs
-const std::array<unsigned, 4> CD_COLORS = {0, COLOR_WHITE, COLOR_GREEN, COLOR_RED};
+const helpers::EnumArray<unsigned, ChatDestination> CD_COLORS = {{0, COLOR_WHITE, COLOR_GREEN, COLOR_RED}};
 
 Messenger::~Messenger() = default;
 
@@ -52,7 +40,7 @@ void Messenger::Draw()
         if(diff > 18000)
             transparency = (transparency - transparency * (diff - 18000) / 2000);
 
-        std::string cd_str = (it->cd == CD_SYSTEM) ? "" : _(CD_STRINGS[it->cd]);
+        std::string cd_str = (it->cd == ChatDestination::System) ? "" : _(CD_STRINGS[it->cd]);
 
         DrawPoint curTextPos(textPos);
         LargeFont->Draw(curTextPos, it->author, FontStyle::LEFT, SetAlpha(it->color_author, transparency));
@@ -73,10 +61,11 @@ void Messenger::AddMessage(const std::string& author, const unsigned color_autho
     LOG.write("%1%\n") % msg;
 
     // in Zeilen aufteilen, damit alles auf den Bildschirm passt
-    glFont::WrapInfo wi = LargeFont->GetWrapInfo(msg,
-                                                 VIDEODRIVER.GetRenderSize().x - 60 - LargeFont->getWidth(author)
-                                                   - ((cd == CD_SYSTEM) ? 0 : LargeFont->getWidth(_(CD_STRINGS[cd]))),
-                                                 VIDEODRIVER.GetRenderSize().x - 60);
+    glFont::WrapInfo wi =
+      LargeFont->GetWrapInfo(msg,
+                             VIDEODRIVER.GetRenderSize().x - 60 - LargeFont->getWidth(author)
+                               - ((cd == ChatDestination::System) ? 0 : LargeFont->getWidth(_(CD_STRINGS[cd]))),
+                             VIDEODRIVER.GetRenderSize().x - 60);
 
     // Message-Strings erzeugen aus den WrapInfo
     std::vector<std::string> strings = wi.CreateSingleStrings(msg);
@@ -92,7 +81,7 @@ void Messenger::AddMessage(const std::string& author, const unsigned color_autho
                 tmp.author = helpers::format(_("<%s> "), author);
             tmp.cd = cd;
         } else
-            tmp.cd = CD_SYSTEM;
+            tmp.cd = ChatDestination::System;
 
         tmp.msg = strings[i];
 

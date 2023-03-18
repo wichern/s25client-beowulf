@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noStaticObject.h"
 #include "noExtension.h"
@@ -23,7 +10,7 @@
 #include "network/GameClient.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "ogl/glSmartBitmap.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include <stdexcept>
 
 /**
@@ -41,27 +28,39 @@ noStaticObject::noStaticObject(const MapPoint pos, unsigned short id, unsigned s
     // sind wir ein "Schloss" Objekt?
     if(GetSize() == 2)
     {
-        for(const Direction dir : {Direction::WEST, Direction::NORTHWEST, Direction::NORTHEAST})
+        for(const Direction dir : {Direction::West, Direction::NorthWest, Direction::NorthEast})
         {
-            MapPoint nb = gwg->GetNeighbour(pos, dir);
-            gwg->DestroyNO(nb, false);
-            gwg->SetNO(nb, new noExtension(this));
+            MapPoint nb = world->GetNeighbour(pos, dir);
+            world->DestroyNO(nb, false);
+            world->SetNO(nb, new noExtension(this));
         }
     }
 }
 
-void noStaticObject::Serialize_noStaticObject(SerializedGameData& sgd) const
+noStaticObject::noStaticObject(SerializedGameData& sgd, const unsigned obj_id)
+    : noCoordBase(sgd, obj_id), id(sgd.PopUnsignedShort()), file(sgd.PopUnsignedShort()), size(sgd.PopUnsignedChar())
+{}
+
+void noStaticObject::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noCoordBase(sgd);
+    noCoordBase::Serialize(sgd);
 
     sgd.PushUnsignedShort(id);
     sgd.PushUnsignedShort(file);
     sgd.PushUnsignedChar(size);
 }
 
-noStaticObject::noStaticObject(SerializedGameData& sgd, const unsigned obj_id)
-    : noCoordBase(sgd, obj_id), id(sgd.PopUnsignedShort()), file(sgd.PopUnsignedShort()), size(sgd.PopUnsignedChar())
-{}
+void noStaticObject::Destroy()
+{
+    // waren wir ein "Schloss" Objekt?
+    if(GetSize() == 2)
+    {
+        for(const Direction i : {Direction::West, Direction::NorthWest, Direction::NorthEast})
+            world->DestroyNO(world->GetNeighbour(pos, i));
+    }
+
+    noCoordBase::Destroy();
+}
 
 BlockingManner noStaticObject::GetBM() const
 {
@@ -76,48 +75,39 @@ BlockingManner noStaticObject::GetBM() const
  */
 void noStaticObject::Draw(DrawPoint drawPt)
 {
-    glArchivItem_Bitmap *bitmap = nullptr, *shadow = nullptr;
+    if(!textures.bmp)
+    {
+        textures = getTextures(file, id);
+        RTTR_Assert(textures.bmp);
+    }
 
-    if((file == 0xFFFF) && (id == 561))
+    // Bild zeichnen
+    textures.bmp->DrawFull(drawPt);
+
+    // Schatten zeichnen
+    if(textures.shadow)
+        textures.shadow->DrawFull(drawPt, COLOR_SHADOW);
+}
+
+noStaticObject::Textures noStaticObject::getTextures(unsigned short file, unsigned short id)
+{
+    Textures textures{};
+    if(file == 0xFFFF)
     {
-        LOADER.gateway_cache[GAMECLIENT.GetGlobalAnimation(4, 5, 4, 0) + 1].draw(drawPt);
-        return;
-    } else if(file == 0xFFFF)
-    {
-        bitmap = LOADER.GetMapImageN(id);
-        shadow = LOADER.GetMapImageN(id + 100);
+        if(id == 561)
+            textures.bmp = &LOADER.gateway_cache[GAMECLIENT.GetGlobalAnimation(4, 5, 4, 0) + 1];
+        else
+            textures = {LOADER.GetMapTexture(id), LOADER.GetMapTexture(id + 100)};
     } else if(file < 7)
     {
-        static const std::array<std::string, 7> files = {"mis0bobs", "mis1bobs", "mis2bobs",       "mis3bobs",
-                                                         "mis4bobs", "mis5bobs", "charburner_bobs"};
-        bitmap = LOADER.GetImageN(files[file], id);
+        static const std::array<ResourceId, 7> files = {"mis0bobs", "mis1bobs", "mis2bobs",       "mis3bobs",
+                                                        "mis4bobs", "mis5bobs", "charburner_bobs"};
+        textures.bmp = LOADER.GetTextureN(files[file], id);
         // Use only shadows where available
         if(file < 6)
-            shadow = LOADER.GetImageN(files[file], id + 1);
+            textures.shadow = LOADER.GetTextureN(files[file], id + 1);
     } else
         throw std::runtime_error("Invalid file number for static object");
 
-    RTTR_Assert(bitmap);
-
-    // Bild zeichnen
-    bitmap->DrawFull(drawPt);
-
-    // Schatten zeichnen
-    if(shadow)
-        shadow->DrawFull(drawPt, COLOR_SHADOW);
-}
-
-/**
- *  zerstört das Objekt.
- */
-void noStaticObject::Destroy_noStaticObject()
-{
-    // waren wir ein "Schloss" Objekt?
-    if(GetSize() == 2)
-    {
-        for(const Direction i : {Direction::WEST, Direction::NORTHWEST, Direction::NORTHEAST})
-            gwg->DestroyNO(gwg->GetNeighbour(pos, i));
-    }
-
-    Destroy_noBase();
+    return textures;
 }

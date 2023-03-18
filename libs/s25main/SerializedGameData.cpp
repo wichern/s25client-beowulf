@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "SerializedGameData.h"
 #include "CatapultStone.h"
@@ -23,6 +10,7 @@
 #include "GameEvent.h"
 #include "GameObject.h"
 #include "GamePlayer.h"
+#include "PointOutput.h"
 #include "RoadSegment.h"
 #include "Ware.h"
 #include "buildings/BurnedWarehouse.h"
@@ -71,7 +59,7 @@
 #include "helpers/containerUtils.h"
 #include "helpers/format.hpp"
 #include "helpers/toString.h"
-#include "world/GameWorld.h"
+#include "world/MapSerializer.h"
 #include "nodeObjs/noAnimal.h"
 #include "nodeObjs/noCharburnerPile.h"
 #include "nodeObjs/noDisappearingMapEnvObject.h"
@@ -90,105 +78,118 @@
 #include "nodeObjs/noTree.h"
 #include "s25util/Log.h"
 
+// clang-format off
 /// Version of the current game data
 /// Usage: Always save for the most current version but include loading code that can cope with file format changes
 /// If a format change occurred that can still be handled increase this version and handle it in the loading code.
-/// If the change is to big to handle increase the version in Savegame.cpp  and remove all code referencing
-/// GetGameDataVersion. Then reset this number to 1. Changelog: 2: All player buildings together, variable width size
-/// for containers and ship names 3: Landscape and terrain names stored as strings 4:
-/// STATE_HUNTER_WAITING_FOR_ANIMAL_READY introduced as sub-state of STATE_HUNTER_FINDINGSHOOTINGPOINT 5: Make
-/// RoadPathDirection contiguous and use optional for ware in nofBuildingWorker
-static const unsigned currentGameDataVersion = 5;
+/// If the change is to big to handle increase the version in Savegame.cpp and remove all code referencing GetGameDataVersion.
+/// Then reset this number to 1.
+/// TODO: Let GO_Type start at 0 again when resetting this
+/// Changelog:
+/// 2: All player buildings together, variable width size for containers and ship names
+/// 3: Landscape and terrain names stored as strings
+/// 4: HunterWaitingForAnimalReady introduced as sub-state of HunterFindingShootingpoint
+/// 5: Make RoadPathDirection contiguous and use optional for ware in nofBuildingWorker
+/// 6: Make TradeDirection contiguous, Serialize only nobUsuals in BuildingRegister::buildings,
+///    include water and fish in geologists resourceFound
+/// 7: Use helpers::push/popContainer (uses var size)
+/// 8: noFlag::Wares converted to static_vector
+/// 9: Drop serialization of node BQ
+static const unsigned currentGameDataVersion = 9;
+// clang-format on
 
-GameObject* SerializedGameData::Create_GameObject(const GO_Type got, const unsigned obj_id)
+std::unique_ptr<GameObject> SerializedGameData::Create_GameObject(const GO_Type got, const unsigned obj_id)
 {
     switch(got)
     {
-        case GOT_NOB_HQ: return new nobHQ(*this, obj_id);
-        case GOT_NOB_MILITARY: return new nobMilitary(*this, obj_id);
-        case GOT_NOB_STOREHOUSE: return new nobStorehouse(*this, obj_id);
-        case GOT_NOB_USUAL: return new nobUsual(*this, obj_id);
-        case GOT_NOB_SHIPYARD: return new nobShipYard(*this, obj_id);
-        case GOT_NOB_HARBORBUILDING: return new nobHarborBuilding(*this, obj_id);
-        case GOT_NOF_AGGRESSIVEDEFENDER: return new nofAggressiveDefender(*this, obj_id);
-        case GOT_NOF_ATTACKER: return new nofAttacker(*this, obj_id);
-        case GOT_NOF_DEFENDER: return new nofDefender(*this, obj_id);
-        case GOT_NOF_PASSIVESOLDIER: return new nofPassiveSoldier(*this, obj_id);
-        case GOT_NOF_PASSIVEWORKER: return new nofPassiveWorker(*this, obj_id);
-        case GOT_NOF_WELLGUY: return new nofWellguy(*this, obj_id);
-        case GOT_NOF_CARRIER: return new nofCarrier(*this, obj_id);
-        case GOT_NOF_WOODCUTTER: return new nofWoodcutter(*this, obj_id);
-        case GOT_NOF_FISHER: return new nofFisher(*this, obj_id);
-        case GOT_NOF_FORESTER: return new nofForester(*this, obj_id);
-        case GOT_NOF_CARPENTER: return new nofCarpenter(*this, obj_id);
-        case GOT_NOF_STONEMASON: return new nofStonemason(*this, obj_id);
-        case GOT_NOF_HUNTER: return new nofHunter(*this, obj_id);
-        case GOT_NOF_FARMER: return new nofFarmer(*this, obj_id);
-        case GOT_NOF_MILLER: return new nofMiller(*this, obj_id);
-        case GOT_NOF_BAKER: return new nofBaker(*this, obj_id);
-        case GOT_NOF_BUTCHER: return new nofButcher(*this, obj_id);
-        case GOT_NOF_MINER: return new nofMiner(*this, obj_id);
-        case GOT_NOF_BREWER: return new nofBrewer(*this, obj_id);
-        case GOT_NOF_PIGBREEDER: return new nofPigbreeder(*this, obj_id);
-        case GOT_NOF_DONKEYBREEDER: return new nofDonkeybreeder(*this, obj_id);
-        case GOT_NOF_IRONFOUNDER: return new nofIronfounder(*this, obj_id);
-        case GOT_NOF_MINTER: return new nofMinter(*this, obj_id);
-        case GOT_NOF_METALWORKER: return new nofMetalworker(*this, obj_id);
-        case GOT_NOF_ARMORER: return new nofArmorer(*this, obj_id);
-        case GOT_NOF_BUILDER: return new nofBuilder(*this, obj_id);
-        case GOT_NOF_PLANER: return new nofPlaner(*this, obj_id);
-        case GOT_NOF_GEOLOGIST: return new nofGeologist(*this, obj_id);
-        case GOT_NOF_SHIPWRIGHT: return new nofShipWright(*this, obj_id);
-        case GOT_NOF_SCOUT_FREE: return new nofScout_Free(*this, obj_id);
-        case GOT_NOF_SCOUT_LOOKOUTTOWER: return new nofScout_LookoutTower(*this, obj_id);
-        case GOT_NOF_WAREHOUSEWORKER: return new nofWarehouseWorker(*this, obj_id);
-        case GOT_NOF_CATAPULTMAN: return new nofCatapultMan(*this, obj_id);
-        case GOT_NOF_CHARBURNER: return new nofCharburner(*this, obj_id);
-        case GOT_NOF_TRADEDONKEY: return new nofTradeDonkey(*this, obj_id);
-        case GOT_NOF_TRADELEADER: return new nofTradeLeader(*this, obj_id);
-        case GOT_EXTENSION: return new noExtension(*this, obj_id);
-        case GOT_BUILDINGSITE: return new noBuildingSite(*this, obj_id);
-        case GOT_ENVOBJECT: return new noEnvObject(*this, obj_id);
-        case GOT_FIRE: return new noFire(*this, obj_id);
-        case GOT_BURNEDWAREHOUSE: return new BurnedWarehouse(*this, obj_id);
-        case GOT_FLAG: return new noFlag(*this, obj_id);
-        case GOT_GRAINFIELD: return new noGrainfield(*this, obj_id);
-        case GOT_GRANITE: return new noGranite(*this, obj_id);
-        case GOT_SIGN: return new noSign(*this, obj_id);
-        case GOT_SKELETON: return new noSkeleton(*this, obj_id);
-        case GOT_STATICOBJECT: return new noStaticObject(*this, obj_id);
-        case GOT_DISAPPEARINGMAPENVOBJECT: return new noDisappearingMapEnvObject(*this, obj_id);
-        case GOT_TREE: return new noTree(*this, obj_id);
-        case GOT_ANIMAL: return new noAnimal(*this, obj_id);
-        case GOT_FIGHTING: return new noFighting(*this, obj_id);
-        case GOT_ROADSEGMENT: return new RoadSegment(*this, obj_id);
-        case GOT_WARE: return new Ware(*this, obj_id);
-        case GOT_CATAPULTSTONE: return new CatapultStone(*this, obj_id);
-        case GOT_SHIP: return new noShip(*this, obj_id);
-        case GOT_SHIPBUILDINGSITE: return new noShipBuildingSite(*this, obj_id);
-        case GOT_CHARBURNERPILE: return new noCharburnerPile(*this, obj_id);
-        case GOT_NOTHING:
-        case GOT_UNKNOWN: RTTR_Assert(false); break;
+#define RTTR_CREATE_GO(GOT, CLASS) \
+    case GOT: return std::unique_ptr<GameObject>(new CLASS(*this, obj_id))
+        RTTR_CREATE_GO(GO_Type::NobHq, nobHQ);
+        RTTR_CREATE_GO(GO_Type::NobMilitary, nobMilitary);
+        RTTR_CREATE_GO(GO_Type::NobStorehouse, nobStorehouse);
+        RTTR_CREATE_GO(GO_Type::NobUsual, nobUsual);
+        RTTR_CREATE_GO(GO_Type::NobShipyard, nobShipYard);
+        RTTR_CREATE_GO(GO_Type::NobHarborbuilding, nobHarborBuilding);
+        RTTR_CREATE_GO(GO_Type::NofAggressivedefender, nofAggressiveDefender);
+        RTTR_CREATE_GO(GO_Type::NofAttacker, nofAttacker);
+        RTTR_CREATE_GO(GO_Type::NofDefender, nofDefender);
+        RTTR_CREATE_GO(GO_Type::NofPassivesoldier, nofPassiveSoldier);
+        RTTR_CREATE_GO(GO_Type::NofPassiveworker, nofPassiveWorker);
+        RTTR_CREATE_GO(GO_Type::NofWellguy, nofWellguy);
+        RTTR_CREATE_GO(GO_Type::NofCarrier, nofCarrier);
+        RTTR_CREATE_GO(GO_Type::NofWoodcutter, nofWoodcutter);
+        RTTR_CREATE_GO(GO_Type::NofFisher, nofFisher);
+        RTTR_CREATE_GO(GO_Type::NofForester, nofForester);
+        RTTR_CREATE_GO(GO_Type::NofCarpenter, nofCarpenter);
+        RTTR_CREATE_GO(GO_Type::NofStonemason, nofStonemason);
+        RTTR_CREATE_GO(GO_Type::NofHunter, nofHunter);
+        RTTR_CREATE_GO(GO_Type::NofFarmer, nofFarmer);
+        RTTR_CREATE_GO(GO_Type::NofMiller, nofMiller);
+        RTTR_CREATE_GO(GO_Type::NofBaker, nofBaker);
+        RTTR_CREATE_GO(GO_Type::NofButcher, nofButcher);
+        RTTR_CREATE_GO(GO_Type::NofMiner, nofMiner);
+        RTTR_CREATE_GO(GO_Type::NofBrewer, nofBrewer);
+        RTTR_CREATE_GO(GO_Type::NofPigbreeder, nofPigbreeder);
+        RTTR_CREATE_GO(GO_Type::NofDonkeybreeder, nofDonkeybreeder);
+        RTTR_CREATE_GO(GO_Type::NofIronfounder, nofIronfounder);
+        RTTR_CREATE_GO(GO_Type::NofMinter, nofMinter);
+        RTTR_CREATE_GO(GO_Type::NofMetalworker, nofMetalworker);
+        RTTR_CREATE_GO(GO_Type::NofArmorer, nofArmorer);
+        RTTR_CREATE_GO(GO_Type::NofBuilder, nofBuilder);
+        RTTR_CREATE_GO(GO_Type::NofPlaner, nofPlaner);
+        RTTR_CREATE_GO(GO_Type::NofGeologist, nofGeologist);
+        RTTR_CREATE_GO(GO_Type::NofShipwright, nofShipWright);
+        RTTR_CREATE_GO(GO_Type::NofScoutFree, nofScout_Free);
+        RTTR_CREATE_GO(GO_Type::NofScoutLookouttower, nofScout_LookoutTower);
+        RTTR_CREATE_GO(GO_Type::NofWarehouseworker, nofWarehouseWorker);
+        RTTR_CREATE_GO(GO_Type::NofCatapultman, nofCatapultMan);
+        RTTR_CREATE_GO(GO_Type::NofCharburner, nofCharburner);
+        RTTR_CREATE_GO(GO_Type::NofTradedonkey, nofTradeDonkey);
+        RTTR_CREATE_GO(GO_Type::NofTradeleader, nofTradeLeader);
+        RTTR_CREATE_GO(GO_Type::Extension, noExtension);
+        RTTR_CREATE_GO(GO_Type::Buildingsite, noBuildingSite);
+        RTTR_CREATE_GO(GO_Type::Envobject, noEnvObject);
+        RTTR_CREATE_GO(GO_Type::Fire, noFire);
+        RTTR_CREATE_GO(GO_Type::Burnedwarehouse, BurnedWarehouse);
+        RTTR_CREATE_GO(GO_Type::Flag, noFlag);
+        RTTR_CREATE_GO(GO_Type::Grainfield, noGrainfield);
+        RTTR_CREATE_GO(GO_Type::Granite, noGranite);
+        RTTR_CREATE_GO(GO_Type::Sign, noSign);
+        RTTR_CREATE_GO(GO_Type::Skeleton, noSkeleton);
+        RTTR_CREATE_GO(GO_Type::Staticobject, noStaticObject);
+        RTTR_CREATE_GO(GO_Type::Disappearingmapenvobject, noDisappearingMapEnvObject);
+        RTTR_CREATE_GO(GO_Type::Tree, noTree);
+        RTTR_CREATE_GO(GO_Type::Animal, noAnimal);
+        RTTR_CREATE_GO(GO_Type::Fighting, noFighting);
+        RTTR_CREATE_GO(GO_Type::Roadsegment, RoadSegment);
+        RTTR_CREATE_GO(GO_Type::Ware, Ware);
+        RTTR_CREATE_GO(GO_Type::Catapultstone, CatapultStone);
+        RTTR_CREATE_GO(GO_Type::Ship, noShip);
+        RTTR_CREATE_GO(GO_Type::Shipbuildingsite, noShipBuildingSite);
+        RTTR_CREATE_GO(GO_Type::Charburnerpile, noCharburnerPile);
+        RTTR_CREATE_GO(GO_Type::Economymodehandler, EconomyModeHandler);
+        case GO_Type::Nothing: RTTR_Assert(false); break;
+#undef RTTR_CREATE_GO
     }
     throw Error("Invalid GameObjectType " + helpers::toString(got) + " for objId=" + helpers::toString(obj_id)
                 + " found!");
 }
 
-FOWObject* SerializedGameData::Create_FOWObject(const FOW_Type fowtype)
+std::unique_ptr<FOWObject> SerializedGameData::Create_FOWObject(const FoW_Type fowtype)
 {
     switch(fowtype)
     {
         default: return nullptr;
-        case FOW_BUILDING: return new fowBuilding(*this);
-        case FOW_BUILDINGSITE: return new fowBuildingSite(*this);
-        case FOW_FLAG: return new fowFlag(*this);
-        case FOW_TREE: return new fowTree(*this);
-        case FOW_GRANITE: return new fowGranite(*this);
+        case FoW_Type::Building: return std::make_unique<fowBuilding>(*this);
+        case FoW_Type::Buildingsite: return std::make_unique<fowBuildingSite>(*this);
+        case FoW_Type::Flag: return std::make_unique<fowFlag>(*this);
+        case FoW_Type::Tree: return std::make_unique<fowTree>(*this);
+        case FoW_Type::Granite: return std::make_unique<fowGranite>(*this);
     }
 }
 
 SerializedGameData::SerializedGameData()
-    : debugMode(false), gameDataVersion(0), expectedNumObjects(0), em(nullptr), writeEm(nullptr), isReading(false)
+    : debugMode(false), expectedNumObjects(0), em(nullptr), writeEm(nullptr), isReading(false)
 {}
 
 void SerializedGameData::Prepare(bool reading)
@@ -214,11 +215,11 @@ void SerializedGameData::Prepare(bool reading)
     isReading = reading;
 }
 
-void SerializedGameData::MakeSnapshot(const std::shared_ptr<Game>& game)
+void SerializedGameData::MakeSnapshot(const Game& game)
 {
     Prepare(false);
 
-    GameWorld& gw = game->world_;
+    const GameWorldBase& gw = game.world_;
     writeEm = &gw.GetEvMgr();
 
     // Anzahl Objekte reinschreiben (used for safety checks only)
@@ -226,9 +227,13 @@ void SerializedGameData::MakeSnapshot(const std::shared_ptr<Game>& game)
     PushUnsignedInt(expectedNumObjects);
 
     // World and objects
-    gw.Serialize(*this);
+    MapSerializer::Serialize(gw, *this);
     // EventManager
     writeEm->Serialize(*this);
+    if(game.ggs_.objective == GameObjective::EconomyMode)
+    {
+        PushObject(gw.getEconHandler(), true);
+    }
     // Spieler serialisieren
     for(unsigned i = 0; i < gw.GetNumPlayers(); ++i)
     {
@@ -239,45 +244,69 @@ void SerializedGameData::MakeSnapshot(const std::shared_ptr<Game>& game)
             LOG.write("Done serializing player %1% at %2%\n") % i % GetLength();
     }
 
-    static boost::format evCtError("Event count mismatch. Expected: %1%, written: %2%");
-    static boost::format objCtError("Object count mismatch. Expected: %1%, written: %2%");
-
     if(writtenEventIds.size() != writeEm->GetNumActiveEvents())
-        throw Error((evCtError % writeEm->GetNumActiveEvents() % writtenEventIds.size()).str());
+    {
+        throw Error(helpers::format("Event count mismatch. Expected: %1%, written: %2%", writeEm->GetNumActiveEvents(),
+                                    writtenEventIds.size()));
+    }
     // If this check fails, we missed some objects or some objects were destroyed without decreasing the obj count
     if(expectedNumObjects != writtenObjIds.size() + 1) // "Nothing" nodeObj does not get serialized
-        throw Error((objCtError % expectedNumObjects % (writtenObjIds.size() + 1)).str());
+    {
+        throw Error(helpers::format("Object count mismatch. Expected: %1%, written: %2%", expectedNumObjects,
+                                    writtenObjIds.size() + 1));
+    }
 
     writeEm = nullptr;
     writtenObjIds.clear();
     writtenEventIds.clear();
 }
 
-void SerializedGameData::ReadSnapshot(const std::shared_ptr<Game>& game, ILocalGameState& localGameState)
+void SerializedGameData::ReadSnapshot(Game& game, ILocalGameState& localGameState)
 {
     Prepare(true);
 
-    GameWorld& gw = game->world_;
+    GameWorld& gw = game.world_;
     em = &gw.GetEvMgr();
 
     expectedNumObjects = PopUnsignedInt();
 
-    gw.Deserialize(game, localGameState, *this);
+    MapSerializer::Deserialize(gw, *this, game, localGameState);
     em->Deserialize(*this);
+    if(gw.GetGGS().objective == GameObjective::EconomyMode)
+    {
+        gw.setEconHandler(
+          std::unique_ptr<EconomyModeHandler>(PopObject<EconomyModeHandler>(GO_Type::Economymodehandler)));
+    }
+
     for(unsigned i = 0; i < gw.GetNumPlayers(); ++i)
         gw.GetPlayer(i).Deserialize(*this);
 
-    static boost::format evCtError("Event count mismatch. Expected: %1%, read: %2%");
-    static boost::format objCtError("Object count mismatch. Expected: %1%, Existing: %2%");
-    static boost::format objCtError2("Object count mismatch. Expected: %1%, read: %2%");
-
     // If this check fails, we did not serialize all objects or there was an async
     if(readEvents.size() != em->GetNumActiveEvents())
-        throw Error((evCtError % em->GetNumActiveEvents() % readEvents.size()).str());
+    {
+        throw Error(helpers::format("Event count mismatch. Expected: %1%, read: %2%", em->GetNumActiveEvents(),
+                                    readEvents.size()));
+    }
     if(expectedNumObjects != GameObject::GetNumObjs())
-        throw Error((objCtError % expectedNumObjects % GameObject::GetNumObjs()).str());
+    {
+        throw Error(helpers::format("Object count mismatch. Expected: %1%, Existing: %2%", expectedNumObjects,
+                                    GameObject::GetNumObjs()));
+    }
     if(expectedNumObjects != readObjects.size() + 1) // "Nothing" nodeObj does not get serialized
-        throw Error((objCtError2 % expectedNumObjects % (readObjects.size() + 1)).str());
+    {
+        throw Error(helpers::format("Object count mismatch. Expected: %1%, read: %2%", expectedNumObjects,
+                                    readObjects.size() + 1));
+    }
+
+    // Sanity check for flag workers. See bug #1449
+    for(const auto& entry : readObjects)
+    {
+        const auto* worker = dynamic_cast<const nofFlagWorker*>(entry.second);
+        if(worker && worker->GetFlag() && worker->GetPlayer() != worker->GetFlag()->GetPlayer())
+        {
+            throw Error(helpers::format("Invalid flag worker at %1%", worker->GetPos()));
+        }
+    }
 
     em = nullptr;
     readObjects.clear();
@@ -326,7 +355,7 @@ void SerializedGameData::PushObject_(const GameObject* go, const bool known)
 
     // Objekt nich bekannt? Dann Type-ID noch mit drauf
     if(!known)
-        PushUnsignedShort(go->GetGOT());
+        PushEnum<uint16_t>(go->GetGOT());
 
     // Objekt serialisieren
     if(debugMode)
@@ -395,26 +424,26 @@ void SerializedGameData::PushFOWObject(const FOWObject* fowobj)
     }
 
     // Objekt-Typ
-    PushUnsignedChar(static_cast<unsigned char>(fowobj->GetType()));
+    PushEnum<uint8_t>(fowobj->GetType());
 
     // Objekt serialisieren
     fowobj->Serialize(*this);
 }
 
-FOWObject* SerializedGameData::PopFOWObject()
+std::unique_ptr<FOWObject> SerializedGameData::PopFOWObject()
 {
     // Typ auslesen
-    auto type = FOW_Type(PopUnsignedChar());
+    auto type = Pop<FoW_Type>();
 
     // Kein Objekt?
-    if(type == FOW_NOTHING)
+    if(type == FoW_Type::Nothing)
         return nullptr;
 
     // entsprechendes Objekt erzeugen
     return Create_FOWObject(type);
 }
 
-GameObject* SerializedGameData::PopObject_(GO_Type got)
+GameObject* SerializedGameData::PopObject_(helpers::OptionalEnum<GO_Type> got)
 {
     RTTR_Assert(isReading);
     // Obj-ID holen
@@ -424,19 +453,15 @@ GameObject* SerializedGameData::PopObject_(GO_Type got)
     if(!objId)
         return nullptr;
 
-    GameObject* go = GetReadGameObject(objId);
-
-    // Schon vorhanden?
-    if(go)
-        // dann das nehmen
+    if(GameObject* go = GetReadGameObject(objId))
         return go;
 
     // Objekt nich bekannt? Dann in den heiligen Schriften lesen
-    if(got == GOT_UNKNOWN)
-        got = GO_Type(PopUnsignedShort());
+    if(!got)
+        got = Pop<GO_Type>();
 
     // und erzeugen
-    go = Create_GameObject(got, objId);
+    std::unique_ptr<GameObject> go = Create_GameObject(*got, objId);
 
     // Sicherheitscode auslesen
     unsigned short safety_code = PopUnsignedShort();
@@ -445,17 +470,16 @@ GameObject* SerializedGameData::PopObject_(GO_Type got)
     {
         LOG.write(
           "SerializedGameData::PopObject_: ERROR: After loading Object(obj_id = %u, got = %u); Code is wrong!\n")
-          % objId % got;
-        delete go;
+          % objId % rttr::enum_cast(*got);
         throw Error("Invalid safety code after PopObject");
     }
 
-    return go;
+    return go.release();
 }
 
 unsigned short SerializedGameData::GetSafetyCode(const GameObject& go)
 {
-    return 0xFFFF ^ go.GetGOT() ^ go.GetObjId();
+    return 0xFFFF ^ rttr::enum_cast(go.GetGOT()) ^ go.GetObjId();
 }
 
 unsigned short SerializedGameData::GetSafetyCode(const GameEvent& ev)

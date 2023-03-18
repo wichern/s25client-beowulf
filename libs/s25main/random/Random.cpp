@@ -1,34 +1,18 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "random/Random.h"
-#include "RttrConfig.h"
 #include "s25util/Serializer.h"
-#include <boost/nowide/fstream.hpp>
-#include <iomanip>
 #include <stdexcept>
 
 template<class T_PRNG>
-int calcRandValue(T_PRNG& rng, int max)
+int calcRandValue(T_PRNG& rng, int maxExcl)
 {
     // Special case: [0, 0) makes 0
-    if(max == 0)
+    if(maxExcl == 0)
         return 0;
-    return static_cast<int>(rng() % static_cast<unsigned>(max));
+    return static_cast<int>(rng() % static_cast<unsigned>(maxExcl));
 }
 
 template<class T_PRNG>
@@ -51,12 +35,12 @@ void Random<T_PRNG>::ResetState(const PRNG& newState)
 }
 
 template<class T_PRNG>
-int Random<T_PRNG>::Rand(const char* const src_name, const unsigned src_line, const unsigned obj_id, const int max)
+int Random<T_PRNG>::Rand(const RandomContext& context, const int maxExcl)
 {
-    history_[numInvocations_ % history_.size()] = RandomEntry(numInvocations_, max, rng_, src_name, src_line, obj_id);
+    history_[numInvocations_ % history_.size()] = RandomEntry(numInvocations_, maxExcl, rng_, context);
     ++numInvocations_;
 
-    return calcRandValue(rng_, max);
+    return calcRandValue(rng_, maxExcl);
 }
 
 template<class T_PRNG>
@@ -112,61 +96,40 @@ std::vector<typename Random<T_PRNG>::RandomEntry> Random<T_PRNG>::GetAsyncLog()
     return ret;
 }
 
-template<class T_PRNG>
-void Random<T_PRNG>::SaveLog(const boost::filesystem::path& filepath)
-{
-    const std::vector<RandomEntry> log = GetAsyncLog();
-    boost::nowide::ofstream file(filepath);
-
-    for(const auto& curLog : log)
-        file << curLog << std::endl;
-}
-
 //////////////////////////////////////////////////////////////////////////
 
 template<class T_PRNG>
 void Random<T_PRNG>::RandomEntry::Serialize(Serializer& ser) const
 {
     ser.PushUnsignedInt(counter);
-    ser.PushSignedInt(max);
+    ser.PushSignedInt(maxExcl);
     // We save the type a) for double checking and b) for future extension
     ser.PushLongString(T_PRNG::getName());
     rngState.serialize(ser);
-    ser.PushLongString(src_name);
-    ser.PushUnsignedInt(src_line);
-    ser.PushUnsignedInt(obj_id);
+    ser.PushLongString(srcName);
+    ser.PushUnsignedInt(srcLine);
+    ser.PushUnsignedInt(objId);
 }
 
 template<class T_PRNG>
 void Random<T_PRNG>::RandomEntry::Deserialize(Serializer& ser)
 {
     counter = ser.PopUnsignedInt();
-    max = ser.PopSignedInt();
+    maxExcl = ser.PopSignedInt();
     std::string name = ser.PopLongString();
     if(name != T_PRNG::getName())
         throw std::runtime_error("Wrong random number generator");
     rngState.deserialize(ser);
-    src_name = ser.PopLongString();
-    src_line = ser.PopUnsignedInt();
-    obj_id = ser.PopUnsignedInt();
+    srcName = ser.PopLongString();
+    srcLine = ser.PopUnsignedInt();
+    objId = ser.PopUnsignedInt();
 }
 
 template<class T_PRNG>
 int Random<T_PRNG>::RandomEntry::GetValue() const
 {
     PRNG tmpRng(rngState);
-    return calcRandValue(tmpRng, max);
-}
-
-template<class T_PRNG>
-std::ostream& Random<T_PRNG>::RandomEntry::print(std::ostream& os) const
-{
-    static const std::string rttrSrcBaseName = RttrConfig::GetSourceDir().generic_string() + "/";
-    std::string strippedSrcFile = boost::filesystem::path(src_name).generic_string();
-    if(strippedSrcFile.find(rttrSrcBaseName) == 0)
-        strippedSrcFile = strippedSrcFile.substr(rttrSrcBaseName.size());
-    return os << counter << ":R(" << max << ")=" << GetValue() << ",z=" << std::hex << std::setw(8) << rngState
-              << std::dec << std::setw(0) << "\t| " << strippedSrcFile << "#" << src_line << "\t| id=" << obj_id;
+    return calcRandValue(tmpRng, maxExcl);
 }
 
 // Instantiate the Random class with the used PRNG

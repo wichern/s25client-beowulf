@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskBenchmark.h"
 #include "Game.h"
@@ -71,13 +58,13 @@ struct dskBenchmark::GameView
 };
 
 dskBenchmark::dskBenchmark()
-    : curTest_(TEST_NONE), runAll_(false), numInstances_(1000), frameCtr_(FrameCounter::clock::duration::max())
+    : curTest_(Benchmark::None), runAll_(false), numInstances_(1000), frameCtr_(FrameCounter::clock::duration::max())
 {
+    for(std::chrono::milliseconds& t : testDurations_)
+        t = std::chrono::milliseconds::zero();
     AddText(ID_txtHelp, DrawPoint(5, 5), "Use F1-F5 to start benchmark, F10 for all, NUM_n to set amount of instances",
             COLOR_YELLOW, FontStyle::LEFT, LargeFont);
     AddText(ID_txtAmount, DrawPoint(795, 5), "Instances: default", COLOR_YELLOW, FontStyle::RIGHT, LargeFont);
-    for(std::chrono::milliseconds& t : testDurations_)
-        t = std::chrono::milliseconds::zero();
 }
 
 dskBenchmark::~dskBenchmark()
@@ -93,17 +80,17 @@ bool dskBenchmark::Msg_KeyDown(const KeyEvent& ke)
 {
     switch(ke.kt)
     {
-        case KT_ESCAPE: WINDOWMANAGER.Switch(std::make_unique<dskMainMenu>()); break;
-        case KT_F1: startTest(TEST_TEXT); break;
-        case KT_F2: startTest(TEST_PRIMITIVES); break;
-        case KT_F3: startTest(TEST_EMPTY_GAME); break;
-        case KT_F4: startTest(TEST_BASIC_GAME); break;
-        case KT_F5: startTest(TEST_FULL_GAME); break;
-        case KT_F10:
+        case KeyType::Escape: WINDOWMANAGER.Switch(std::make_unique<dskMainMenu>()); break;
+        case KeyType::F1: startTest(Benchmark::Text); break;
+        case KeyType::F2: startTest(Benchmark::Primitives); break;
+        case KeyType::F3: startTest(Benchmark::EmptyGame); break;
+        case KeyType::F4: startTest(Benchmark::BasicGame); break;
+        case KeyType::F5: startTest(Benchmark::FullGame); break;
+        case KeyType::F10:
             runAll_ = true;
-            startTest(TEST_TEXT);
+            startTest(Benchmark::Text);
             break;
-        case KT_CHAR:
+        case KeyType::Char:
             if(ke.c >= '0' && ke.c <= '9')
             {
                 numInstances_ = (ke.c - '0') * 100;
@@ -127,10 +114,10 @@ void dskBenchmark::Msg_PaintAfter()
     if(gameView_)
     {
         RoadBuildState roadState;
-        roadState.mode = RM_DISABLED;
+        roadState.mode = RoadBuildMode::Disabled;
         gameView_->view.Draw(roadState, MapPoint::Invalid(), false);
     }
-    if(curTest_ != TEST_NONE)
+    if(curTest_ != Benchmark::None)
     {
         if(frameCtr_.getCurNumFrames() + 1u >= numTestFrames)
             VIDEODRIVER.GetRenderer()->synchronize();
@@ -148,15 +135,14 @@ void dskBenchmark::SetActive(bool activate)
     dskMenuBase::SetActive(activate);
 }
 
-void dskBenchmark::startTest(Test test)
+void dskBenchmark::startTest(Benchmark test)
 {
     uint32_t seed = 0x1337;
     std::mt19937 rng(seed);
     switch(test)
     {
-        case TEST_NONE:
-        case TEST_CT: return;
-        case TEST_TEXT:
+        case Benchmark::None: return;
+        case Benchmark::Text:
         {
             static const std::string charset =
               "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()`~-_=+[{]{\\|;:'\",<.>/? ";
@@ -182,7 +168,7 @@ void dskBenchmark::startTest(Test test)
             }
             break;
         }
-        case TEST_PRIMITIVES:
+        case Benchmark::Primitives:
         {
             Extent screenSize = VIDEODRIVER.GetRenderSize();
             std::uniform_int_distribution<unsigned> distSize(5, 50);
@@ -218,16 +204,16 @@ void dskBenchmark::startTest(Test test)
             }
             break;
         }
-        case TEST_EMPTY_GAME:
+        case Benchmark::EmptyGame:
             createGame();
             if(!game_)
                 return;
             RTTR_FOREACH_PT(MapPoint, game_->world_.GetSize())
             {
-                game_->world_.SetVisibility(pt, 0, VIS_VISIBLE);
+                game_->world_.SetVisibility(pt, 0, Visibility::Visible);
             }
             break;
-        case TEST_BASIC_GAME:
+        case Benchmark::BasicGame:
         {
             createGame();
             if(!game_)
@@ -237,7 +223,7 @@ void dskBenchmark::startTest(Test test)
             MapLoader::PlaceHQs(game_->world_, hqs, false);
             break;
         }
-        case TEST_FULL_GAME:
+        case Benchmark::FullGame:
         {
             createGame();
             if(!game_)
@@ -250,29 +236,28 @@ void dskBenchmark::startTest(Test test)
                 std::vector<MapPoint> pts = game_->world_.GetPointsInRadius(hqs[i], 15);
                 std::bernoulli_distribution dist(numInstances_ / 1000.f);
                 std::bernoulli_distribution distEqual;
-                std::array<BuildingType, 5> blds = {
-                  {BLD_BARRACKS, BLD_MILL, BLD_IRONMINE, BLD_SLAUGHTERHOUSE, BLD_BAKERY}};
+                std::array<BuildingType, 5> blds = {{BuildingType::Barracks, BuildingType::Mill, BuildingType::IronMine,
+                                                     BuildingType::Slaughterhouse, BuildingType::Bakery}};
                 std::uniform_int_distribution<unsigned> getBld(0, blds.size() - 1);
-                std::uniform_int_distribution<unsigned> getJob(0, NUM_JOB_TYPES - 1);
-                std::uniform_int_distribution<int> getDir(0, Direction::COUNT - 1);
+                std::uniform_int_distribution<unsigned> getJob(0, helpers::MaxEnumValue_v<Job>);
+                std::uniform_int_distribution<unsigned> getDir(0, helpers::MaxEnumValue_v<Direction>);
                 for(MapPoint pt : pts)
                 {
-                    MapPoint flagPt = game_->world_.GetNeighbour(pt, Direction::SOUTHEAST);
+                    MapPoint flagPt = game_->world_.GetNeighbour(pt, Direction::SouthEast);
                     if(game_->world_.GetNode(pt).obj || game_->world_.GetNode(flagPt).obj || !dist(rng))
                         continue;
                     BuildingType bldType = blds[getBld(rng)];
-                    noBuilding* bld = BuildingFactory::CreateBuilding(game_->world_, bldType, pt, i,
-                                                                      distEqual(rng) ? NAT_AFRICANS : NAT_JAPANESE);
-                    if(bldType == BLD_BARRACKS)
+                    noBuilding* bld = BuildingFactory::CreateBuilding(
+                      game_->world_, bldType, pt, i, distEqual(rng) ? Nation::Africans : Nation::Japanese);
+                    if(bldType == BuildingType::Barracks)
                     {
                         auto* mil = static_cast<nobMilitary*>(bld);
-                        auto* sld = new nofPassiveSoldier(pt, i, mil, mil, 0);
-                        mil->AddPassiveSoldier(sld);
+                        mil->AddPassiveSoldier(std::make_unique<nofPassiveSoldier>(pt, i, mil, mil, 0));
                     }
-                    auto* figure = new nofPassiveWorker(Job(getJob(rng)), flagPt, i, nullptr);
-                    game_->world_.AddFigure(flagPt, figure);
-                    figure->StartWandering();
-                    figure->StartWalking(Direction::fromInt(getDir(rng)));
+                    auto& figure = game_->world_.AddFigure(
+                      flagPt, std::make_unique<nofPassiveWorker>(Job(getJob(rng)), flagPt, i, nullptr));
+                    figure.StartWandering();
+                    figure.StartWalking(Direction(getDir(rng)));
                 }
             }
             break;
@@ -289,9 +274,10 @@ void dskBenchmark::startTest(Test test)
 void dskBenchmark::finishTest()
 {
     using namespace std::chrono;
-    LOG.write("Benchmark #%1% took %2%. -> %3%m/frame\n") % curTest_
-      % duration_cast<duration<float>>(frameCtr_.getCurIntervalLength())
-      % duration_cast<milliseconds>(frameCtr_.getCurIntervalLength() / frameCtr_.getCurNumFrames());
+    using helpers::withUnit;
+    LOG.write("Benchmark #%1% took %2%. -> %3%m/frame\n") % rttr::enum_cast(curTest_)
+      % withUnit(duration_cast<duration<float>>(frameCtr_.getCurIntervalLength()))
+      % withUnit(duration_cast<milliseconds>(frameCtr_.getCurIntervalLength() / frameCtr_.getCurNumFrames()));
     if(testDurations_[curTest_] == milliseconds::zero())
         testDurations_[curTest_] = duration_cast<milliseconds>(frameCtr_.getCurIntervalLength());
     else
@@ -311,14 +297,16 @@ void dskBenchmark::finishTest()
     SetFpsDisplay(true);
     VIDEODRIVER.setTargetFramerate(0);
     if(!runAll_)
-        curTest_ = TEST_NONE;
+        curTest_ = Benchmark::None;
     else
     {
-        curTest_ = Test(curTest_ + 1);
-        if(curTest_ == TEST_CT)
-            curTest_ = TEST_NONE;
+        if(curTest_ == helpers::MaxEnumValue<Benchmark>::value)
+            curTest_ = Benchmark::None;
         else
+        {
+            curTest_ = Benchmark(rttr::enum_cast(curTest_) + 1);
             startTest(curTest_);
+        }
     }
 }
 
@@ -327,11 +315,11 @@ void dskBenchmark::createGame()
     RANDOM.Init(42);
     std::vector<PlayerInfo> players;
     PlayerInfo p;
-    p.ps = PS_OCCUPIED;
-    p.nation = NAT_AFRICANS;
+    p.ps = PlayerState::Occupied;
+    p.nation = Nation::Africans;
     p.color = PLAYER_COLORS[0];
     players.push_back(p);
-    p.nation = NAT_JAPANESE;
+    p.nation = Nation::Japanese;
     p.color = PLAYER_COLORS[1];
     players.push_back(p);
     game_ = std::make_shared<Game>(GlobalGameSettings(), 0u, players);
@@ -383,13 +371,17 @@ void dskBenchmark::createGame()
 void dskBenchmark::printTimes() const
 {
     using namespace std::chrono;
+
     milliseconds total(0);
-    for(unsigned i = 1; i < testDurations_.size(); i++)
+    for(const auto i : helpers::enumRange<Benchmark>())
     {
-        LOG.write("Benchmark #%1% took %2% -> %3%/frame\n") % i % duration_cast<duration<float>>(testDurations_[i])
-          % duration_cast<milliseconds>(testDurations_[i] / numTestFrames);
+        if(i == Benchmark::None)
+            continue;
+        LOG.write("Benchmark #%1% took %2% -> %3%/frame\n") % rttr::enum_cast(i)
+          % helpers::withUnit(duration_cast<duration<float>>(testDurations_[i]))
+          % helpers::withUnit(duration_cast<milliseconds>(testDurations_[i] / numTestFrames));
         total += testDurations_[i];
     }
-    LOG.write("Total benchmark time; %1% -> %2%/frame\n") % duration_cast<duration<float>>(total)
-      % duration_cast<milliseconds>(total / numTestFrames);
+    LOG.write("Total benchmark time; %1% -> %2%/frame\n") % helpers::withUnit(duration_cast<duration<float>>(total))
+      % helpers::withUnit(duration_cast<milliseconds>(total / numTestFrames));
 }

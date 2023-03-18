@@ -1,22 +1,15 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "MapInfo.h"
 #include "Savegame.h"
+#include <limits>
+
+/// Hard upper limit on the file size of maps/savegames, currently: 500MB
+constexpr size_t MAX_FILE_SIZE = 100 * 1024 * 1024;
+// The summed value of map + lua must at least fit into an uint32, also we have it twice: compressed and uncompressed
+static_assert(MAX_FILE_SIZE <= std::numeric_limits<uint32_t>::max() / 4u, "Max size to large");
 
 MapInfo::MapInfo()
 {
@@ -27,7 +20,7 @@ MapInfo::~MapInfo() = default;
 
 void MapInfo::Clear()
 {
-    type = MAPTYPE_OLDMAP;
+    type = MapType::OldMap;
     title.clear();
     filepath.clear();
     luaFilepath.clear();
@@ -36,4 +29,19 @@ void MapInfo::Clear()
     mapChecksum = 0;
     luaChecksum = 0;
     savegame.reset();
+}
+
+bool MapInfo::verifySize() const
+{
+    return verifySize(mapData.data.size(), luaData.data.size(), mapData.uncompressedLength, luaData.uncompressedLength);
+}
+
+bool MapInfo::verifySize(size_t mapLen, size_t mapLenCompressed, size_t luaLen, size_t luaLenCompressed)
+{
+    for(const auto size : {mapLen, mapLenCompressed, luaLen, luaLenCompressed})
+    {
+        if(size > MAX_FILE_SIZE)
+            return false;
+    }
+    return true;
 }

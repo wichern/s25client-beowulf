@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwDirectIPCreate.h"
 #include "Loader.h"
@@ -30,39 +17,39 @@
 
 iwDirectIPCreate::iwDirectIPCreate(ServerType server_type)
     : IngameWindow(CGI_DIRECTIPCREATE, IngameWindow::posLastOrCenter, Extent(300, 285), _("Create Game"),
-                   LOADER.GetImageN("resource", 41), true, true),
+                   LOADER.GetImageN("resource", 41), true, CloseBehavior::Custom),
       server_type(server_type)
 {
     ctrlEdit *name, *port;
 
     // "Name des Spiels"
     AddText(0, DrawPoint(20, 30), _("Game's Name:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    name = AddEdit(1, DrawPoint(20, 45), Extent(260, 22), TC_GREEN2, NormalFont, 0, false, false, true);
+    name = AddEdit(1, DrawPoint(20, 45), Extent(260, 22), TextureColor::Green2, NormalFont, 0, false, false, true);
 
     // "Server-Port"
     AddText(2, DrawPoint(20, 80), _("Server-Port:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    port = AddEdit(3, DrawPoint(20, 95), Extent(260, 22), TC_GREEN2, NormalFont, 0, false, false, true);
+    port = AddEdit(3, DrawPoint(20, 95), Extent(260, 22), TextureColor::Green2, NormalFont, 0, false, false, true);
 
     // "Passwort"
     AddText(4, DrawPoint(20, 130), _("Password:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddEdit(5, DrawPoint(20, 145), Extent(260, 22), TC_GREEN2, NormalFont, 0, false, false, true);
+    AddEdit(5, DrawPoint(20, 145), Extent(260, 22), TextureColor::Green2, NormalFont, 0, false, false, true);
 
     // ipv6 oder ipv4 benutzen
     AddText(11, DrawPoint(20, 185), _("Use IPv6:"), COLOR_YELLOW, FontStyle{}, NormalFont);
 
-    ctrlOptionGroup* ipv6 = AddOptionGroup(12, ctrlOptionGroup::CHECK);
-    ipv6->AddTextButton(0, DrawPoint(120, 180), Extent(75, 22), TC_GREEN2, _("IPv4"), NormalFont);
-    ipv6->AddTextButton(1, DrawPoint(205, 180), Extent(75, 22), TC_GREEN2, _("IPv6"), NormalFont);
+    ctrlOptionGroup* ipv6 = AddOptionGroup(12, GroupSelectType::Check);
+    ipv6->AddTextButton(0, DrawPoint(120, 180), Extent(75, 22), TextureColor::Green2, _("IPv4"), NormalFont);
+    ipv6->AddTextButton(1, DrawPoint(205, 180), Extent(75, 22), TextureColor::Green2, _("IPv6"), NormalFont);
     ipv6->SetSelection((SETTINGS.server.ipv6 ? 1 : 0));
 
     // Status
     AddText(6, DrawPoint(150, 215), "", COLOR_RED, FontStyle::CENTER, NormalFont);
 
     // "Starten"
-    AddTextButton(7, DrawPoint(20, 240), Extent(125, 22), TC_GREEN2, _("Start"), NormalFont);
+    AddTextButton(7, DrawPoint(20, 240), Extent(125, 22), TextureColor::Green2, _("Start"), NormalFont);
 
     // "Zurück"
-    AddTextButton(8, DrawPoint(155, 240), Extent(125, 22), TC_RED1, _("Back"), NormalFont);
+    AddTextButton(8, DrawPoint(155, 240), Extent(125, 22), TextureColor::Red1, _("Back"), NormalFont);
 
     name->SetText(SETTINGS.lobby.name + _("'s Game"));
     name->SetFocus();
@@ -156,7 +143,7 @@ void iwDirectIPCreate::Msg_ButtonClick(const unsigned ctrl_id)
             }
 
             CreateServerInfo csi(server_type, *port, edtName->GetText(), edtPw->GetText(), SETTINGS.server.ipv6,
-                                 (SETTINGS.global.use_upnp == 1));
+                                 SETTINGS.global.use_upnp);
 
             // Map auswählen
             WINDOWMANAGER.Switch(std::make_unique<dskSelectMap>(csi));

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -23,7 +10,6 @@
 #include "gameTypes/JobTypes.h"
 #include "gameTypes/Nation.h"
 
-class glArchivItem_Bitmap;
 class ITexture;
 class noFlag;
 class SerializedGameData;
@@ -53,22 +39,11 @@ public:
 
     ~noBaseBuilding() override;
 
-    /// Aufräummethoden
-protected:
-    void Destroy_noBaseBuilding();
-
-public:
-    void Destroy() override { Destroy_noBaseBuilding(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_noBaseBuilding(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_noBaseBuilding(sgd); }
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
     /// Eine bestellte Ware konnte doch nicht kommen
-    virtual void WareLost(Ware* ware) = 0;
+    virtual void WareLost(Ware& ware) = 0;
 
     BuildingQuality GetSize() const;
     BuildingType GetBuildingType() const { return bldType_; }
@@ -94,12 +69,11 @@ public:
     /// Wird aufgerufen, wenn eine neue Ware zum dem Gebäude geliefert wird (nicht wenn sie bestellt wurde vom Gebäude!)
     virtual void TakeWare(Ware* ware) = 0;
     /// Wird aufgerufen, wenn ein bestimmter Arbeiter für das hier gerufen wurde
-    virtual void GotWorker(Job /*job*/, noFigure* /*worker*/){};
+    virtual void GotWorker(Job /*job*/, noFigure& /*worker*/){};
 
     /// Gibt ein Bild zurück für das normale Gebäude
-    ITexture* GetBuildingImage() const;
-    static ITexture* GetBuildingImage(BuildingType type, Nation nation);
-    /// Gibt ein Bild zurück für das Gebäudegerüst
+    ITexture& GetBuildingImage() const;
+    static ITexture& GetBuildingImage(BuildingType type, Nation nation);
     /// Gibt ein Bild zurück für die Tür des Gebäudes
-    glArchivItem_Bitmap* GetDoorImage() const;
+    ITexture& GetDoorImage() const;
 };

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "RoadPathFinder.h"
 #include "EventManager.h"
@@ -152,10 +139,11 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
         currentVisit = 1;
     }
 
-    // Anfangsknoten einf�gen
+    // Add start node
     todo.clear();
 
-    start.targetDistance = gwb_.CalcDistance(start.GetPos(), goal.GetPos());
+    const MapPoint goalPos = goal.GetPos();
+    start.targetDistance = gwb_.CalcDistance(start.GetPos(), goalPos);
     start.estimate = start.targetDistance;
     start.last_visit = currentVisit;
     start.prev = nullptr;
@@ -166,13 +154,12 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
 
     while(!todo.empty())
     {
-        // Knoten mit den geringsten Wegkosten ausw�hlen
+        // Get node with current least estimate
         const noRoadNode& best = *todo.pop();
 
-        // Ziel erreicht?
+        // Reached goal
         if(&best == &goal)
         {
-            // Jeweils die einzelnen Angaben zur�ckgeben, falls gew�nscht (Pointer �bergeben)
             if(length)
                 *length = best.cost;
 
@@ -194,36 +181,39 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
             return true;
         }
 
+        const helpers::EnumArray<RoadSegment*, Direction> routes = best.getRoutes();
+        const noRoadNode* prevNode = best.prev;
+
         // Nachbarflagge bzw. Wege in allen 6 Richtungen verfolgen
         for(const auto dir : helpers::EnumRange<Direction>{})
         {
-            // Gibt es auch einen solchen Weg bzw. Nachbarflagge?
-            noRoadNode* neighbour = best.GetNeighbour(dir);
-
-            // Wenn nicht, brauchen wir mit dieser Richtung gar nicht weiter zu machen
-            if(!neighbour)
+            const auto* route = routes[dir];
+            if(!route)
                 continue;
+
+            // Check the 2 flags, one is the current node, so we need the other
+            noRoadNode* neighbour = route->GetF1();
+            if(neighbour == &best)
+                neighbour = route->GetF2();
 
             // this eliminates 1/6 of all nodes and avoids cost calculation and further checks,
-            // therefore - and because the profiler says so - it is more efficient that way
-            if(neighbour == best.prev)
+            if(neighbour == prevNode)
                 continue;
 
-            // No pathes over buildings
-            if((dir == Direction::NORTHWEST) && (neighbour != &goal))
+            // No paths over buildings
+            if(dir == Direction::NorthWest && neighbour != &goal)
             {
                 // Flags and harbors are allowed
                 const GO_Type got = neighbour->GetGOT();
-                if(got != GOT_FLAG && got != GOT_NOB_HARBORBUILDING)
+                if(got != GO_Type::Flag && got != GO_Type::NobHarborbuilding)
                     continue;
             }
 
             // evtl verboten?
-            if(!isSegmentAllowed(*best.GetRoute(dir)))
+            if(!isSegmentAllowed(*route))
                 continue;
 
-            // Neuer Weg für diesen neuen Knoten berechnen
-            unsigned cost = best.cost + best.GetRoute(dir)->GetLength();
+            unsigned cost = best.cost + route->GetLength();
             cost += addCosts(best, dir);
 
             if(cost > max)
@@ -232,71 +222,63 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
             // Was node already visited?
             if(neighbour->last_visit == currentVisit)
             {
-                // Dann nur ggf. Weg und Vorg�nger korrigieren, falls der Weg k�rzer ist
+                // Update node if costs are lower
                 if(cost < neighbour->cost)
                 {
                     neighbour->cost = cost;
-                    neighbour->prev = &best;
                     neighbour->estimate = neighbour->targetDistance + cost;
-                    todo.rearrange(neighbour);
+                    neighbour->prev = &best;
                     neighbour->dir_ = toRoadPathDirection(dir);
+                    todo.rearrange(neighbour);
                 }
             } else
             {
                 // Not visited yet -> Add to list
-                neighbour->last_visit = currentVisit;
                 neighbour->cost = cost;
-                neighbour->dir_ = toRoadPathDirection(dir);
-                neighbour->prev = &best;
-
-                neighbour->targetDistance = gwb_.CalcDistance(neighbour->GetPos(), goal.GetPos());
+                neighbour->targetDistance = gwb_.CalcDistance(neighbour->GetPos(), goalPos);
                 neighbour->estimate = neighbour->targetDistance + cost;
+                neighbour->last_visit = currentVisit;
+                neighbour->prev = &best;
+                neighbour->dir_ = toRoadPathDirection(dir);
 
                 todo.push(neighbour);
             }
         }
 
-        // Stehen wir hier auf einem Hafenplatz
-        if(best.GetGOT() == GOT_NOB_HARBORBUILDING)
+        // For harbors also consider ship connections
+        if(best.GetGOT() != GO_Type::NobHarborbuilding)
+            continue;
+        for(const auto& sc : static_cast<const nobHarborBuilding&>(best).GetShipConnections())
         {
-            std::vector<nobHarborBuilding::ShipConnection> scs =
-              static_cast<const nobHarborBuilding&>(best).GetShipConnections();
+            unsigned cost = best.cost + sc.way_costs;
 
-            for(auto& sc : scs)
+            if(cost > max)
+                continue;
+
+            noRoadNode& dest = *sc.dest;
+            // Was node already visited?
+            if(dest.last_visit == currentVisit)
             {
-                // Neuer Weg für diesen neuen Knoten berechnen
-                unsigned cost = best.cost + sc.way_costs;
-
-                if(cost > max)
-                    continue;
-
-                noRoadNode& dest = *sc.dest;
-                // Was node already visited?
-                if(dest.last_visit == currentVisit)
+                // Update node if costs are lower
+                if(cost < dest.cost)
                 {
-                    // Dann nur ggf. Weg und Vorg�nger korrigieren, falls der Weg k�rzer ist
-                    if(cost < dest.cost)
-                    {
-                        dest.dir_ = RoadPathDirection::Ship;
-                        dest.cost = cost;
-                        dest.prev = &best;
-                        dest.estimate = dest.targetDistance + cost;
-                        todo.rearrange(&dest);
-                    }
-                } else
-                {
-                    // Not visited yet -> Add to list
-                    dest.last_visit = currentVisit;
-
-                    dest.dir_ = RoadPathDirection::Ship;
-                    dest.prev = &best;
                     dest.cost = cost;
-
-                    dest.targetDistance = gwb_.CalcDistance(dest.GetPos(), goal.GetPos());
                     dest.estimate = dest.targetDistance + cost;
-
-                    todo.push(&dest);
+                    dest.prev = &best;
+                    dest.dir_ = RoadPathDirection::Ship;
+                    todo.rearrange(&dest);
                 }
+            } else
+            {
+                // Not visited yet -> Add to list
+                dest.cost = cost;
+                dest.targetDistance = gwb_.CalcDistance(dest.GetPos(), goalPos);
+                dest.estimate = dest.targetDistance + cost;
+                dest.last_visit = currentVisit;
+                dest.prev = &best;
+                dest.dir_ = RoadPathDirection::Ship;
+
+                todo.push(&dest);
             }
         }
     }

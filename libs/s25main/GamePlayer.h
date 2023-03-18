@@ -1,24 +1,12 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "BuildingRegister.h"
 #include "GamePlayerInfo.h"
+#include "helpers/EnumArray.h"
 #include "helpers/MultiArray.h"
 #include "gameTypes/BuildingType.h"
 #include "gameTypes/Inventory.h"
@@ -32,8 +20,8 @@
 #include <list>
 #include <memory>
 
-struct Direction;
-class GameWorldGame;
+enum class Direction : uint8_t;
+class GameWorld;
 class noBaseBuilding;
 class noBuildingSite;
 class noFigure;
@@ -52,15 +40,25 @@ class SerializedGameData;
 struct VisualSettings;
 class Ware;
 
+/// Zeigt an, ob ein Pakt besteht
+enum class PactState
+{
+    None,       /// Kein Pakt geschlossen
+    InProgress, /// Pakt angeboten, aber noch nicht akzeptiert
+    Accepted    /// Bündnis in Kraft
+};
+constexpr auto maxEnumValue(PactState)
+{
+    return PactState::Accepted;
+}
+
 /// Player in the game (belongs to world)
 class GamePlayer : public GamePlayerInfo
 {
 public:
     struct Statistic
     {
-        // 30 Datensätze pro Typ
-        helpers::MultiArray<unsigned, NUM_STAT_TYPES, NUM_STAT_STEPS> data;
-        // und das gleiche für die Warenstatistik
+        helpers::EnumArray<std::array<uint32_t, NUM_STAT_STEPS>, StatisticType> data;
         helpers::MultiArray<uint16_t, NUM_STAT_MERCHANDISE_TYPES, NUM_STAT_STEPS> merchandiseData;
         // Index, der gerade 'vorne' (rechts im Statistikfenster) ist
         uint16_t currentIndex;
@@ -72,7 +70,7 @@ public:
     struct Distribution
     {
         /// Mapping of Building to percentage of ware the building gets
-        std::array<uint8_t, NUM_BUILDING_TYPES> percent_buildings;
+        helpers::EnumArray<uint8_t, BuildingType> percent_buildings;
         /// Buildings that get this ware
         std::vector<BuildingType> client_buildings;
         /// Possible preferred buildings (each building is n times in here with n=percentage)
@@ -81,7 +79,7 @@ public:
         unsigned selected_goal;
     };
 
-    GamePlayer(unsigned playerId, const PlayerInfo& playerInfo, GameWorldGame& gwg);
+    GamePlayer(unsigned playerId, const PlayerInfo& playerInfo, GameWorld& world);
     ~GamePlayer();
 
     /// Serialisieren
@@ -89,8 +87,8 @@ public:
     // Deserialisieren
     void Deserialize(SerializedGameData& sgd);
 
-    GameWorldGame& GetGameWorld() { return gwg; }
-    const GameWorldGame& GetGameWorld() const { return gwg; }
+    GameWorld& GetGameWorld() { return world; }
+    const GameWorld& GetGameWorld() const { return world; }
 
     const MapPoint& GetHQPos() const { return hqPos; }
     void AddBuilding(noBuilding* bld, BuildingType bldType);
@@ -150,11 +148,11 @@ public:
 
     /// Sucht für eine (neuproduzierte) Ware einen Abnehmer (wenns keinen gibt, wird ein Lagerhaus gesucht, wenn
     /// es auch dorthin keinen Weg gibt, wird 0 zurückgegeben
-    noBaseBuilding* FindClientForWare(Ware* ware);
+    noBaseBuilding* FindClientForWare(const Ware& ware);
     nobBaseWarehouse* FindWarehouseForWare(const Ware& ware) const;
 
     /// Sucht einen Abnehmer (sprich Militärgebäude), wenn es keinen findet, wird ein Warenhaus zurückgegeben bzw. 0
-    nobBaseMilitary* FindClientForCoin(Ware* ware) const;
+    nobBaseMilitary* FindClientForCoin(const Ware& ware) const;
 
     /// Gibt Priorität der Baustelle zurück (entscheidet selbständig, welche Reihenfolge usw)
     /// je kleiner die Rückgabe, destro größer die Priorität!
@@ -168,14 +166,14 @@ public:
     void ConvertTransportData(const TransportOrders& transport_data);
 
     /// Ware zur globalen Warenliste hinzufügen und entfernen
-    void RegisterWare(Ware* ware) { ware_list.push_back(ware); }
-    void RemoveWare(Ware* ware)
+    void RegisterWare(Ware& ware) { ware_list.push_back(&ware); }
+    void RemoveWare(Ware& ware)
     {
         RTTR_Assert(IsWareRegistred(ware));
-        ware_list.remove(ware);
+        ware_list.remove(&ware);
     }
-    bool IsWareRegistred(Ware* ware);
-    bool IsWareDependent(Ware* ware);
+    bool IsWareRegistred(const Ware& ware);
+    bool IsWareDependent(const Ware& ware);
 
     /// Fügt Waren zur Inventur hinzu
     void IncreaseInventoryWare(GoodType ware, unsigned count);
@@ -189,7 +187,7 @@ public:
     /// Setzt neue Militäreinstellungen
     void ChangeMilitarySettings(const MilitarySettings& military_settings);
     /// Setzt neue Werkzeugeinstellungen
-    void ChangeToolsSettings(const ToolSettings& tools_settings, const std::array<int8_t, NUM_TOOLS>& orderChanges);
+    void ChangeToolsSettings(const ToolSettings& tools_settings, const helpers::EnumArray<int8_t, Tool>& orderChanges);
     /// Setzt neue Verteilungseinstellungen
     void ChangeDistribution(const Distributions& distribution_settings);
     /// Setzt neue Baureihenfolge-Einstellungen
@@ -224,17 +222,17 @@ public:
         RTTR_Assert(IsFlagWorker(flagworker));
         flagworkers.remove(flagworker);
     }
-    bool IsFlagWorker(nofFlagWorker* flagworker);
+    bool IsFlagWorker(const nofFlagWorker* flagworker);
 
     /// Wird aufgerufen, wenn eine Flagge abgerissen wurde, damit das den Flaggen-Arbeitern gesagt werden kann
     void FlagDestroyed(noFlag* flag);
 
     /// Registriert ein Schiff beim Einwohnermeldeamt
-    void RegisterShip(noShip* ship);
+    void RegisterShip(noShip& ship);
     /// Meldet das Schiff wieder ab
     void RemoveShip(noShip* ship);
     /// Versucht, für ein untätiges Schiff eine Arbeit zu suchen
-    void GetJobForShip(noShip* ship);
+    void GetJobForShip(noShip& ship);
     /// Schiff für Hafen bestellen. Wenn ein Schiff kommt, true.
     bool OrderShip(nobHarborBuilding& hb);
     /// Gibt die ID eines Schiffes zurück
@@ -271,20 +269,11 @@ public:
     /// Gibt Einverständnis, dass dieser Spieler den Pakt auflösen will
     /// Falls dieser Spieler einen Bündnisvorschlag gemacht hat, wird dieser dagegen zurückgenommen
     void CancelPact(PactType pt, unsigned char otherPlayerIdx);
-    /// Zeigt an, ob ein Pakt besteht
-    enum PactState
-    {
-        NO_PACT = 0, /// Kein Pakt geschlossen
-        IN_PROGRESS, /// Pakt angeboten, aber noch nicht akzeptiert
-        ACCEPTED     /// Bündnis in Kraft
-    };
     PactState GetPactState(PactType pt, unsigned char other_player) const;
     /// Gibt die verbleibende Dauer zurück, die ein Bündnis noch laufen wird (DURATION_INFINITE = für immer)
     unsigned GetRemainingPactTime(PactType pt, unsigned char other_player) const;
     /// Setzt die initialen Bündnisse anhand der Teams
     void MakeStartPacts();
-    /// returns fixed team number for randomteam players
-    static Team GetFixedTeam(Team rawteam);
     /// Testet die Bündnisse, ob sie nicht schon abgelaufen sind
     void TestPacts();
 
@@ -305,14 +294,14 @@ public:
     void SendPostMessage(std::unique_ptr<PostMsg> msg);
 
     /// Returns number of tools ordered for the given tool including visual orders (not yet committed)
-    unsigned GetToolsOrderedVisual(unsigned toolIdx) const;
-    unsigned GetToolsOrdered(unsigned toolIdx) const;
+    unsigned GetToolsOrderedVisual(Tool tool) const;
+    unsigned GetToolsOrdered(Tool tool) const;
     /// Changes the current visual tool order by the given amount. Return true if anything was changed (tool order is
     /// clamped to [0,100])
-    bool ChangeToolOrderVisual(unsigned toolIdx, int changeAmount) const;
-    unsigned GetToolPriority(unsigned toolIdx) const;
+    bool ChangeToolOrderVisual(Tool tool, int changeAmount) const;
+    unsigned GetToolPriority(Tool tool) const;
     /// Called when a ordered tool was finished
-    void ToolOrderProcessed(unsigned toolIdx);
+    void ToolOrderProcessed(Tool tool);
 
     /// Get a military setting. TODO: Use named type instead of index
     unsigned char GetMilitarySetting(unsigned type) const { return militarySettings_[type]; }
@@ -331,11 +320,7 @@ public:
     void StatisticStep();
 
     const Statistic& GetStatistic(StatisticTime time) const { return statistic[time]; };
-    unsigned GetStatisticCurrentValue(unsigned idx) const
-    {
-        RTTR_Assert(idx < NUM_STAT_TYPES);
-        return (statisticCurrentData[idx]);
-    }
+    unsigned GetStatisticCurrentValue(StatisticType idx) const { return statisticCurrentData[idx]; }
 
     // Testet ob Notfallprogramm aktiviert werden muss und tut dies dann
     void TestForEmergencyProgramm();
@@ -343,7 +328,7 @@ public:
     /// Testet ob der Spieler noch mehr Katapulte bauen darf
     bool CanBuildCatapult() const;
     /// For debug only
-    bool IsDependentFigure(noFigure* fig);
+    bool IsDependentFigure(const noFigure& fig);
 
     void FillVisualSettings(VisualSettings& visualSettings) const;
 
@@ -351,7 +336,7 @@ public:
 
 private:
     /// Access to the world
-    GameWorldGame& gwg;
+    GameWorld& world;
     /// List of all buildings
     BuildingRegister buildings; //-V730_NOINIT
 
@@ -386,7 +371,7 @@ private:
     /// Koordinaten des HQs des Spielers
     MapPoint hqPos;
 
-    std::array<Distribution, NUM_WARE_TYPES> distribution;
+    helpers::EnumArray<Distribution, GoodType> distribution;
 
     /// Art der Reihenfolge (false = nach Auftraggebung, ansonsten nach build_order)
     bool useCustomBuildOrder_;
@@ -399,7 +384,7 @@ private:
     /// Werkzeugeinstellungen (in der Reihenfolge wie im Fenster!)
     ToolSettings toolsSettings_;
     // qx:tools
-    std::array<unsigned char, NUM_TOOLS> tools_ordered;
+    helpers::EnumArray<uint8_t, Tool> tools_ordered;
 
     /// Bündnisse mit anderen Spielern
     struct Pact
@@ -414,18 +399,18 @@ private:
         bool want_cancel;
 
         Pact() : duration(0), start(0), accepted(false), want_cancel(false) {}
-        Pact(SerializedGameData& sgd);
+        explicit Pact(SerializedGameData& sgd);
         void Serialize(SerializedGameData& sgd) const;
     };
     /// Bündnisse dieses Spielers mit anderen Spielern
-    helpers::MultiArray<Pact, MAX_PLAYERS, NUM_PACTS> pacts;
+    std::array<helpers::EnumArray<Pact, PactType>, MAX_PLAYERS> pacts;
 
     // Statistikdaten
-    std::array<Statistic, NUM_STAT_TIMES> statistic;
+    helpers::EnumArray<Statistic, StatisticTime> statistic;
 
     // Die Statistikwerte die 'aktuell' gemessen werden
-    std::array<int, NUM_STAT_TYPES> statisticCurrentData;
-    std::array<int, NUM_STAT_MERCHANDISE_TYPES> statisticCurrentMerchandiseData;
+    helpers::EnumArray<uint32_t, StatisticType> statisticCurrentData;
+    std::array<uint16_t, NUM_STAT_MERCHANDISE_TYPES> statisticCurrentMerchandiseData;
 
     // Notfall-Programm aktiviert ja/nein (Es gehen nur noch Res an Holzfäller- und Sägewerk-Baustellen raus)
     bool emergency;
@@ -451,8 +436,8 @@ private:
      *  -http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
      */
     std::vector<MapPoint> restricted_area;
-    std::array<bool, NUM_BUILDING_TYPES> building_enabled;
+    helpers::EnumArray<bool, BuildingType> building_enabled;
 
     // TODO: Move to viewer. Mutable as a work-around
-    mutable std::array<int8_t, NUM_TOOLS> tools_ordered_delta;
+    mutable helpers::EnumArray<int8_t, Tool> tools_ordered_delta;
 };

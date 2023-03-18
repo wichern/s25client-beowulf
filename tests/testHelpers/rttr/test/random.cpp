@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "random.hpp"
 #include "s25util/warningSuppression.h"
@@ -45,24 +32,34 @@ namespace rttr { namespace test {
             }
             randState.seed(static_cast<decltype(randState)::result_type>(lastSeed));
             failedLastTest = false;
+            testUsedRandom = false;
         }
         void test_unit_finish(boost::unit_test::test_unit const& test, unsigned long) override
         {
-            if(test.p_type == boost::unit_test::TUT_CASE && failedLastTest)
+            if(testUsedRandom && test.p_type == boost::unit_test::TUT_CASE && failedLastTest)
+            {
                 std::cerr << "Random seed was " << lastSeed << std::endl;
+                std::cerr << "Decorate the test with *boost::unit_test::label(\"seed=" << lastSeed
+                          << "\") to reproduce this\n";
+            }
         }
         RTTR_IGNORE_OVERLOADED_VIRTUAL
         void assertion_result(boost::unit_test::assertion_result ar) override
         {
             if(ar != boost::unit_test::AR_PASSED)
-            {
                 failedLastTest = true;
-            }
         }
         RTTR_POP_DIAGNOSTIC
 
+        void test_unit_aborted(boost::unit_test::test_unit const& test) override
+        {
+            if(test.p_type == boost::unit_test::TUT_CASE)
+                failedLastTest = true;
+        }
+
         std::mt19937 randState;
         uint64_t lastSeed = 0;
+        bool testUsedRandom = false;
         bool failedLastTest = false;
 
     public:
@@ -73,7 +70,11 @@ namespace rttr { namespace test {
                 test_unit_start(boost::unit_test::framework::current_test_case());
         }
         ~randomObserver() { boost::unit_test::framework::deregister_observer(*this); }
-        std::mt19937& getState() { return randState; }
+        std::mt19937& getState()
+        {
+            testUsedRandom = true;
+            return randState;
+        }
     };
 
     std::mt19937& getRandState()

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofShipWright.h"
 #include "EventManager.h"
@@ -25,7 +12,7 @@
 #include "network/GameClient.h"
 #include "ogl/glArchivItem_Bitmap_Player.h"
 #include "random/Random.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "nodeObjs/noShipBuildingSite.h"
 #include "gameTypes/Direction.h"
 #include "gameData/GameConsts.h"
@@ -33,7 +20,7 @@
 #include "s25util/colors.h"
 
 nofShipWright::nofShipWright(const MapPoint pos, const unsigned char player, nobUsual* workplace)
-    : nofWorkman(JOB_SHIPWRIGHT, pos, player, workplace), curShipBuildPos(MapPoint::Invalid())
+    : nofWorkman(Job::Shipwright, pos, player, workplace), curShipBuildPos(MapPoint::Invalid())
 {
     RTTR_Assert(!workplace || dynamic_cast<nobShipYard*>(workplace));
 }
@@ -57,18 +44,18 @@ void nofShipWright::HandleDerivedEvent(const unsigned /*id*/)
 {
     switch(state)
     {
-        case STATE_WAITING1:
+        case State::Waiting1:
         {
             // Herausfinden, was der Schiffsbauer als nächstes bauen soll
-            if(static_cast<nobShipYard*>(workplace)->GetMode() == nobShipYard::BOATS)
+            if(static_cast<nobShipYard*>(workplace)->GetMode() == nobShipYard::Mode::Boats)
                 // in Handwerksmanier Boote herstellen
                 nofWorkman::HandleStateWaiting1();
             else
             {
                 // Wege müssen immer von der Flagge aus berechnet werden
-                MapPoint flagPos = gwg->GetNeighbour(pos, Direction::SOUTHEAST);
-                std::vector<MapPoint> possiblePts =
-                  gwg->GetPointsInRadius<-1>(flagPos, SHIPWRIGHT_RADIUS, Identity<MapPoint>(), IsNotReserved(*gwg));
+                MapPoint flagPos = world->GetNeighbour(pos, Direction::SouthEast);
+                const std::vector<MapPoint> possiblePts =
+                  world->GetMatchingPointsInRadius(flagPos, SHIPWRIGHT_RADIUS, IsNotReserved(*world));
 
                 // Verfügbare Punkte, die geeignete Plätze darstellen würden
                 std::vector<MapPoint> available_points;
@@ -76,20 +63,17 @@ void nofShipWright::HandleDerivedEvent(const unsigned /*id*/)
                 // Besitze ich noch ein Schiff, was gebaut werden muss?
                 for(const auto& pt : possiblePts)
                 {
-                    noBase* obj = gwg->GetNode(pt).obj;
+                    noBase* obj = world->GetNode(pt).obj;
 
                     if(!obj)
                         continue;
 
-                    // Schiff?
-                    if(obj->GetGOT() == GOT_SHIPBUILDINGSITE)
+                    // Our ship
+                    if(obj->GetGOT() == GO_Type::Shipbuildingsite
+                       && static_cast<noShipBuildingSite*>(obj)->GetPlayer() == player)
                     {
-                        // Platz noch nicht reserviert und gehört das Schiff auch mir?
-                        if(!gwg->GetNode(pos).reserved && static_cast<noShipBuildingSite*>(obj)->GetPlayer() == player)
-                        {
-                            if(gwg->FindHumanPath(flagPos, pt, SHIPWRIGHT_WALKING_DISTANCE))
-                                available_points.push_back(pt);
-                        }
+                        if(world->FindHumanPath(flagPos, pt, SHIPWRIGHT_WALKING_DISTANCE))
+                            available_points.push_back(pt);
                     }
                 }
 
@@ -99,7 +83,7 @@ void nofShipWright::HandleDerivedEvent(const unsigned /*id*/)
                     for(const auto& pt : possiblePts)
                     {
                         // Dieser Punkt geeignet?
-                        if(IsPointGood(pt) && gwg->FindHumanPath(flagPos, pt, SHIPWRIGHT_WALKING_DISTANCE))
+                        if(IsPointGood(pt) && world->FindHumanPath(flagPos, pt, SHIPWRIGHT_WALKING_DISTANCE))
                             available_points.push_back(pt);
                     }
                 }
@@ -108,8 +92,7 @@ void nofShipWright::HandleDerivedEvent(const unsigned /*id*/)
                 if(!available_points.empty())
                 {
                     // Einen Punkt zufällig auswählen und dorthin laufen
-                    curShipBuildPos =
-                      available_points[RANDOM.Rand(__FILE__, __LINE__, GetObjId(), available_points.size())];
+                    curShipBuildPos = RANDOM_ELEMENT(available_points);
                     StartWalkingToShip();
                 } else
                 {
@@ -121,7 +104,7 @@ void nofShipWright::HandleDerivedEvent(const unsigned /*id*/)
             }
         }
         break;
-        case STATE_WORK:
+        case State::Work:
         {
             // Sind wir an unserem Arbeitsplatz (dem Gebäude), wenn wir die Arbeit beendet haben, bauen wir nur Boote,
             // ansonsten sind wir an unserem Schiff und bauen große Schiffe
@@ -133,20 +116,20 @@ void nofShipWright::HandleDerivedEvent(const unsigned /*id*/)
                 // fertig mit Arbeiten --> dann müssen die "Folgen des Arbeitens" ausgeführt werden
                 WorkFinished();
                 // Objekt wieder freigeben
-                gwg->SetReserved(pos, false);
+                world->SetReserved(pos, false);
                 // Wieder nach Hause gehen
                 StartWalkingHome();
 
                 // Evtl. Sounds löschen
                 if(was_sounding)
                 {
-                    SOUNDMANAGER.WorkingFinished(this);
+                    world->GetSoundMgr().stopSounds(*this);
                     was_sounding = false;
                 }
             }
         }
         break;
-        case STATE_WAITING2:
+        case State::Waiting2:
         {
             // Hier ist die Sache klar, dieser State kann nur bei Handwerkern vorkommen
             nofWorkman::HandleStateWaiting2();
@@ -164,21 +147,21 @@ void nofShipWright::Serialize(SerializedGameData& sgd) const
 {
     nofWorkman::Serialize(sgd);
 
-    sgd.PushMapPoint(curShipBuildPos);
+    helpers::pushPoint(sgd, curShipBuildPos);
 }
 
 /// Startet das Laufen zu der Arbeitsstelle, dem Schiff
 void nofShipWright::StartWalkingToShip()
 {
-    state = STATE_WALKTOWORKPOINT;
+    state = State::WalkToWorkpoint;
     // Wir arbeiten jetzt
     workplace->is_working = true;
     // Waren verbrauchen
     workplace->ConsumeWares();
     // Punkt für uns reservieren
-    gwg->SetReserved(curShipBuildPos, true);
+    world->SetReserved(curShipBuildPos, true);
     // Anfangen zu laufen (erstmal aus dem Haus raus!)
-    StartWalking(Direction::SOUTHEAST);
+    StartWalking(Direction::SouthEast);
 
     workplace->StopNotWorking();
 }
@@ -191,12 +174,13 @@ bool nofShipWright::IsPointGood(const MapPoint pt) const
     // Auf Wegen nicht bauen
     for(const auto dir : helpers::EnumRange<Direction>{})
     {
-        if(gwg->GetPointRoad(pt, dir) != PointRoad::None)
+        if(world->GetPointRoad(pt, dir) != PointRoad::None)
             return false;
     }
 
-    return (gwg->IsPlayerTerritory(pt) && gwg->IsCoastalPointToSeaWithHarbor(pt)
-            && (gwg->GetNO(pt)->GetType() == NOP_ENVIRONMENT || gwg->GetNO(pt)->GetType() == NOP_NOTHING));
+    return (world->IsPlayerTerritory(pt) && world->IsCoastalPointToSeaWithHarbor(pt)
+            && (world->GetNO(pt)->GetType() == NodalObjectType::Environment
+                || world->GetNO(pt)->GetType() == NodalObjectType::Nothing));
 }
 
 void nofShipWright::WalkToWorkpoint()
@@ -205,16 +189,16 @@ void nofShipWright::WalkToWorkpoint()
     if(pos == curShipBuildPos)
     {
         // Anfangen zu arbeiten
-        state = STATE_WORK;
+        state = State::Work;
         current_ev = GetEvMgr().AddEvent(this, WORKING_TIME_SHIPS, 1);
         return;
     }
-    const auto dir = gwg->FindHumanPath(pos, curShipBuildPos, 20);
+    const auto dir = world->FindHumanPath(pos, curShipBuildPos, 20);
     // Weg suchen und gucken ob der Punkt noch in Ordnung ist
-    if(!dir || (!IsPointGood(curShipBuildPos) && gwg->GetGOT(curShipBuildPos) != GOT_SHIPBUILDINGSITE))
+    if(!dir || (!IsPointGood(curShipBuildPos) && world->GetGOT(curShipBuildPos) != GO_Type::Shipbuildingsite))
     {
         // Punkt freigeben
-        gwg->SetReserved(curShipBuildPos, false);
+        world->SetReserved(curShipBuildPos, false);
         // Kein Weg führt mehr zum Ziel oder Punkt ist nich mehr in Ordnung --> wieder nach Hause gehen
         StartWalkingHome();
     } else
@@ -226,9 +210,9 @@ void nofShipWright::WalkToWorkpoint()
 
 void nofShipWright::StartWalkingHome()
 {
-    state = STATE_WALKINGHOME;
+    state = State::WalkingHome;
     // Fahne vor dem Gebäude anpeilen
-    curShipBuildPos = gwg->GetNeighbour(workplace->GetPos(), Direction::SOUTHEAST);
+    curShipBuildPos = world->GetNeighbour(workplace->GetPos(), Direction::SouthEast);
 
     // Zu Laufen anfangen
     WalkHome();
@@ -243,7 +227,7 @@ void nofShipWright::WalkHome()
         WorkingReady();
         return;
     }
-    const auto dir = gwg->FindHumanPath(pos, curShipBuildPos, SHIPWRIGHT_WALKING_DISTANCE);
+    const auto dir = world->FindHumanPath(pos, curShipBuildPos, SHIPWRIGHT_WALKING_DISTANCE);
     // Weg suchen und ob wir überhaupt noch nach Hause kommen
     if(dir)
     {
@@ -261,44 +245,44 @@ void nofShipWright::WalkHome()
 void nofShipWright::WorkAborted()
 {
     // Platz freigeben, falls man gerade arbeitet
-    if((state == STATE_WORK && workplace->GetPos() != pos)
-       || state == STATE_WALKTOWORKPOINT) //&& static_cast<nobShipYard*>(workplace)->GetMode() == nobShipYard::SHIPS)
-        gwg->SetReserved(curShipBuildPos, false);
+    if((state == State::Work && workplace->GetPos() != pos)
+       || state == State::WalkToWorkpoint) //&& static_cast<nobShipYard*>(workplace)->GetMode() == nobShipYard::SHIPS)
+        world->SetReserved(curShipBuildPos, false);
 }
 
 /// Der Schiffsbauer hat einen Bauschritt bewältigt und geht wieder zurück zum Haus
 void nofShipWright::WorkFinished()
 {
     // Befindet sich an dieser Stelle schon ein Schiff oder müssen wir es erst noch hinsetzen?
-    if(gwg->GetGOT(pos) != GOT_SHIPBUILDINGSITE)
+    if(world->GetGOT(pos) != GO_Type::Shipbuildingsite)
     {
         // Ggf Zierobjekte löschen
-        auto* obj = gwg->GetSpecObj<noBase>(pos);
+        auto* obj = world->GetSpecObj<noBase>(pos);
         if(obj)
         {
-            if(obj->GetType() != NOP_ENVIRONMENT)
+            if(obj->GetType() != NodalObjectType::Environment)
                 // Mittlerweile wurde anderes Objekt hierhin gesetzt --> können kein Schiff mehr bauen
                 return;
 
-            gwg->DestroyNO(pos);
+            world->DestroyNO(pos);
         }
 
         // Baustelle setzen
-        gwg->SetNO(pos, new noShipBuildingSite(pos, player));
+        world->SetNO(pos, new noShipBuildingSite(pos, player));
         // Bauplätze drumrum neu berechnen
-        gwg->RecalcBQAroundPointBig(pos);
+        world->RecalcBQAroundPointBig(pos);
     }
 
     // Schiff weiterbauen
-    gwg->GetSpecObj<noShipBuildingSite>(pos)->MakeBuildStep();
+    world->GetSpecObj<noShipBuildingSite>(pos)->MakeBuildStep();
 }
 
 void nofShipWright::WalkedDerived()
 {
     switch(state)
     {
-        case STATE_WALKTOWORKPOINT: WalkToWorkpoint(); break;
-        case STATE_WALKINGHOME: WalkHome(); break;
+        case State::WalkToWorkpoint: WalkToWorkpoint(); break;
+        case State::WalkingHome: WalkHome(); break;
         default: break;
     }
 }
@@ -316,20 +300,21 @@ void nofShipWright::DrawWorking(DrawPoint drawPt)
     switch(state)
     {
         default: break;
-        case STATE_WORK:
+        case State::Work:
         {
             unsigned id = GAMECLIENT.Interpolate(42, current_ev);
             unsigned graphics_id = ANIMATION[id];
-            LOADER.GetPlayerImage("rom_bobs", graphics_id)->DrawFull(drawPt, COLOR_WHITE, gwg->GetPlayer(player).color);
+            LOADER.GetPlayerImage("rom_bobs", graphics_id)
+              ->DrawFull(drawPt, COLOR_WHITE, world->GetPlayer(player).color);
 
             // Steh-Hammer-Sound
             if(graphics_id == 300)
             {
-                SOUNDMANAGER.PlayNOSound(78, this, id, 160 - rand() % 60);
+                world->GetSoundMgr().playNOSound(78, *this, id, 160 - rand() % 60);
                 was_sounding = true;
             } else if(graphics_id == 303 || graphics_id == 307)
             {
-                SOUNDMANAGER.PlayNOSound(72, this, id - id % 2, 160 - rand() % 60);
+                world->GetSoundMgr().playNOSound(72, *this, id - id % 2, 160 - rand() % 60);
                 was_sounding = true;
             }
         }
@@ -342,7 +327,7 @@ void nofShipWright::DrawOtherStates(DrawPoint drawPt)
 {
     switch(state)
     {
-        case STATE_WALKTOWORKPOINT:
+        case State::WalkToWorkpoint:
         {
             // Schiffsbauer mit Brett zeichnen
             DrawWalking(drawPt, LOADER.GetBob("jobs"), 92, false);

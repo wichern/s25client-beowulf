@@ -1,26 +1,13 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noRoadNode.h"
 
 #include "GamePlayer.h"
 #include "RoadSegment.h"
 #include "SerializedGameData.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "s25util/warningSuppression.h"
 
 noRoadNode::noRoadNode(const NodalObjectType nop, const MapPoint pos, const unsigned char player)
@@ -33,20 +20,20 @@ noRoadNode::noRoadNode(const NodalObjectType nop, const MapPoint pos, const unsi
 
 noRoadNode::~noRoadNode() = default;
 
-void noRoadNode::Destroy_noRoadNode()
+void noRoadNode::Destroy()
 {
     DestroyAllRoads();
-    Destroy_noCoordBase();
+    noCoordBase::Destroy();
 }
 
-void noRoadNode::Serialize_noRoadNode(SerializedGameData& sgd) const
+void noRoadNode::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noCoordBase(sgd);
+    noCoordBase::Serialize(sgd);
 
     sgd.PushUnsignedChar(player);
 
     // the trick only seems to work for flags
-    if(this->GetGOT() == GOT_FLAG)
+    if(this->GetGOT() == GO_Type::Flag)
     {
         // this is a trick:
         // -> initialize routes for flag with nullptr
@@ -70,7 +57,7 @@ noRoadNode::noRoadNode(SerializedGameData& sgd, const unsigned obj_id)
 {
     for(const auto dir : helpers::EnumRange<Direction>{})
     {
-        routes[dir] = sgd.PopObject<RoadSegment>(GOT_ROADSEGMENT);
+        routes[dir] = sgd.PopObject<RoadSegment>(GO_Type::Roadsegment);
     }
 
     last_visit = 0;
@@ -90,9 +77,9 @@ void noRoadNode::DestroyRoad(const Direction dir)
     MapPoint t = route->GetF1()->GetPos();
     for(unsigned z = 0; z < route->GetLength(); ++z)
     {
-        gwg->SetPointRoad(t, route->GetRoute(z), PointRoad::None);
-        gwg->RecalcBQForRoad(t);
-        t = gwg->GetNeighbour(t, route->GetRoute(z));
+        world->SetPointRoad(t, route->GetRoute(z), PointRoad::None);
+        world->RecalcBQForRoad(t);
+        t = world->GetNeighbour(t, route->GetRoute(z));
     }
 
     noRoadNode* otherFlag;
@@ -117,7 +104,7 @@ void noRoadNode::DestroyRoad(const Direction dir)
     delete route;
 
     // Spieler Bescheid sagen
-    gwg->GetPlayer(player).RoadDestroyed();
+    world->GetPlayer(player).RoadDestroyed();
 }
 
 /// Vernichtet Alle Straße um diesen Knoten

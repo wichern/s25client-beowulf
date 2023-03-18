@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/TerritoryRegion.h"
 #include "GamePlayer.h"
 #include "MapGeometry.h"
+#include "ReturnMapPointWithRadius.h"
 #include "buildings/noBaseBuilding.h"
 #include "buildings/nobMilitary.h"
 #include "helpers/EnumRange.h"
@@ -144,15 +132,6 @@ bool TerritoryRegion::AdjustCoords(Position& pt) const
     return true;
 }
 
-namespace {
-struct GetMapPointWithRadius
-{
-    using result_type = std::pair<MapPoint, unsigned>;
-
-    result_type operator()(const MapPoint pt, unsigned r) { return std::make_pair(pt, r); }
-};
-} // namespace
-
 void TerritoryRegion::CalcTerritoryOfBuilding(const noBaseBuilding& building)
 {
     unsigned radius = building.GetMilitaryRadius();
@@ -160,7 +139,7 @@ void TerritoryRegion::CalcTerritoryOfBuilding(const noBaseBuilding& building)
     if(radius == 0u)
         return;
     // Also ignore non-occupied military buildings
-    if(building.GetGOT() == GOT_NOB_MILITARY && static_cast<const nobMilitary&>(building).IsNewBuilt())
+    if(building.GetGOT() == GO_Type::NobMilitary && static_cast<const nobMilitary&>(building).IsNewBuilt())
         return;
 
     const std::vector<MapPoint>* allowedArea = &world.GetPlayer(building.GetPlayer()).GetRestrictedArea();
@@ -172,8 +151,7 @@ void TerritoryRegion::CalcTerritoryOfBuilding(const noBaseBuilding& building)
     AdjustNode(bldPos, building.GetPlayer(), 0,
                nullptr); // no need to check barriers here. this point is on our territory.
 
-    std::vector<GetMapPointWithRadius::result_type> pts =
-      world.GetPointsInRadius(bldPos, radius, GetMapPointWithRadius());
+    const auto pts = world.GetPointsInRadius(bldPos, radius, ReturnMapPointWithRadius{});
     for(const auto& ptWithRadius : pts)
         AdjustNode(ptWithRadius.first, building.GetPlayer(), ptWithRadius.second, allowedArea);
 }

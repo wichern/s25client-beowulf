@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwDemolishBuilding.h"
 #include "Loader.h"
@@ -32,13 +19,15 @@ iwDemolishBuilding::iwDemolishBuilding(GameWorldView& gwv, const noBaseBuilding*
       gwv(gwv), building(building), flag(flag)
 {
     // Ja
-    AddImageButton(0, DrawPoint(14, 140), Extent(66, 40), TC_RED1, LOADER.GetImageN("io", 32), _("Yes")); //-V525
+    AddImageButton(0, DrawPoint(14, 140), Extent(66, 40), TextureColor::Red1, LOADER.GetImageN("io", 32),
+                   _("Yes")); //-V525
     // Nein
-    AddImageButton(1, DrawPoint(82, 140), Extent(66, 40), TC_GREY, LOADER.GetImageN("io", 40), _("No"));
+    AddImageButton(1, DrawPoint(82, 140), Extent(66, 40), TextureColor::Grey, LOADER.GetImageN("io", 40), _("No"));
     // Gehe zum Standort
-    AddImageButton(2, DrawPoint(150, 140), Extent(36, 40), TC_GREY, LOADER.GetImageN("io", 107), _("Go to place"));
+    AddImageButton(2, DrawPoint(150, 140), Extent(36, 40), TextureColor::Grey, LOADER.GetImageN("io", 107),
+                   _("Go to place"));
     // Gebäudebild
-    AddImage(3, DrawPoint(104, 109), building->GetBuildingImage());
+    AddImage(3, DrawPoint(104, 109), &building->GetBuildingImage());
     // Gebäudename
     AddText(4, DrawPoint(100, 125), _(BUILDING_NAMES[building->GetBuildingType()]), 0xFFFFFF00, FontStyle::CENTER,
             NormalFont);
@@ -50,16 +39,19 @@ void iwDemolishBuilding::Msg_ButtonClick(const unsigned ctrl_id)
     {
         case 0:
         {
+            bool success = false;
             if(flag)
             {
                 // Flagge (mitsamt Gebäude) wegreißen
-                GAMECLIENT.DestroyFlag(gwv.GetViewer().GetNeighbour(building->GetPos(), Direction::SOUTHEAST));
+                success =
+                  GAMECLIENT.DestroyFlag(gwv.GetViewer().GetNeighbour(building->GetPos(), Direction::SouthEast));
             } else
             {
-                GAMECLIENT.DestroyBuilding(building->GetPos());
+                success = GAMECLIENT.DestroyBuilding(building->GetPos());
             }
 
-            Close();
+            if(success)
+                Close();
         }
         break;
         case 1:

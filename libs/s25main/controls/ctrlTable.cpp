@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ctrlTable.h"
 #include "CollisionDetection.h"
@@ -104,6 +91,33 @@ static int Compare(const std::string& a, const std::string& b, ctrlTable::SortTy
                 return h_a - h_b;
             return min_a - min_b;
         }
+        case SRT::Time:
+        {
+            // Sort by time with format h:mm:ss or mm:ss
+            s25util::ClassicImbuedStream<std::istringstream> ss_a(a);
+            s25util::ClassicImbuedStream<std::istringstream> ss_b(b);
+
+            int seconds_a = 0;
+            int seconds_b = 0;
+            char c;
+
+            // "h:mm:ss" or "mm:ss"
+            int tmp;
+            while(ss_a >> tmp)
+            {
+                seconds_a *= 60;
+                seconds_a += tmp;
+                ss_a >> c;
+            }
+            while(ss_b >> tmp)
+            {
+                seconds_b *= 60;
+                seconds_b += tmp;
+                ss_b >> c;
+            }
+
+            return seconds_a - seconds_b;
+        }
         break;
     }
     return 0;
@@ -139,6 +153,9 @@ void ctrlTable::Resize(const Extent& newSize)
 {
     const bool heightIncreased = newSize.y > GetSize().y;
     Window::Resize(newSize);
+    // Make header buttons keep their size
+    for(unsigned i = 1; i <= columns_.size(); ++i)
+        GetCtrl<ctrlButton>(i)->SetHeight(header_height);
 
     auto* scrollbar = GetCtrl<ctrlScrollBar>(0);
 
@@ -470,10 +487,10 @@ bool ctrlTable::Msg_KeyDown(const KeyEvent& ke)
     switch(ke.kt)
     {
         default: return false;
-        case KT_UP:
+        case KeyType::Up:
             if(selection_.value_or(0u) > 0u)
                 SetSelection(*selection_ - 1);
             return true;
-        case KT_DOWN: SetSelection(selection_.value_or(0u) + 1u); return true;
+        case KeyType::Down: SetSelection(selection_.value_or(0u) + 1u); return true;
     }
 }

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -44,7 +31,7 @@ class nofAttacker : public nofActiveSoldier
     /// In welchem Radius steht der Soldat, wenn er um eine Fahne herum wartet?
     unsigned short radius;
     /// Nach einer bestimmten Zeit, in der der Angreifer an der Flagge des Gebäudes steht, blockt er den Weg
-    /// nur benutzt bei STATE_ATTACKING_WAITINGFORDEFENDER
+    /// nur benutzt bei AttackingWaitingfordefender
     const GameEvent* blocking_event;
 
     /// Für Seeangreifer: Stelle, wo sich der Hafen befindet, von wo aus sie losfahren sollen
@@ -70,7 +57,7 @@ class nofAttacker : public nofActiveSoldier
     /// Doesn't find a defender at the flag -> Send defenders or capture it
     void ContinueAtFlag();
 
-    /// Geht zum STATE_ATTACKING_WAITINGFORDEFENDER über und meldet gleichzeitig ein Block-Event an
+    /// Geht zum AttackingWaitingfordefender über und meldet gleichzeitig ein Block-Event an
     void SwitchStateAttackingWaitingForDefender();
 
     /// Für Schiffsangreifer: Sagt dem Schiff Bescheid, dass wir nicht mehr kommen
@@ -88,28 +75,16 @@ public:
 
     void RemoveFromAttackedGoal();
 
-    /// Normaler Konstruktor für Angreifer
-    nofAttacker(nofPassiveSoldier* other, nobBaseMilitary* attacked_goal);
-    /// Konstruktor für Schiffs-Angreifer, die zuerst einmal zu einem Hafen laufen müssen
-    nofAttacker(nofPassiveSoldier* other, nobBaseMilitary* attacked_goal, const nobHarborBuilding* harbor);
+    /// Create an attacker from a passive soldier, if harbor is set, the soldier will first walk there for a sea attack
+    nofAttacker(const nofPassiveSoldier& other, nobBaseMilitary& attacked_goal,
+                const nobHarborBuilding* harbor = nullptr);
     nofAttacker(SerializedGameData& sgd, unsigned obj_id);
     ~nofAttacker() override;
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofAttacker();
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
-public:
-    void Destroy() override { Destroy_nofAttacker(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofAttacker(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofAttacker(sgd); }
-
-    GO_Type GetGOT() const override { return GOT_NOF_ATTACKER; }
+    GO_Type GetGOT() const final { return GO_Type::NofAttacker; }
     const nofAggressiveDefender* GetHuntingDefender() const { return huntingDefender; }
 
     void HandleDerivedEvent(unsigned id) override;
@@ -154,7 +129,7 @@ public:
     void LetsFight(nofAggressiveDefender* other);
 
     /// Fragt, ob ein Angreifender Soldat vor dem Gebäude wartet und kämpfen will
-    bool IsAttackerReady() const { return (state == STATE_ATTACKING_WAITINGAROUNDBUILDING); }
+    bool IsAttackerReady() const { return (state == SoldierState::AttackingWaitingAroundBuilding); }
 
     /// Liefert das angegriffene Gebäude zurück
     nobBaseMilitary* GetAttackedGoal() const { return attacked_goal; }
@@ -169,10 +144,10 @@ public:
     /// notify sea attackers that they wont return home
     void HomeHarborLost();
     /// Sagt Bescheid, dass sich die Angreifer nun auf dem Schiff befinden
-    void SeaAttackStarted() { state = STATE_SEAATTACKING_ONSHIP; }
+    void SeaAttackStarted() { state = SoldierState::SeaattackingOnShip; }
     /// Fragt einen Schiffs-Angreifer auf dem Schiff, ob er schon einmal
     /// draußen war und gekämpft hat
-    bool IsSeaAttackCompleted() const { return (state != STATE_SEAATTACKING_ONSHIP); }
+    bool IsSeaAttackCompleted() const { return (state != SoldierState::SeaattackingOnShip); }
     /// Bricht einen Seeangriff ab
     void CancelSeaAttack();
 };

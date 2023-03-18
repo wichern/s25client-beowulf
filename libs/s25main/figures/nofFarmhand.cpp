@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofFarmhand.h"
 #include "EventManager.h"
@@ -22,18 +9,18 @@
 #include "buildings/nobUsual.h"
 #include "notifications/BuildingNote.h"
 #include "random/Random.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/JobConsts.h"
 
 nofFarmhand::nofFarmhand(const Job job, const MapPoint pos, const unsigned char player, nobUsual* workplace)
     : nofBuildingWorker(job, pos, player, workplace), dest(0, 0)
 {}
 
-void nofFarmhand::Serialize_nofFarmhand(SerializedGameData& sgd) const
+void nofFarmhand::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_nofBuildingWorker(sgd);
+    nofBuildingWorker::Serialize(sgd);
 
-    sgd.PushMapPoint(dest);
+    helpers::pushPoint(sgd, dest);
 }
 
 nofFarmhand::nofFarmhand(SerializedGameData& sgd, const unsigned obj_id)
@@ -44,8 +31,8 @@ void nofFarmhand::WalkedDerived()
 {
     switch(state)
     {
-        case STATE_WALKTOWORKPOINT: WalkToWorkpoint(); break;
-        case STATE_WALKINGHOME: WalkHome(); break;
+        case State::WalkToWorkpoint: WalkToWorkpoint(); break;
+        case State::WalkingHome: WalkHome(); break;
         default: break;
     }
 }
@@ -54,65 +41,84 @@ void nofFarmhand::HandleDerivedEvent(const unsigned /*id*/)
 {
     switch(state)
     {
-        case STATE_WORK:
+        case State::Work:
         {
             // fertig mit Arbeiten --> dann müssen die "Folgen des Arbeitens" ausgeführt werden
             WorkFinished();
             // Objekt wieder freigeben
-            gwg->SetReserved(pos, false);
+            world->SetReserved(pos, false);
             // Wieder nach Hause gehen
             StartWalkingHome();
 
             // Evtl. Sounds löschen
             if(was_sounding)
             {
-                SOUNDMANAGER.WorkingFinished(this);
+                world->GetSoundMgr().stopSounds(*this);
                 was_sounding = false;
             }
         }
         break;
-        case STATE_WAITING1:
+        case State::Waiting1:
         {
             // Fertig mit warten --> anfangen zu arbeiten
-            // Die Arbeitsradien der Berufe wie in JobConst.h (ab JOB_WOODCUTTER!)
-            const std::array<unsigned char, 7> RADIUS = {6, 7, 6, 0, 8, 2, 2};
-
+            // Work radius
+            const unsigned max_radius = [](Job job) {
+                switch(job)
+                {
+                    case Job::Carpenter: return 0;
+                    case Job::Hunter:
+                    case Job::Farmer: return 2;
+                    case Job::CharBurner: return 3;
+                    case Job::Woodcutter:
+                    case Job::Forester: return 6;
+                    case Job::Fisher: return 7;
+                    case Job::Stonemason: return 8;
+                    default: throw std::logic_error("Invalid job");
+                }
+            }(job_);
             // Additional radius delta r which is used when a point in radius r was found
             // I.e. looks till radius r + delta r
-            const std::array<unsigned, 7> ADD_RADIUS_WHEN_FOUND = {1, 1, 1, 1, 0, 1, 1};
-
-            // Anzahl der Radien, wo wir gültige Punkte gefunden haben
-            unsigned radius_count = 0;
-
-            // Available points: 1st class and 2st class
-            std::array<std::vector<MapPoint>, 3> available_points;
-
-            unsigned max_radius = (job_ == JOB_CHARBURNER) ? 3 : RADIUS[job_ - JOB_WOODCUTTER];
-            unsigned add_radius_when_found =
-              (job_ == JOB_CHARBURNER) ? 1 : ADD_RADIUS_WHEN_FOUND[job_ - JOB_WOODCUTTER];
+            const unsigned add_radius_when_found = [](Job job) {
+                switch(job)
+                {
+                    case Job::Woodcutter:
+                    case Job::Fisher:
+                    case Job::Forester:
+                    case Job::Carpenter:
+                    case Job::Hunter:
+                    case Job::Farmer:
+                    case Job::CharBurner: return 1;
+                    case Job::Stonemason: return 0;
+                    default: throw std::logic_error("Invalid job");
+                }
+            }(job_);
 
             bool points_found = false;
             bool wait = false;
+            // Anzahl der Radien, wo wir gültige Punkte gefunden haben
+            unsigned radius_count = 0;
 
-            for(MapCoord tx = gwg->GetXA(pos, Direction::WEST), r = 1; r <= max_radius;
-                tx = gwg->GetXA(MapPoint(tx, pos.y), Direction::WEST), ++r)
+            helpers::EnumArray<std::vector<MapPoint>, PointQuality> available_points;
+
+            for(MapCoord tx = world->GetXA(pos, Direction::West), r = 1; r <= max_radius;
+                tx = world->GetXA(MapPoint(tx, pos.y), Direction::West), ++r)
             {
                 // Wurde ein Punkt in diesem Radius gefunden?
                 bool found_in_radius = false;
 
                 MapPoint t2(tx, pos.y);
-                for(unsigned i = 2; i < 8; ++i)
+                for(const auto dir : helpers::enumRange(Direction::NorthEast))
                 {
-                    for(MapCoord r2 = 0; r2 < r; t2 = gwg->GetNeighbour(t2, Direction(i)), ++r2)
+                    for(MapCoord r2 = 0; r2 < r; t2 = world->GetNeighbour(t2, dir), ++r2)
                     {
                         if(IsPointAvailable(t2))
                         {
-                            if(!gwg->GetNode(t2).reserved)
+                            if(!world->GetNode(t2).reserved)
                             {
-                                available_points[GetPointQuality(t2) - PQ_CLASS1].push_back(MapPoint(t2));
+                                available_points[GetPointQuality(t2)].push_back(MapPoint(t2));
                                 found_in_radius = true;
                                 points_found = true;
-                            } else if(job_ == JOB_STONEMASON)
+                            } else if(job_ == Job::Stonemason)
                             {
                                 // just wait a little bit longer
                                 wait = true;
@@ -132,27 +138,27 @@ void nofFarmhand::HandleDerivedEvent(const unsigned /*id*/)
             // Are there any objects at all?
             if(points_found)
             {
-                // Prefer 1st class objects and use only 2nd class objects if there are no more other objects anymore
+                // Prefer points with lower class (better)
                 for(auto& available_point : available_points)
                 {
                     if(!available_point.empty())
                     {
-                        dest = available_point[RANDOM.Rand(__FILE__, __LINE__, GetObjId(), available_point.size())];
+                        dest = RANDOM_ELEMENT(available_point);
                         break;
                     }
                 }
 
-                state = STATE_WALKTOWORKPOINT;
+                state = State::WalkToWorkpoint;
 
                 // Wir arbeiten jetzt
                 workplace->is_working = true;
                 workplace->StopNotWorking();
 
                 // Punkt für uns reservieren
-                gwg->SetReserved(dest, true);
+                world->SetReserved(dest, true);
 
                 // Anfangen zu laufen (erstmal aus dem Haus raus!)
-                StartWalking(Direction::SOUTHEAST);
+                StartWalking(Direction::SouthEast);
                 WalkingStarted();
             } else if(wait)
             {
@@ -165,10 +171,10 @@ void nofFarmhand::HandleDerivedEvent(const unsigned /*id*/)
             {
                 switch(job_)
                 {
-                    case JOB_STONEMASON:
-                    case JOB_FISHER: workplace->OnOutOfResources(); break;
-                    case JOB_WOODCUTTER:
-                        gwg->GetNotifications().publish(BuildingNote(
+                    case Job::Stonemason:
+                    case Job::Fisher: workplace->OnOutOfResources(); break;
+                    case Job::Woodcutter:
+                        world->GetNotifications().publish(BuildingNote(
                           BuildingNote::NoRessources, player, workplace->GetPos(), workplace->GetBuildingType()));
                         break;
                     default: break;
@@ -188,10 +194,10 @@ void nofFarmhand::HandleDerivedEvent(const unsigned /*id*/)
 bool nofFarmhand::IsPointAvailable(const MapPoint pt) const
 {
     // Gibts an diesen Punkt überhaupt die nötigen Vorraussetzungen für den Beruf?
-    if(GetPointQuality(pt) != PQ_NOTPOSSIBLE)
+    if(GetPointQuality(pt) != PointQuality::NotPossible)
     {
         // Gucken, ob ein Weg hinführt
-        return gwg->FindHumanPath(this->pos, pt, 20) != boost::none;
+        return world->FindHumanPath(this->pos, pt, 20) != boost::none;
     } else
         return false;
 }
@@ -202,18 +208,18 @@ void nofFarmhand::WalkToWorkpoint()
     if(pos == dest)
     {
         // Anfangen zu arbeiten
-        state = STATE_WORK;
+        state = State::Work;
         current_ev = GetEvMgr().AddEvent(this, JOB_CONSTS[job_].work_length, 1);
         WorkStarted();
         return;
     }
 
     // Weg suchen und gucken ob der Punkt noch in Ordnung ist
-    const auto dir = gwg->FindHumanPath(pos, dest, 20);
-    if(!dir || GetPointQuality(dest) == PQ_NOTPOSSIBLE)
+    const auto dir = world->FindHumanPath(pos, dest, 20);
+    if(!dir || GetPointQuality(dest) == PointQuality::NotPossible)
     {
         // Punkt freigeben
-        gwg->SetReserved(dest, false);
+        world->SetReserved(dest, false);
         // Kein Weg führt mehr zum Ziel oder Punkt ist nich mehr in Ordnung --> wieder nach Hause gehen
         StartWalkingHome();
     } else
@@ -225,9 +231,9 @@ void nofFarmhand::WalkToWorkpoint()
 
 void nofFarmhand::StartWalkingHome()
 {
-    state = STATE_WALKINGHOME;
+    state = State::WalkingHome;
     // Fahne vor dem Gebäude anpeilen
-    dest = gwg->GetNeighbour(workplace->GetPos(), Direction::SOUTHEAST);
+    dest = world->GetNeighbour(workplace->GetPos(), Direction::SouthEast);
 
     // Zu Laufen anfangen
     WalkHome();
@@ -243,7 +249,7 @@ void nofFarmhand::WalkHome()
         return;
     }
 
-    const auto dir = gwg->FindHumanPath(pos, dest, 40);
+    const auto dir = world->FindHumanPath(pos, dest, 40);
     // Weg suchen und ob wir überhaupt noch nach Hause kommen
     if(!dir)
     {
@@ -261,8 +267,8 @@ void nofFarmhand::WalkHome()
 void nofFarmhand::WorkAborted()
 {
     // Platz freigeben, falls man gerade arbeitet
-    if(state == STATE_WORK || state == STATE_WALKTOWORKPOINT)
-        gwg->SetReserved(dest, false);
+    if(state == State::Work || state == State::WalkToWorkpoint)
+        world->SetReserved(dest, false);
 }
 
 /// Zeichnen der Figur in sonstigen Arbeitslagen
@@ -270,7 +276,7 @@ void nofFarmhand::DrawOtherStates(DrawPoint drawPt)
 {
     switch(state)
     {
-        case STATE_WALKTOWORKPOINT:
+        case State::WalkToWorkpoint:
         {
             // Normales Laufen zeichnen
             DrawWalking(drawPt);

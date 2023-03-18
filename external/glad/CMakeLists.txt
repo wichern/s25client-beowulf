@@ -1,3 +1,7 @@
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 # Note: Sources and headers are generated using http://glad.dav1d.de/ on 07.07.2018
 # See glad.h for details
 
@@ -13,7 +17,7 @@ if(NOT ogl_match)
 endif()
 set(RTTR_OGL_MAJOR ${CMAKE_MATCH_2})
 set(RTTR_OGL_MINOR ${CMAKE_MATCH_3})
-if(CMAKE_MATCH_0 STREQUAL "GLES")
+if(CMAKE_MATCH_1 STREQUAL "GLES")
     set(RTTR_OGL_ES 1)
     set(rttr_glad_folder "OpenGLES")
 else()
@@ -23,7 +27,7 @@ endif()
 if(CMAKE_MATCH_4 STREQUAL "Compat")
     set(RTTR_OGL_COMPAT 1)
 else()
-    set(RTTR_OGL_COMPAT 1)
+    set(RTTR_OGL_COMPAT 0)
 endif()
 get_filename_component(rttr_glad_folder "${rttr_glad_folder}${RTTR_OGL_MAJOR}.${RTTR_OGL_MINOR}${CMAKE_MATCH_4}" ABSOLUTE)
 configure_file(openglCfg.hpp.cmake include/openglCfg.hpp @ONLY)

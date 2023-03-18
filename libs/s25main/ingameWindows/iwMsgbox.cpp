@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMsgbox.h"
 #include "Loader.h"
@@ -21,14 +8,15 @@
 #include "controls/ctrlImage.h"
 #include "controls/ctrlMultiline.h"
 #include "drivers/VideoDriverWrapper.h"
-#include "helpers/MultiArray.h"
+#include "enum_cast.hpp"
+#include "helpers/EnumArray.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "gameData/const_gui_ids.h"
 
 namespace {
 enum IDS
 {
-    ID_ICON = 0,
+    ID_ICON,
     ID_TEXT,
     ID_BT_0
 };
@@ -40,23 +28,19 @@ const unsigned short maxTextHeight = 200;
 
 iwMsgbox::iwMsgbox(const std::string& title, const std::string& text, Window* msgHandler, MsgboxButton button,
                    MsgboxIcon icon, unsigned msgboxid)
-    : IngameWindow(CGI_MSGBOX, IngameWindow::posLastOrCenter, Extent(420, 140), title, LOADER.GetImageN("resource", 41),
-                   true, false),
-      button(button), msgboxid(msgboxid), msgHandler_(msgHandler)
-{
-    Init(text, "io", icon);
-}
+    : iwMsgbox(title, text, msgHandler, button, "io", rttr::enum_cast(icon), msgboxid)
+{}
 
 iwMsgbox::iwMsgbox(const std::string& title, const std::string& text, Window* msgHandler, MsgboxButton button,
-                   const std::string& iconFile, unsigned iconIdx, unsigned msgboxid /* = 0 */)
+                   const ResourceId& iconFile, unsigned iconIdx, unsigned msgboxid /* = 0 */)
     : IngameWindow(CGI_MSGBOX, IngameWindow::posLastOrCenter, Extent(420, 140), title, LOADER.GetImageN("resource", 41),
-                   true, false),
+                   true, CloseBehavior::Custom),
       button(button), msgboxid(msgboxid), msgHandler_(msgHandler)
 {
     Init(text, iconFile, iconIdx);
 }
 
-void iwMsgbox::Init(const std::string& text, const std::string& iconFile, unsigned iconIdx)
+void iwMsgbox::Init(const std::string& text, const ResourceId& iconFile, unsigned iconIdx)
 {
     glArchivItem_Bitmap* icon = LOADER.GetImageN(iconFile, iconIdx);
     if(icon)
@@ -65,7 +49,7 @@ void iwMsgbox::Init(const std::string& text, const std::string& iconFile, unsign
     textX += paddingX;
     Extent txtSize = Extent(std::max<int>(minTextWidth, GetRightBottomBoundary().x - textX - paddingX), maxTextHeight);
     ctrlMultiline* multiline =
-      AddMultiline(ID_TEXT, DrawPoint(textX, contentOffset.y + 5), txtSize, TC_GREEN2, NormalFont);
+      AddMultiline(ID_TEXT, DrawPoint(textX, contentOffset.y + 5), txtSize, TextureColor::Green2, NormalFont);
     multiline->ShowBackground(false);
     multiline->AddString(text, COLOR_YELLOW);
     multiline->Resize(multiline->GetContentSize());
@@ -78,27 +62,27 @@ void iwMsgbox::Init(const std::string& text, const std::string& iconFile, unsign
     // Buttons erstellen
     switch(button)
     {
-        case MSB_OK:
-            AddButton(0, GetSize().x / 2 - 45, _("OK"), TC_GREEN2);
+        case MsgboxButton::Ok:
+            AddButton(ID_BT_0, GetSize().x / 2 - 45, _("OK"), TextureColor::Green2);
             defaultBt = 0;
             break;
 
-        case MSB_OKCANCEL:
-            AddButton(0, GetSize().x / 2 - 3 - 90, _("OK"), TC_GREEN2);
-            AddButton(1, GetSize().x / 2 + 3, _("Cancel"), TC_RED1);
+        case MsgboxButton::OkCancel:
+            AddButton(ID_BT_0, GetSize().x / 2 - 3 - 90, _("OK"), TextureColor::Green2);
+            AddButton(ID_BT_0 + 1, GetSize().x / 2 + 3, _("Cancel"), TextureColor::Red1);
             defaultBt = 1;
             break;
 
-        case MSB_YESNO:
-            AddButton(0, GetSize().x / 2 - 3 - 90, _("Yes"), TC_GREEN2);
-            AddButton(1, GetSize().x / 2 + 3, _("No"), TC_RED1);
+        case MsgboxButton::YesNo:
+            AddButton(ID_BT_0, GetSize().x / 2 - 3 - 90, _("Yes"), TextureColor::Green2);
+            AddButton(ID_BT_0 + 1, GetSize().x / 2 + 3, _("No"), TextureColor::Red1);
             defaultBt = 1;
             break;
 
-        case MSB_YESNOCANCEL:
-            AddButton(0, GetSize().x / 2 - 45 - 6 - 90, _("Yes"), TC_GREEN2);
-            AddButton(1, GetSize().x / 2 - 45, _("No"), TC_RED1);
-            AddButton(2, GetSize().x / 2 + 45 + 6, _("Cancel"), TC_GREY);
+        case MsgboxButton::YesNoCancel:
+            AddButton(ID_BT_0, GetSize().x / 2 - 45 - 6 - 90, _("Yes"), TextureColor::Green2);
+            AddButton(ID_BT_0 + 1, GetSize().x / 2 - 45, _("No"), TextureColor::Red1);
+            AddButton(ID_BT_0 + 2, GetSize().x / 2 + 45 + 6, _("Cancel"), TextureColor::Grey);
             defaultBt = 2;
             break;
     }
@@ -168,10 +152,11 @@ void iwMsgbox::MoveIcon(const DrawPoint& pos)
     }
 }
 
-const helpers::MultiArray<MsgboxResult, MSB_YESNOCANCEL + 1, 3> RET_IDS = {{{MSR_OK, MSR_NOTHING, MSR_NOTHING},
-                                                                            {MSR_OK, MSR_CANCEL, MSR_NOTHING},
-                                                                            {MSR_YES, MSR_NO, MSR_NOTHING},
-                                                                            {MSR_YES, MSR_NO, MSR_CANCEL}}};
+constexpr helpers::EnumArray<std::array<MsgboxResult, 3>, MsgboxButton> RET_IDS = {
+  {{MsgboxResult::Ok},
+   {MsgboxResult::Ok, MsgboxResult::Cancel},
+   {MsgboxResult::Yes, MsgboxResult::No},
+   {MsgboxResult::Yes, MsgboxResult::No, MsgboxResult::Cancel}}};
 
 void iwMsgbox::Msg_ButtonClick(const unsigned ctrl_id)
 {
@@ -182,5 +167,5 @@ void iwMsgbox::Msg_ButtonClick(const unsigned ctrl_id)
 
 void iwMsgbox::AddButton(unsigned short id, int x, const std::string& text, const TextureColor tc)
 {
-    AddTextButton(ID_BT_0 + id, DrawPoint(x, GetRightBottomBoundary().y - btSize.y * 2), btSize, tc, text, NormalFont);
+    AddTextButton(id, DrawPoint(x, GetRightBottomBoundary().y - btSize.y * 2), btSize, tc, text, NormalFont);
 }

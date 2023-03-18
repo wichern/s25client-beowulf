@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -25,29 +12,32 @@
 
 class Log;
 
-/// Speichert die Daten über eine Playlist und verwaltet diese
+/// List of songs with meta data.
+/// Also controls which song is played (next)
+/// After all songs have been played the playlist is restarted (reshuffled if needed)
 class Playlist
 {
 public:
     Playlist() = default;
     Playlist(std::vector<std::string> songs, unsigned numRepeats, bool random);
 
-    /// liefert den Dateinamen des aktuellen Songs
-    std::string getCurrentSong() const;
+    /// Get the currently played song, or an empty string if none
+    const std::string& getCurrentSong() const { return currentSong_; };
 
-    /// schaltet einen Song weiter und liefert den Dateinamen des aktuellen Songs
-    std::string getNextSong();
+    /// Switches to the next song and returns its name
+    const std::string& getNextSong();
 
-    /// Playlist in Datei speichern
+    /// Save playlist to file
     bool SaveAs(const boost::filesystem::path& filepath) const;
-    /// Playlist laden
+    /// Load playlist from file
     bool Load(Log& logger, const boost::filesystem::path& filepath);
 
     const auto& getSongs() const { return songs_; }
     unsigned getNumRepeats() const { return numRepeats_; }
     bool isRandomized() const { return random_; }
 
-    /// Wählt den Start-Song aus
+    /// Moves the song with the given index (in the songs_ array) to the front of the list of songs to be played
+    /// Has no effect if the song is not in the queue (anymore), e.g. if it was already played
     void SetStartSong(unsigned id);
 
 private:
@@ -55,7 +45,7 @@ private:
     void Prepare();
 
     std::vector<std::string> songs_; /// Filenames of titles to play
-    unsigned numRepeats_ = 1;        /// How often to repeat all songs
+    unsigned numRepeats_ = 1;        /// How often to repeat each song
     bool random_ = false;            /// True for random order, else in-order
     std::vector<unsigned> order_;    /// Actual order of the songs, indices into songs
     std::string currentSong_;

@@ -1,49 +1,26 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMapGenerator.h"
 #include "Loader.h"
 #include "controls/ctrlComboBox.h"
 #include "controls/ctrlProgress.h"
+#include "helpers/containerUtils.h"
+#include "helpers/format.hpp"
 #include "lua/GameDataLoader.h"
-#include "mapGenerator/MapSettings.h"
 #include "gameData/MaxPlayers.h"
 #include "gameData/WorldDescription.h"
 #include "gameData/const_gui_ids.h"
+#include "s25util/StringConversion.h"
 #include "s25util/colors.h"
 #include <string>
 
-enum
-{
-    CTRL_LAST_ID = 7, // last UI control ID used before enum controls
-    CTRL_PLAYER_NUMBER,
-    CTRL_MAP_STYLE,
-    CTRL_MAP_SIZE,
-    CTRL_PLAYER_RADIUS,
-    CTRL_MAP_TYPE,
-    CTRL_RATIO_GOLD,
-    CTRL_RATIO_IRON,
-    CTRL_RATIO_COAL,
-    CTRL_RATIO_GRANITE
-};
+using namespace rttr::mapGenerator;
 
 iwMapGenerator::iwMapGenerator(MapSettings& settings)
-    : IngameWindow(CGI_MAP_GENERATOR, IngameWindow::posLastOrCenter, Extent(250, 400), _("Map Generator"),
-                   LOADER.GetImageN("resource", 41), true),
+    : IngameWindow(CGI_MAP_GENERATOR, IngameWindow::posLastOrCenter, Extent(270, 520), _("Map Generator"),
+                   LOADER.GetImageN("resource", 41), true, CloseBehavior::Custom),
       mapSettings(settings)
 {
     WorldDescription desc;
@@ -54,68 +31,100 @@ iwMapGenerator::iwMapGenerator(MapSettings& settings)
         return;
     }
 
-    AddTextButton(0, DrawPoint(20, 360), Extent(100, 20), TC_RED1, _("Back"), NormalFont);
-    AddTextButton(1, DrawPoint(130, 360), Extent(100, 20), TC_GREEN2, _("Apply"), NormalFont);
+    DrawPoint curPos(20, 0);
 
-    ctrlComboBox* combo = AddComboBox(CTRL_PLAYER_NUMBER, DrawPoint(20, 30), Extent(210, 20), TC_GREY, NormalFont, 100);
-    for(unsigned n = 2; n < MAX_PLAYERS; n++)
-        combo->AddString(boost::str(boost::format(_("%1% players")) % n));
+    constexpr Extent comboSize(230, 20);
+    constexpr Extent comboSizeSmall(130, 20);
+    constexpr Extent progressSize(130, 20);
+    constexpr Extent buttonSize(100, 20);
 
-    combo = AddComboBox(CTRL_MAP_STYLE, DrawPoint(20, 60), Extent(210, 20), TC_GREY, NormalFont, 100);
-    combo->AddString(_("Islands"));
-    combo->AddString(_("Continent"));
-    combo->AddString(_("Greenland"));
-    combo->AddString(_("Migration"));
-    combo->AddString(_("Riverland"));
-    combo->AddString(_("Ringland"));
-    combo->AddString(_("Random"));
+    curPos.y += 30;
+    ctrlComboBox* combo = AddComboBox(ID_cbNumPlayers, curPos, comboSize, TextureColor::Grey, NormalFont, 100);
+    for(unsigned n = 2; n <= MAX_PLAYERS; n++)
+        combo->AddString(helpers::format(_("%1% players"), n));
 
-    combo = AddComboBox(CTRL_MAP_SIZE, DrawPoint(20, 90), Extent(210, 20), TC_GREY, NormalFont, 100);
-    combo->AddString("64 x 64");
-    combo->AddString("128 x 128");
-    combo->AddString("256 x 256");
-    combo->AddString("512 x 512");
-    combo->AddString("1024 x 1024");
+    curPos.y += 30;
+    AddText(ID_txtMapStyle, curPos, _("Style"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    combo =
+      AddComboBox(ID_cbMapStyle, curPos + DrawPoint(100, -5), comboSizeSmall, TextureColor::Grey, NormalFont, 100);
+    combo->AddString(_("Water"));
+    combo->AddString(_("Land"));
+    combo->AddString(_("Mixed"));
 
-    AddText(2, DrawPoint(20, 120), _("Player Distribution"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    combo = AddComboBox(CTRL_PLAYER_RADIUS, DrawPoint(20, 140), Extent(210, 20), TC_GREY, NormalFont, 100);
-    combo->AddString(_("Very Close"));
-    combo->AddString(_("Close"));
-    combo->AddString(_("Medium"));
-    combo->AddString(_("Far"));
-    combo->AddString(_("Very Far"));
-    combo->AddString(_("Furthest apart"));
+    curPos.y += 30;
+    AddText(ID_txtMapSize, curPos, _("Size"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    auto* cbSizeX =
+      AddComboBox(ID_cbMapSizeX, curPos + DrawPoint(100, -5), Extent(50, 20), TextureColor::Grey, NormalFont, 200);
+    AddText(ID_txtMapSizeX, curPos + DrawPoint(160, 5), "x", COLOR_YELLOW, FontStyle::VCENTER, NormalFont);
+    auto* cbSizeY =
+      AddComboBox(ID_cbMapSizeY, curPos + DrawPoint(180, -5), Extent(50, 20), TextureColor::Grey, NormalFont, 200);
+    for(unsigned size = 32; size <= 320; size += 32)
+    {
+        const auto strSize = s25util::toStringClassic(size);
+        cbSizeX->AddString(strSize);
+        cbSizeY->AddString(strSize);
+    }
 
-    AddText(3, DrawPoint(20, 170), _("Landscape"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    combo = AddComboBox(CTRL_MAP_TYPE, DrawPoint(20, 190), Extent(210, 20), TC_GREY, NormalFont, 100);
+    curPos.y += 30;
+    AddText(ID_txtLandscape, curPos, _("Landscape"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    curPos.y += 20;
+    combo = AddComboBox(ID_cbMapType, curPos, comboSize, TextureColor::Grey, NormalFont, 100);
     for(unsigned i = 0; i < desc.landscapes.size(); i++)
         combo->AddString(_(desc.get(DescIdx<LandscapeDesc>(i)).name));
 
-    AddText(4, DrawPoint(20, 225), _("Gold:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddProgress(CTRL_RATIO_GOLD, DrawPoint(100, 220), Extent(130, 20), TC_GREY, 139, 138, 100);
-    AddText(5, DrawPoint(20, 255), _("Iron:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddProgress(CTRL_RATIO_IRON, DrawPoint(100, 250), Extent(130, 20), TC_GREY, 139, 138, 100);
-    AddText(6, DrawPoint(20, 285), _("Coal:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddProgress(CTRL_RATIO_COAL, DrawPoint(100, 280), Extent(130, 20), TC_GREY, 139, 138, 100);
-    AddText(7, DrawPoint(20, 315), _("Granite:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddProgress(CTRL_RATIO_GRANITE, DrawPoint(100, 310), Extent(130, 20), TC_GREY, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtMountainDist, curPos, _("HQ distance to mountain"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    curPos.y += 20;
+    combo = AddComboBox(ID_cbMountainDist, curPos, comboSize, TextureColor::Grey, NormalFont, 100);
+    combo->AddString(_("Close"));
+    combo->AddString(_("Normal"));
+    combo->AddString(_("Far"));
+    combo->AddString(_("Very far"));
+
+    curPos.y += 30;
+    AddText(ID_txtIslands, curPos, _("Islands"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    curPos.y += 20;
+    combo = AddComboBox(ID_cbIslands, curPos, comboSize, TextureColor::Grey, NormalFont, 100);
+    combo->AddString(_("Few"));
+    combo->AddString(_("Medium"));
+    combo->AddString(_("Many"));
+
+    constexpr int pgrOffset = 120;
+    curPos.y += 35;
+    AddText(ID_txtGold, curPos, _("Gold:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgGoldRatio, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtIron, curPos, _("Iron:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgIronRatio, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtCoal, curPos, _("Coal:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgCoalRatio, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtGranite, curPos, _("Granite:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgGraniteRatio, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtRivers, curPos, _("Rivers:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgRivers, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtTrees, curPos, _("Trees:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgTrees, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+    curPos.y += 30;
+    AddText(ID_txtStonePiles, curPos, _("Stone piles:"), COLOR_YELLOW, FontStyle{}, NormalFont);
+    AddProgress(ID_pgStonePiles, DrawPoint(pgrOffset, curPos.y - 5), progressSize, TextureColor::Grey, 139, 138, 100);
+
+    curPos.y += 25;
+    AddTextButton(ID_btBack, curPos, buttonSize, TextureColor::Red1, _("Back"), NormalFont);
+    AddTextButton(ID_btApply, DrawPoint(130, curPos.y), buttonSize, TextureColor::Green2, _("Apply"), NormalFont);
 
     Reset();
 }
-
-iwMapGenerator::~iwMapGenerator() = default;
 
 void iwMapGenerator::Msg_ButtonClick(const unsigned ctrl_id)
 {
     switch(ctrl_id)
     {
-        default: break;
-
-        case 0: // back
-            Close();
-            break;
-
-        case 1: // apply
+        case ID_btBack: Close(); break;
+        case ID_btApply:
             Apply();
             Close();
             break;
@@ -124,117 +133,94 @@ void iwMapGenerator::Msg_ButtonClick(const unsigned ctrl_id)
 
 void iwMapGenerator::Apply()
 {
-    mapSettings.numPlayers = GetCtrl<ctrlComboBox>(CTRL_PLAYER_NUMBER)->GetSelection().get() + 2;
-    mapSettings.ratioGold = GetCtrl<ctrlProgress>(CTRL_RATIO_GOLD)->GetPosition();
-    mapSettings.ratioIron = GetCtrl<ctrlProgress>(CTRL_RATIO_IRON)->GetPosition();
-    mapSettings.ratioCoal = GetCtrl<ctrlProgress>(CTRL_RATIO_COAL)->GetPosition();
-    mapSettings.ratioGranite = GetCtrl<ctrlProgress>(CTRL_RATIO_GRANITE)->GetPosition();
+    mapSettings.numPlayers = GetCtrl<ctrlComboBox>(ID_cbNumPlayers)->GetSelection().get() + 2;
+    mapSettings.ratioGold = GetCtrl<ctrlProgress>(ID_pgGoldRatio)->GetPosition();
+    mapSettings.ratioIron = GetCtrl<ctrlProgress>(ID_pgIronRatio)->GetPosition();
+    mapSettings.ratioCoal = GetCtrl<ctrlProgress>(ID_pgCoalRatio)->GetPosition();
+    mapSettings.ratioGranite = GetCtrl<ctrlProgress>(ID_pgGraniteRatio)->GetPosition();
+    mapSettings.rivers = GetCtrl<ctrlProgress>(ID_pgRivers)->GetPosition();
+    mapSettings.trees = GetCtrl<ctrlProgress>(ID_pgTrees)->GetPosition();
+    mapSettings.stonePiles = GetCtrl<ctrlProgress>(ID_pgStonePiles)->GetPosition();
 
-    switch(GetCtrl<ctrlComboBox>(CTRL_MAP_STYLE)->GetSelection().get())
+    switch(*GetCtrl<ctrlComboBox>(ID_cbMountainDist)->GetSelection())
     {
-        case 0: mapSettings.style = MapStyle::Islands; break;
-        case 1: mapSettings.style = MapStyle::Continent; break;
-        case 2: mapSettings.style = MapStyle::Greenland; break;
-        case 3: mapSettings.style = MapStyle::Migration; break;
-        case 4: mapSettings.style = MapStyle::Riverland; break;
-        case 5: mapSettings.style = MapStyle::Ringland; break;
-        case 6: mapSettings.style = MapStyle::Random; break;
-        default: break;
+        case 0: mapSettings.mountainDistance = MountainDistance::Close; break;
+        case 1: mapSettings.mountainDistance = MountainDistance::Normal; break;
+        case 2: mapSettings.mountainDistance = MountainDistance::Far; break;
+        case 3: mapSettings.mountainDistance = MountainDistance::VeryFar; break;
     }
-    switch(GetCtrl<ctrlComboBox>(CTRL_MAP_SIZE)->GetSelection().get())
+    switch(*GetCtrl<ctrlComboBox>(ID_cbMapStyle)->GetSelection())
     {
-        case 0: mapSettings.size = MapExtent::all(64); break;
-        case 1: mapSettings.size = MapExtent::all(128); break;
-        case 2: mapSettings.size = MapExtent::all(256); break;
-        case 3: mapSettings.size = MapExtent::all(512); break;
-        case 4: mapSettings.size = MapExtent::all(1024); break;
-        default: break;
+        case 0: mapSettings.style = MapStyle::Water; break;
+        case 1: mapSettings.style = MapStyle::Land; break;
+        case 2: mapSettings.style = MapStyle::Mixed; break;
     }
-    switch(GetCtrl<ctrlComboBox>(CTRL_PLAYER_RADIUS)->GetSelection().get())
+    mapSettings.size.x =
+      s25util::fromStringClassic<unsigned>(GetCtrl<ctrlComboBox>(ID_cbMapSizeX)->GetSelectedText().get_value_or("128"));
+    mapSettings.size.y =
+      s25util::fromStringClassic<unsigned>(GetCtrl<ctrlComboBox>(ID_cbMapSizeY)->GetSelectedText().get_value_or("128"));
+    switch(*GetCtrl<ctrlComboBox>(ID_cbIslands)->GetSelection())
     {
-        case 0:
-            mapSettings.minPlayerRadius = 0.19;
-            mapSettings.maxPlayerRadius = 0.3; //-V525
-            break;
-        case 1:
-            mapSettings.minPlayerRadius = 0.29;
-            mapSettings.maxPlayerRadius = 0.5;
-            break;
-        case 2:
-            mapSettings.minPlayerRadius = 0.39;
-            mapSettings.maxPlayerRadius = 0.59;
-            break;
-        case 3:
-            mapSettings.minPlayerRadius = 0.49;
-            mapSettings.maxPlayerRadius = 0.61;
-            break;
-        case 4:
-            mapSettings.minPlayerRadius = 0.71;
-            mapSettings.maxPlayerRadius = 0.72;
-            break;
-        case 5:
-            mapSettings.minPlayerRadius = 0.5;
-            mapSettings.maxPlayerRadius = 0.5;
-            break;
-        default: break;
+        case 0: mapSettings.islands = IslandAmount::Few; break;
+        case 1: mapSettings.islands = IslandAmount::Normal; break;
+        case 2: mapSettings.islands = IslandAmount::Many; break;
     }
-    const auto& mapType = GetCtrl<ctrlComboBox>(CTRL_MAP_TYPE)->GetSelection();
+    const auto& mapType = GetCtrl<ctrlComboBox>(ID_cbMapType)->GetSelection();
     if(mapType)
         mapSettings.type = DescIdx<LandscapeDesc>(*mapType);
 }
 
 void iwMapGenerator::Reset()
 {
-    auto* combo = GetCtrl<ctrlComboBox>(CTRL_PLAYER_NUMBER);
-    const uint16_t playersSelection = mapSettings.numPlayers - 2;
-    if(playersSelection < MAX_PLAYERS - 2)
+    GetCtrl<ctrlComboBox>(ID_cbNumPlayers)
+      ->SetSelection(std::min(mapSettings.numPlayers, MAX_PLAYERS) - 2); // List starts at 2 players
+
+    GetCtrl<ctrlProgress>(ID_pgGoldRatio)->SetPosition(mapSettings.ratioGold);
+    GetCtrl<ctrlProgress>(ID_pgIronRatio)->SetPosition(mapSettings.ratioIron);
+    GetCtrl<ctrlProgress>(ID_pgCoalRatio)->SetPosition(mapSettings.ratioCoal);
+    GetCtrl<ctrlProgress>(ID_pgGraniteRatio)->SetPosition(mapSettings.ratioGranite);
+    GetCtrl<ctrlProgress>(ID_pgRivers)->SetPosition(mapSettings.rivers);
+    GetCtrl<ctrlProgress>(ID_pgTrees)->SetPosition(mapSettings.trees);
+    GetCtrl<ctrlProgress>(ID_pgStonePiles)->SetPosition(mapSettings.stonePiles);
+
+    auto* combo = GetCtrl<ctrlComboBox>(ID_cbMountainDist);
+    switch(mapSettings.mountainDistance)
     {
-        combo->SetSelection(playersSelection);
+        case MountainDistance::Close: combo->SetSelection(0); break;
+        case MountainDistance::Normal: combo->SetSelection(1); break;
+        case MountainDistance::Far: combo->SetSelection(2); break;
+        case MountainDistance::VeryFar: combo->SetSelection(3); break;
     }
 
-    GetCtrl<ctrlProgress>(CTRL_RATIO_GOLD)->SetPosition(mapSettings.ratioGold);
-    GetCtrl<ctrlProgress>(CTRL_RATIO_IRON)->SetPosition(mapSettings.ratioIron);
-    GetCtrl<ctrlProgress>(CTRL_RATIO_COAL)->SetPosition(mapSettings.ratioCoal);
-    GetCtrl<ctrlProgress>(CTRL_RATIO_GRANITE)->SetPosition(mapSettings.ratioGranite);
-
-    combo = GetCtrl<ctrlComboBox>(CTRL_MAP_STYLE);
+    combo = GetCtrl<ctrlComboBox>(ID_cbMapStyle);
     switch(mapSettings.style)
     {
-        case MapStyle::Islands: combo->SetSelection(0); break;
-        case MapStyle::Continent: combo->SetSelection(1); break;
-        case MapStyle::Greenland: combo->SetSelection(2); break;
-        case MapStyle::Migration: combo->SetSelection(3); break;
-        case MapStyle::Riverland: combo->SetSelection(4); break;
-        case MapStyle::Ringland: combo->SetSelection(5); break;
-        case MapStyle::Random: combo->SetSelection(6); break;
-        default: break;
+        case MapStyle::Water: combo->SetSelection(0); break;
+        case MapStyle::Land: combo->SetSelection(1); break;
+        case MapStyle::Mixed: combo->SetSelection(2); break;
     }
 
-    combo = GetCtrl<ctrlComboBox>(CTRL_MAP_SIZE);
-    switch(mapSettings.size.x)
+    const auto strSizeX = s25util::toStringClassic(mapSettings.size.x);
+    const auto strSizeY = s25util::toStringClassic(mapSettings.size.y);
+    auto* cbSizeX = GetCtrl<ctrlComboBox>(ID_cbMapSizeX);
+    auto* cbSizeY = GetCtrl<ctrlComboBox>(ID_cbMapSizeY);
+    const auto numSizes = cbSizeX->GetNumItems();
+    RTTR_Assert(numSizes == cbSizeY->GetNumItems());
+    for(unsigned i = 0; i < numSizes; ++i)
     {
-        case 64: combo->SetSelection(0); break;
-        case 128: combo->SetSelection(1); break;
-        case 256: combo->SetSelection(2); break;
-        case 512: combo->SetSelection(3); break;
-        case 1024: combo->SetSelection(4); break;
-        default: break;
+        if(cbSizeX->GetText(i) == strSizeX)
+            cbSizeX->SetSelection(i);
+        if(cbSizeY->GetText(i) == strSizeY)
+            cbSizeY->SetSelection(i);
     }
 
-    combo = GetCtrl<ctrlComboBox>(CTRL_PLAYER_RADIUS);
-    if(mapSettings.minPlayerRadius == 0.5) //-V550
-        combo->SetSelection(5);
-    else if(mapSettings.minPlayerRadius <= 0.2)
-        combo->SetSelection(0);
-    else if(mapSettings.minPlayerRadius <= 0.3)
-        combo->SetSelection(1);
-    else if(mapSettings.minPlayerRadius <= 0.4)
-        combo->SetSelection(2);
-    else if(mapSettings.minPlayerRadius <= 0.5)
-        combo->SetSelection(3);
-    else
-        combo->SetSelection(4);
+    combo = GetCtrl<ctrlComboBox>(ID_cbIslands);
+    switch(mapSettings.islands)
+    {
+        case IslandAmount::Few: combo->SetSelection(0); break;
+        case IslandAmount::Normal: combo->SetSelection(1); break;
+        case IslandAmount::Many: combo->SetSelection(2); break;
+    }
 
-    combo = GetCtrl<ctrlComboBox>(CTRL_MAP_TYPE);
-    combo->SetSelection(mapSettings.type.value);
+    GetCtrl<ctrlComboBox>(ID_cbMapType)->SetSelection(mapSettings.type.value);
 }

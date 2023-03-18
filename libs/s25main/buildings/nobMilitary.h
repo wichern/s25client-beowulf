@@ -1,49 +1,44 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "figures/nofSoldier.h"
 #include "nobBaseMilitary.h"
+#include <boost/container/flat_set.hpp>
 #include <list>
 #include <vector>
 
-class nofPassiveSoldier;
-class nofActiveSoldier;
-class nofAttacker;
-class nofAggressiveDefender;
-class nofDefender;
-class Ware;
-class SerializedGameData;
-class noFigure;
 class GameEvent;
+class nobHarborBuilding;
+class nofActiveSoldier;
+class nofAggressiveDefender;
+class nofAttacker;
+class nofDefender;
+class noFigure;
+class nofPassiveSoldier;
+class SerializedGameData;
+class Ware;
+
+/// Distance to the next enemy border
+enum class FrontierDistance : uint8_t
+{
+    Far,    /// next military building is far away
+    Mid,    /// Next military building is in reachable range
+    Harbor, /// Military building is near a harbor
+    Near    /// Military building is next to a border
+};
+constexpr auto maxEnumValue(FrontierDistance)
+{
+    return FrontierDistance::Near;
+}
 
 /// Stellt ein Militärgebäude beliebiger Größe (also von Baracke bis Festung) dar
 class nobMilitary : public nobBaseMilitary
 {
-public:
-    /// Distance to the next enemy border
-    enum FrontierDistance
-    {
-        DIST_FAR = 0, /// next military building is far away
-        DIST_MID,     /// Next military building is in reachable range
-        DIST_HARBOR,  /// Military building is near a harbor
-        DIST_NEAR     /// Military building is next to a border
-    };
+    using OwnedSortedTroops = boost::container::flat_set<std::unique_ptr<nofPassiveSoldier>, ComparatorSoldiersByRank>;
+    using SortedTroops = boost::container::flat_set<nofPassiveSoldier*, ComparatorSoldiersByRank>;
 
 private:
     /// wurde das Gebäude gerade neu gebaut (muss also die Landgrenze beim Eintreffen von einem Soldaten neu berechnet
@@ -75,14 +70,14 @@ private:
     /// Is the military building regulating its troops at the moment? (then block furthere RegulateTroop calls)
     bool is_regulating_troops;
     /// Soldatenbesatzung
-    SortedTroops troops;
+    OwnedSortedTroops troops;
 
     /// Bestellungen (sowohl Truppen als auch Goldmünzen) zurücknehmen
     void CancelOrders();
     /// Wählt je nach Militäreinstellungen (Verteidigerstärke) einen passenden Soldaten aus
     nofPassiveSoldier* ChooseSoldier();
     /// Stellt Verteidiger zur Verfügung
-    nofDefender* ProvideDefender(nofAttacker* attacker) override;
+    std::unique_ptr<nofDefender> ProvideDefender(nofAttacker& attacker) override;
     /// Will/kann das Gebäude noch Münzen bekommen?
     bool WantCoins() const;
     /// Prüft, ob Goldmünzen und Soldaten, die befördert werden können, vorhanden sind und meldet ggf. ein
@@ -91,7 +86,7 @@ private:
     /// Gets the total amount of soldiers (ordered, stationed, on mission)
     size_t GetTotalSoldiers() const;
     /// Looks for the next far-away-capturer waiting around and calls it to the flag
-    void CallNextFarAwayCapturer(nofAttacker* attacker);
+    void CallNextFarAwayCapturer(nofAttacker& attacker);
 
     friend class SerializedGameData;
     friend class BuildingFactory;
@@ -103,12 +98,11 @@ public:
 
 protected:
     void DestroyBuilding() override;
-    void Serialize_nobMilitary(SerializedGameData& sgd) const;
 
 public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nobMilitary(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
-    GO_Type GetGOT() const override { return GOT_NOB_MILITARY; }
+    GO_Type GetGOT() const final { return GO_Type::NobMilitary; }
 
     void Draw(DrawPoint drawPt) override;
     void HandleEvent(unsigned id) override;
@@ -127,7 +121,7 @@ public:
 
     /// Wird von gegnerischem Gebäude aufgerufen, wenn sie neu gebaut worden sind und es so ein neues Gebäude im Umkreis
     /// gibt setzt frontier_distance neu falls möglich und sendet ggf. Verstärkung
-    void NewEnemyMilitaryBuilding(unsigned short distance);
+    void NewEnemyMilitaryBuilding(FrontierDistance distance);
     bool IsUseless() const;
     bool IsAttackable(unsigned playerIdx) const override;
     /// Gibt Distanz zurück
@@ -136,19 +130,20 @@ public:
     /// Berechnet die gewünschte Besatzung je nach Grenznähe
     unsigned CalcRequiredNumTroops() const;
     /// Calculate the required troop count for the given setting
-    unsigned CalcRequiredNumTroops(unsigned assumedFrontierDistance, unsigned settingValue) const;
+    unsigned CalcRequiredNumTroops(FrontierDistance assumedFrontierDistance, unsigned settingValue) const;
     /// Reguliert die Besatzung des Gebäudes je nach Grenznähe, bestellt neue Soldaten und schickt überflüssige raus
     void RegulateTroops();
     /// Gibt aktuelle Besetzung zurück
     unsigned GetNumTroops() const { return troops.size(); }
-    const SortedTroops& GetTroops() const { return troops; }
+    auto GetTroops() const { return helpers::nonNullPtrSpan(troops); }
+    bool IsInTroops(const nofPassiveSoldier& soldier) const;
 
     /// Wird aufgerufen, wenn eine neue Ware zum dem Gebäude geliefert wird (in dem Fall nur Goldstücke)
     void TakeWare(Ware* ware) override;
     /// Legt eine Ware am Objekt ab (an allen Straßenknoten (Gebäude, Baustellen und Flaggen) kann man Waren ablegen
-    void AddWare(Ware*& ware) override;
+    void AddWare(std::unique_ptr<Ware> ware) override;
     /// Eine bestellte Ware konnte doch nicht kommen
-    void WareLost(Ware* ware) override;
+    void WareLost(Ware& ware) override;
     /// Wird aufgerufen, wenn von der Fahne vor dem Gebäude ein Rohstoff aufgenommen wurde
     bool FreePlaceAtFlag() override;
 
@@ -156,18 +151,19 @@ public:
     unsigned CalcCoinsPoints() const;
 
     /// Wird aufgerufen, wenn ein Soldat kommt
-    void GotWorker(Job job, noFigure* worker) override;
+    void GotWorker(Job job, noFigure& worker) override;
     /// Fügt aktiven Soldaten (der aus von einer Mission) zum Militärgebäude hinzu
-    void AddActiveSoldier(nofActiveSoldier* soldier) override;
+    void AddActiveSoldier(std::unique_ptr<nofActiveSoldier> soldier) override;
     /// Fügt passiven Soldaten (der aus einem Lagerhaus kommt) zum Militärgebäude hinzu
-    void AddPassiveSoldier(nofPassiveSoldier* soldier);
+    void AddPassiveSoldier(std::unique_ptr<nofPassiveSoldier> soldier);
     /// Soldat konnte nicht kommen
     void SoldierLost(nofSoldier* soldier) override;
-    /// Soldat ist jetzt auf Mission
-    void SoldierOnMission(nofPassiveSoldier* passive_soldier, nofActiveSoldier* active_soldier);
+    /// Send the given passive soldier from this building to attack the goal, optionally via the given harbor
+    void SendAttacker(nofPassiveSoldier*& passive_soldier, nobBaseMilitary& goal,
+                      const nobHarborBuilding* harbor = nullptr);
 
     /// Schickt einen Verteidiger raus, der einem Angreifer in den Weg rennt
-    nofAggressiveDefender* SendAggressiveDefender(nofAttacker* attacker) override;
+    nofAggressiveDefender* SendAggressiveDefender(nofAttacker& attacker) override;
 
     /// Gibt die Anzahl der Soldaten zurück, die für einen Angriff auf ein bestimmtes Ziel zur Verfügung stehen
     unsigned GetNumSoldiersForAttack(MapPoint dest) const;
@@ -202,10 +198,10 @@ public:
     }
     /// Sagt, dass ein erobernder Soldat das Militärgebäude erreicht hat
     void CapturingSoldierArrived();
-    /// A far-away capturer arrived around the building and starts waiting
-    void FarAwayCapturerReachedGoal(nofAttacker* attacker);
+    /// A far-away capturer arrived at the flag and starts the capturing or is waiting around it
+    void FarAwayCapturerReachedGoal(nofAttacker& attacker, bool walkingIntoBld);
 
-    bool IsFarAwayCapturer(nofAttacker* attacker);
+    bool IsFarAwayCapturer(const nofAttacker& attacker);
 
     /// Stoppt/Erlaubt Goldzufuhr (visuell)
     void ToggleCoinsVirtual() { coinsDisabledVirtual = !coinsDisabledVirtual; }
@@ -226,7 +222,7 @@ public:
     void HitOfCatapultStone();
 
     /// Sind noch Truppen drinne, die dieses Gebäude verteidigen können
-    bool DefendersAvailable() const override { return (GetNumTroops() > 0); }
+    bool DefendersAvailable() const override { return GetNumTroops() > 0; }
 
     /// send all soldiers of the highest rank home (if highest=lowest keep 1)
     void SendSoldiersHome();
@@ -236,5 +232,5 @@ public:
     /// Darf das Militärgebäude abgerissen werden (Abriss-Verbot berücksichtigen)?
     bool IsDemolitionAllowed() const;
 
-    void UnlinkAggressor(nofAttacker* soldier) override;
+    void UnlinkAggressor(nofAttacker& soldier) override;
 };

@@ -1,21 +1,9 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "RttrForeachPt.h"
+#include "helpers/OptionalIO.h"
 #include "worldFixtures/CreateEmptyWorld.h"
 #include "worldFixtures/WorldFixture.h"
 #include "nodeObjs/noGranite.h"
@@ -38,7 +26,7 @@ using WorldFixtureEmpty0P = WorldFixture<CreateEmptyWorld, 0>;
 using WorldFixtureEmpty1P = WorldFixture<CreateEmptyWorld, 1>;
 
 /// Sets all terrain to the given terrain
-void clearWorld(GameWorldGame& world, DescIdx<TerrainDesc> terrain)
+void clearWorld(GameWorld& world, DescIdx<TerrainDesc> terrain)
 {
     RTTR_FOREACH_PT(MapPoint, world.GetSize())
     {
@@ -47,28 +35,27 @@ void clearWorld(GameWorldGame& world, DescIdx<TerrainDesc> terrain)
     }
 }
 
-void setupTestcase1(GameWorldGame& world, const MapPoint& startPt, DescIdx<TerrainDesc> tBlue,
-                    DescIdx<TerrainDesc> tWhite)
+void setupTestcase1(GameWorld& world, const MapPoint& startPt, DescIdx<TerrainDesc> tBlue, DescIdx<TerrainDesc> tWhite)
 {
     // test case 1: Everything is covered in blue terrain (e.g. water) which is walkable on the shore
     // so the white terrain creates all possible shore orientations
     clearWorld(world, tBlue);
     // Create the white terrain from left to right
     // curPt stores the current point on the path
-    world.GetNodeWriteable(world.GetNeighbour(startPt, Direction::NORTHWEST)).t2 = tWhite;
-    MapPoint curPt = world.GetNeighbour(startPt, Direction::NORTHEAST);
+    world.GetNodeWriteable(world.GetNeighbour(startPt, Direction::NorthWest)).t2 = tWhite;
+    MapPoint curPt = world.GetNeighbour(startPt, Direction::NorthEast);
     world.GetNodeWriteable(curPt).t2 = tWhite; //-V807
-    curPt = world.GetNeighbour(curPt, Direction::SOUTHEAST);
+    curPt = world.GetNeighbour(curPt, Direction::SouthEast);
     world.GetNodeWriteable(curPt).t1 = tWhite;
-    curPt = world.GetNeighbour(curPt, Direction::SOUTHEAST);
-    world.GetNodeWriteable(world.GetNeighbour(curPt, Direction::NORTHEAST)).t1 = tWhite;
-    curPt = world.GetNeighbour(curPt, Direction::NORTHEAST);
-    world.GetNodeWriteable(world.GetNeighbour(curPt, Direction::NORTHEAST)).t1 = tWhite;
-    curPt = world.GetNeighbour(curPt, Direction::EAST);
+    curPt = world.GetNeighbour(curPt, Direction::SouthEast);
+    world.GetNodeWriteable(world.GetNeighbour(curPt, Direction::NorthEast)).t1 = tWhite;
+    curPt = world.GetNeighbour(curPt, Direction::NorthEast);
+    world.GetNodeWriteable(world.GetNeighbour(curPt, Direction::NorthEast)).t1 = tWhite;
+    curPt = world.GetNeighbour(curPt, Direction::East);
     world.GetNodeWriteable(curPt).t2 = tWhite;
 }
 
-void setupTestcase2to4(GameWorldGame& world, const MapPoint& startPt, DescIdx<TerrainDesc> tWalkable,
+void setupTestcase2to4(GameWorld& world, const MapPoint& startPt, DescIdx<TerrainDesc> tWalkable,
                        DescIdx<TerrainDesc> tOther, bool bothTerrain, Direction dir)
 {
     // test cases 2-4: Everything covered in walkable terrain (white) and we want to walk 3 steps into a specified
@@ -106,11 +93,11 @@ BOOST_FIXTURE_TEST_CASE(WalkStraight, WorldFixtureEmpty0P)
                 endPt = world.GetNeighbour(endPt, dir);
             unsigned length;
             // Must be able to go there directly
-            BOOST_REQUIRE(world.FindHumanPath(startPt, endPt, 99, false, &length));
-            BOOST_REQUIRE_EQUAL(length, 3u);
+            BOOST_TEST_REQUIRE(world.FindHumanPath(startPt, endPt, 99, false, &length));
+            BOOST_TEST_REQUIRE(length == 3u);
             // Inverse route
-            BOOST_REQUIRE(world.FindHumanPath(endPt, startPt, 99, false, &length));
-            BOOST_REQUIRE_EQUAL(length, 3u);
+            BOOST_TEST_REQUIRE(world.FindHumanPath(endPt, startPt, 99, false, &length));
+            BOOST_TEST_REQUIRE(length == 3u);
         }
     }
 }
@@ -121,14 +108,14 @@ BOOST_FIXTURE_TEST_CASE(WalkAlongCoast, WorldFixtureEmpty0P)
     DescIdx<TerrainDesc> tWater(0);
     for(; tWater.value < world.GetDescription().terrain.size(); tWater.value++)
     {
-        if(world.GetDescription().get(tWater).kind == TerrainKind::WATER
+        if(world.GetDescription().get(tWater).kind == TerrainKind::Water
            && !world.GetDescription().get(tWater).Is(ETerrain::Walkable))
             break;
     }
     DescIdx<TerrainDesc> tLand(0);
     for(; tLand.value < world.GetDescription().terrain.size(); tLand.value++)
     {
-        if(world.GetDescription().get(tLand).kind == TerrainKind::LAND
+        if(world.GetDescription().get(tLand).kind == TerrainKind::Land
            && world.GetDescription().get(tLand).Is(ETerrain::Walkable))
             break;
     }
@@ -138,16 +125,16 @@ BOOST_FIXTURE_TEST_CASE(WalkAlongCoast, WorldFixtureEmpty0P)
     unsigned length;
     std::vector<Direction> route;
     // Forward route
-    BOOST_REQUIRE(world.FindHumanPath(startPt, endPt, 99, false, &length, &route));
-    BOOST_REQUIRE_EQUAL(length, 6u);
-    BOOST_REQUIRE_EQUAL(route.size(), 6u);
-    const std::vector<Direction> expectedRoute{Direction::NORTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST,
-                                               Direction::NORTHEAST, Direction::EAST,      Direction::EAST};
+    BOOST_TEST_REQUIRE(world.FindHumanPath(startPt, endPt, 99, false, &length, &route));
+    BOOST_TEST_REQUIRE(length == 6u);
+    BOOST_TEST_REQUIRE(route.size() == 6u);
+    const std::vector<Direction> expectedRoute{Direction::NorthEast, Direction::SouthEast, Direction::SouthEast,
+                                               Direction::NorthEast, Direction::East,      Direction::East};
     BOOST_TEST_REQUIRE(route == expectedRoute, boost::test_tools::per_element());
     // Inverse route
-    BOOST_REQUIRE(world.FindHumanPath(endPt, startPt, 99, false, &length, &route));
-    BOOST_REQUIRE_EQUAL(length, 6u);
-    BOOST_REQUIRE_EQUAL(route.size(), 6u);
+    BOOST_TEST_REQUIRE(world.FindHumanPath(endPt, startPt, 99, false, &length, &route));
+    BOOST_TEST_REQUIRE(length == 6u);
+    BOOST_TEST_REQUIRE(route.size() == 6u);
     std::vector<Direction> expectedRevRoute;
     for(Direction dir : expectedRoute | boost::adaptors::reversed)
     {
@@ -166,7 +153,7 @@ BOOST_FIXTURE_TEST_CASE(CrossTerrain, WorldFixtureEmpty1P)
     // Start far enough away from the HQ in the middle
     const MapPoint startPt(1, 2);
     // Test cases 2                                    a)                 b)                     c)
-    const std::vector<Direction> testDirections{Direction::EAST, Direction::SOUTHEAST, Direction::NORTHEAST};
+    const std::vector<Direction> testDirections{Direction::East, Direction::SouthEast, Direction::NorthEast};
 
     std::vector<DescIdx<TerrainDesc>> deepWaterTerrains;
     for(DescIdx<TerrainDesc> t(0); t.value < world.GetDescription().terrain.size(); t.value++)
@@ -178,7 +165,7 @@ BOOST_FIXTURE_TEST_CASE(CrossTerrain, WorldFixtureEmpty1P)
     DescIdx<TerrainDesc> tLand(0);
     for(; tLand.value < world.GetDescription().terrain.size(); tLand.value++)
     {
-        if(world.GetDescription().get(tLand).kind == TerrainKind::LAND
+        if(world.GetDescription().get(tLand).kind == TerrainKind::Land
            && world.GetDescription().get(tLand).Is(ETerrain::Walkable))
             break;
     }
@@ -193,25 +180,25 @@ BOOST_FIXTURE_TEST_CASE(CrossTerrain, WorldFixtureEmpty1P)
                 endPt = world.GetNeighbour(endPt, dir);
             // We can't go directly so 1 step detour
             unsigned length;
-            BOOST_REQUIRE(world.FindHumanPath(startPt, endPt, 99, false, &length));
-            BOOST_REQUIRE_EQUAL(length, 4u);
+            BOOST_TEST_REQUIRE(world.FindHumanPath(startPt, endPt, 99, false, &length));
+            BOOST_TEST_REQUIRE(length == 4u);
             // Inverse route
-            BOOST_REQUIRE(world.FindHumanPath(endPt, startPt, 99, false, &length));
-            BOOST_REQUIRE_EQUAL(length, 4u);
+            BOOST_TEST_REQUIRE(world.FindHumanPath(endPt, startPt, 99, false, &length));
+            BOOST_TEST_REQUIRE(length == 4u);
             // But road must be constructible
             world.SetFlag(startPt, 0);
             std::vector<Direction> roadRoute(3, dir);
             world.BuildRoad(0, false, startPt, roadRoute);
             Direction revDir(dir + 3u);
-            BOOST_REQUIRE_EQUAL(world.GetPointRoad(startPt, dir), PointRoad::Normal);
-            BOOST_REQUIRE_EQUAL(world.GetPointRoad(endPt, revDir), PointRoad::Normal);
+            BOOST_TEST_REQUIRE(world.GetPointRoad(startPt, dir) == PointRoad::Normal);
+            BOOST_TEST_REQUIRE(world.GetPointRoad(endPt, revDir) == PointRoad::Normal);
             world.DestroyFlag(endPt, 0);
             // Reverse direction
             std::vector<Direction> roadRouteRev(3, revDir);
             world.SetFlag(endPt, 0);
             world.BuildRoad(0, false, endPt, roadRouteRev);
-            BOOST_REQUIRE_EQUAL(world.GetPointRoad(startPt, dir), PointRoad::Normal);
-            BOOST_REQUIRE_EQUAL(world.GetPointRoad(endPt, revDir), PointRoad::Normal);
+            BOOST_TEST_REQUIRE(world.GetPointRoad(startPt, dir) == PointRoad::Normal);
+            BOOST_TEST_REQUIRE(world.GetPointRoad(endPt, revDir) == PointRoad::Normal);
             world.DestroyFlag(startPt, 0);
             world.DestroyFlag(endPt, 0);
         }
@@ -228,9 +215,9 @@ BOOST_FIXTURE_TEST_CASE(DontPassTerrain, WorldFixtureEmpty1P)
     // Start far enough away from the HQ in the middle
     const MapPoint startPt(1, 2);
     const std::vector<Direction> testDirections{// Test cases 3 a)        b)                    c)
-                                                Direction::EAST, Direction::SOUTHEAST, Direction::NORTHEAST,
+                                                Direction::East, Direction::SouthEast, Direction::NorthEast,
                                                 // Test cases 4 a)        b)                    c)
-                                                Direction::WEST, Direction::SOUTHWEST, Direction::NORTHWEST};
+                                                Direction::West, Direction::SouthWest, Direction::NorthWest};
     std::vector<DescIdx<TerrainDesc>> deadlyTerrains;
     const WorldDescription& worldDescription = world.GetDescription();
     for(DescIdx<TerrainDesc> t(0); t.value < worldDescription.terrain.size(); t.value++)
@@ -241,7 +228,7 @@ BOOST_FIXTURE_TEST_CASE(DontPassTerrain, WorldFixtureEmpty1P)
     DescIdx<TerrainDesc> tLand(0);
     for(; tLand.value < worldDescription.terrain.size(); tLand.value++)
     {
-        if(worldDescription.get(tLand).kind == TerrainKind::LAND && worldDescription.get(tLand).Is(ETerrain::Walkable))
+        if(worldDescription.get(tLand).kind == TerrainKind::Land && worldDescription.get(tLand).Is(ETerrain::Walkable))
             break;
     }
     for(DescIdx<TerrainDesc> deadlyTerrain : deadlyTerrains)
@@ -258,25 +245,25 @@ BOOST_FIXTURE_TEST_CASE(DontPassTerrain, WorldFixtureEmpty1P)
             for(int i = 0; i < 2; i++)
             {
                 unsigned length;
-                BOOST_REQUIRE(world.FindHumanPath(curStartPt, endPt, 99, false, &length));
-                BOOST_REQUIRE_EQUAL(length, 4u);
+                BOOST_TEST_REQUIRE(world.FindHumanPath(curStartPt, endPt, 99, false, &length));
+                BOOST_TEST_REQUIRE(length == 4u);
                 // Inverse route
-                BOOST_REQUIRE(world.FindHumanPath(endPt, curStartPt, 99, false, &length));
-                BOOST_REQUIRE_EQUAL(length, 4u);
+                BOOST_TEST_REQUIRE(world.FindHumanPath(endPt, curStartPt, 99, false, &length));
+                BOOST_TEST_REQUIRE(length == 4u);
                 // No road must be constructible
                 world.SetFlag(startPt, 0);
                 std::vector<Direction> roadRoute(3, dir);
                 world.BuildRoad(0, false, startPt, roadRoute);
                 Direction revDir(dir + 3u);
-                BOOST_REQUIRE_EQUAL(world.GetPointRoad(startPt, dir), PointRoad::None);
-                BOOST_REQUIRE_EQUAL(world.GetPointRoad(endPt, revDir), PointRoad::None);
+                BOOST_TEST_REQUIRE(world.GetPointRoad(startPt, dir) == PointRoad::None);
+                BOOST_TEST_REQUIRE(world.GetPointRoad(endPt, revDir) == PointRoad::None);
                 world.DestroyFlag(startPt, 0);
                 // Reverse direction
                 std::vector<Direction> roadRouteRev(3, revDir);
                 world.SetFlag(endPt, 0);
                 world.BuildRoad(0, false, endPt, roadRouteRev);
-                BOOST_REQUIRE_EQUAL(world.GetPointRoad(startPt, revDir), PointRoad::None);
-                BOOST_REQUIRE_EQUAL(world.GetPointRoad(endPt, dir), PointRoad::None);
+                BOOST_TEST_REQUIRE(world.GetPointRoad(startPt, revDir) == PointRoad::None);
+                BOOST_TEST_REQUIRE(world.GetPointRoad(endPt, dir) == PointRoad::None);
                 world.DestroyFlag(endPt, 0);
                 // Switch to yellow points. They are placed to be one step left than the direction
                 curStartPt = world.GetNeighbour(curStartPt, dir - 1u);
@@ -292,15 +279,15 @@ BOOST_FIXTURE_TEST_CASE(BlockedPaths, WorldFixtureEmpty0P)
     // Create a circle of stones so the path is completely blocked
     std::vector<MapPoint> surroundingPts = world.GetPointsInRadius(startPt, 1);
     for(const MapPoint& pt : surroundingPts)
-        world.SetNO(pt, new noGranite(GT_1, 1));
+        world.SetNO(pt, new noGranite(GraniteType::One, 1));
     std::vector<MapPoint> surroundingPts2;
     for(unsigned i = 0; i < 12; i++)
         surroundingPts2.push_back(world.GetNeighbour2(startPt, i));
     for(const MapPoint& pt : surroundingPts2)
-        BOOST_REQUIRE(!world.FindHumanPath(startPt, pt));
+        BOOST_TEST_REQUIRE(!world.FindHumanPath(startPt, pt));
     // Allow left exit
     world.DestroyNO(surroundingPts[0]);
-    BOOST_REQUIRE(world.FindHumanPath(startPt, surroundingPts2[0]));
+    BOOST_TEST_REQUIRE(world.FindHumanPath(startPt, surroundingPts2[0]));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,3 +1,7 @@
+// Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 #pragma once
 
 #include "IngameWindow.h"
@@ -8,7 +12,7 @@ class nobBaseWarehouse;
 class GameWorldViewer;
 class GameCommandFactory;
 
-class iwTrade : public IngameWindow
+class iwTrade final : public IngameWindow
 {
     const nobBaseWarehouse& wh; /// Das zugehörige Gebäudeobjekt
     const GameWorldViewer& gwv;
@@ -24,7 +28,6 @@ public:
     iwTrade(const nobBaseWarehouse& wh, const GameWorldViewer& gwv, GameCommandFactory& gcFactory);
 
 private:
-    void Msg_PaintBefore() override;
     void Msg_ButtonClick(unsigned ctrl_id) override;
     void Msg_ComboSelectItem(unsigned ctrl_id, unsigned selection) override;
     unsigned GetPossibleTradeAmount(Job job) const;

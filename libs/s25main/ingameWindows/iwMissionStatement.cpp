@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMissionStatement.h"
 #include "Loader.h"
@@ -25,7 +12,7 @@
 iwMissionStatement::iwMissionStatement(const std::string& title, const std::string& content, bool pauseGame,
                                        HelpImage image)
     : IngameWindow(CGI_MISSION_STATEMENT, IngameWindow::posLastOrCenter, Extent(640, 480), title,
-                   LOADER.GetImageN("io", 5), true, false),
+                   LOADER.GetImageN("io", 5), true, CloseBehavior::Custom),
       pauseGame_(pauseGame)
 {
     glArchivItem_Bitmap* img = (image == IM_NONE) ? nullptr : LOADER.GetImageN("io", image);
@@ -40,7 +27,7 @@ iwMissionStatement::iwMissionStatement(const std::string& title, const std::stri
 
     const unsigned short maxTextWidth = GetIwSize().x - imgSize.x - textSpace - imgSpace;
     ctrlMultiline* text = AddMultiline(0, contentOffset + DrawPoint::all(textSpace),
-                                       Extent(maxTextWidth, GetIwSize().y), TC_GREEN2, NormalFont);
+                                       Extent(maxTextWidth, GetIwSize().y), TextureColor::Green2, NormalFont);
     text->ShowBackground(false);
     text->AddString(content, COLOR_YELLOW, false);
     text->Resize(text->GetContentSize());
@@ -53,7 +40,7 @@ iwMissionStatement::iwMissionStatement(const std::string& title, const std::stri
 
     AddTextButton(1,
                   DrawPoint((GetSize().x - buttonSize.x) / 2, GetRightBottomBoundary().y - buttonSpace - buttonSize.y),
-                  buttonSize, TC_GREY, _("Continue"), NormalFont);
+                  buttonSize, TextureColor::Grey, _("Continue"), NormalFont);
     if(img)
     {
         DrawPoint imgPos =
@@ -64,7 +51,7 @@ iwMissionStatement::iwMissionStatement(const std::string& title, const std::stri
 
 void iwMissionStatement::Msg_ButtonClick(const unsigned /*ctrl_id*/)
 {
-    if(pauseGame_ && GAMECLIENT.GetState() != GameClient::CS_STOPPED)
+    if(pauseGame_ && GAMECLIENT.GetState() != ClientState::Stopped)
         GAMECLIENT.SetPause(false);
     Close();
 }
@@ -72,6 +59,6 @@ void iwMissionStatement::Msg_ButtonClick(const unsigned /*ctrl_id*/)
 void iwMissionStatement::SetActive(bool activate)
 {
     IngameWindow::SetActive(activate);
-    if(IsActive() && pauseGame_ && GAMECLIENT.GetState() != GameClient::CS_STOPPED)
+    if(IsActive() && pauseGame_ && GAMECLIENT.GetState() != ClientState::Stopped)
         GAMECLIENT.SetPause(true);
 }

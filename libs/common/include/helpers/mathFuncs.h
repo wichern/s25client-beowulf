@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -26,14 +13,15 @@ namespace helpers {
 int gcd(int a, int b) noexcept;
 /// Returns the result of "dividend / divisor" rounded to the nearest integer value
 unsigned roundedDiv(unsigned dividend, unsigned divisor) noexcept;
+/// Return ceil(dividend / divisor)
 constexpr unsigned divCeil(unsigned dividend, unsigned divisor) noexcept
 {
-    return (dividend + divisor - 1)
-           / divisor; // Standard trick using truncating division for smalish values (no overflow)
+    // Standard trick using truncating division for smallish values (no overflow)
+    return (dividend + divisor - 1) / divisor;
 }
 /// Clamp the value into [min, max]
 template<typename T>
-T clamp(T val, T min, T max) noexcept
+constexpr T clamp(T val, T min, T max) noexcept
 {
     if(val <= min)
         return min;
@@ -43,7 +31,7 @@ T clamp(T val, T min, T max) noexcept
         return val;
 }
 template<typename T, typename U>
-U clamp(T val, U min, U max) noexcept
+constexpr U clamp(T val, U min, U max) noexcept
 {
     using Common = std::common_type_t<T, U>;
     if(std::is_signed<T>::value && !std::is_signed<U>::value)
@@ -61,5 +49,34 @@ U clamp(T val, U min, U max) noexcept
     }
     // Here all values are positive or have the same signedness
     return static_cast<U>(clamp(static_cast<Common>(val), static_cast<Common>(min), static_cast<Common>(max)));
+}
+/// Linear interpolation between [startVal, endVal]. Difference between those 2 and elapsedTime should be smallish
+template<typename T, typename U, typename V>
+constexpr T interpolate(const T startVal, const T endVal, const U elapsedTime, const V duration) noexcept
+{
+    // Allow only 1 order of magnitude between the time units (i.e. seconds and milliseconds)
+    static_assert(U(1) / V(1) <= 1000 && V(1) / U(1) <= 1000,
+                  "Time units are to different so result would likely overflow");
+    if(elapsedTime < U(0))
+        return startVal;
+    if(elapsedTime > duration)
+        return endVal;
+    if(startVal <= endVal)
+        return static_cast<T>(startVal + ((endVal - startVal) * elapsedTime) / duration);
+    else // Special case for unsigned values
+        return static_cast<T>(startVal - ((startVal - endVal) * elapsedTime) / duration);
+}
+
+/// Linear interpolation, similar to C++20's std::lerp()
+constexpr float lerp(const float startVal, const float endVal, const float ratio) noexcept
+{
+    return startVal + ratio * (endVal - startVal);
+}
+
+/// Inverse function to lerp(): Returns the ratio of value in [startVal, endVal]
+template<typename T>
+constexpr T inverseLerp(const T startVal, const T endVal, const T value) noexcept
+{
+    return (value - startVal) / (endVal - startVal);
 }
 } // namespace helpers

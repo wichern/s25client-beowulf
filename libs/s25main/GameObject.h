@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -23,7 +10,7 @@
 #include <string>
 
 class SerializedGameData;
-class GameWorldGame;
+class GameWorld;
 class EventManager;
 class PostMsg;
 
@@ -54,8 +41,6 @@ public:
     virtual std::string ToString() const;
 
 protected:
-    /// Serialisierungsfunktion.
-    void Serialize_GameObject(SerializedGameData& /*sgd*/) const {}
     // Following are some "sandbox methods". They avoid dependencies of subclasses to commonly used functions
     static EventManager& GetEvMgr();
     /// Send the msg to given player
@@ -67,9 +52,9 @@ private:
     // Static members
 public:
     /// Set the currently active world for all game objects
-    static void AttachWorld(GameWorldGame* gameWorld);
+    static void AttachWorld(GameWorld* gameWorld);
     /// Remove the world from all game objects
-    static void DetachWorld(GameWorldGame* gameWorld);
+    static void DetachWorld(GameWorld* gameWorld);
     /// Return the number of objects alive
     static unsigned GetNumObjs() { return objCounter_; }
     /// Gibt Obj-ID-Counter zurück
@@ -89,7 +74,7 @@ public:
 
 protected:
     /// Zugriff auf übrige Spielwelt
-    static GameWorldGame* gwg;
+    static GameWorld* world;
 
 private:
     static unsigned objIdCounter_; /// Objekt-ID-Counter (number of objects created)
@@ -102,4 +87,11 @@ void destroyAndDelete(T*& obj)
 {
     obj->Destroy();
     deletePtr(obj);
+}
+/// Same but for smart pointers
+template<typename T>
+void destroyAndDelete(T& obj)
+{
+    obj->Destroy();
+    obj.reset();
 }

@@ -1,29 +1,22 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #define BOOST_TEST_MODULE RTTR_Config
 
+#include "RTTR_Version.h"
 #include "RttrConfig.h"
 #include "s25util/System.h"
 #include <rttr/test/BaseFixture.hpp>
 #include <rttr/test/LogAccessor.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/nowide/args.hpp>
 #include <boost/test/unit_test.hpp>
+
+#if RTTR_HAS_VLD
+#    include <vld.h>
+#endif
 
 namespace fs = boost::filesystem;
 
@@ -64,4 +57,24 @@ BOOST_FIXTURE_TEST_CASE(PrefixPath, rttr::test::BaseFixture)
         BOOST_TEST_REQUIRE(RTTRCONFIG.Init());
         BOOST_TEST(prefixPath == fs::current_path());
     }
+}
+
+BOOST_AUTO_TEST_CASE(YearIsValid)
+{
+    const std::string year = rttr::version::GetYear();
+    BOOST_TEST(year.length() == 4u);
+    int iYear;
+    BOOST_TEST_REQUIRE(boost::conversion::try_lexical_convert(year, iYear));
+    BOOST_TEST(iYear >= 2000);
+    BOOST_TEST(iYear < 3000);
+}
+
+BOOST_AUTO_TEST_CASE(BuildDateIsValid)
+{
+    const std::string date = rttr::version::GetBuildDate();
+    BOOST_TEST(date.length() == 8u);
+    int iDate;
+    BOOST_TEST_REQUIRE(boost::conversion::try_lexical_convert(date, iDate));
+    BOOST_TEST(iDate >= 20000000);
+    BOOST_TEST(iDate < 30000000);
 }

@@ -1,35 +1,25 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GlobalGameSettings.h"
 #include "Settings.h"
 #include "addons/Addon.h"
 #include "addons/Addons.h"
 #include "helpers/containerUtils.h"
+#include "helpers/serializeEnums.h"
 #include "gameData/MilitaryConsts.h"
 #include "s25util/Log.h"
 #include "s25util/Serializer.h"
+#include <boost/mp11/algorithm.hpp>
+#include <boost/mp11/list.hpp>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
 
 GlobalGameSettings::GlobalGameSettings()
-    : speed(GS_NORMAL), objective(GO_NONE), startWares(SWR_NORMAL), lockedTeams(false), exploration(EXP_FOGOFWAR),
-      teamView(true), randomStartPosition(false)
+    : speed(GameSpeed::Normal), objective(GameObjective::None), startWares(StartWares::Normal), lockedTeams(false),
+      exploration(Exploration::FogOfWar), teamView(true), randomStartPosition(false)
 {
     registerAllAddons();
 }
@@ -42,6 +32,8 @@ GlobalGameSettings::GlobalGameSettings(const GlobalGameSettings& ggs)
     for(const AddonWithState& addon : ggs.addons)
         setSelection(addon.addon->getId(), addon.status);
 }
+
+GlobalGameSettings::GlobalGameSettings(GlobalGameSettings&&) noexcept = default;
 
 GlobalGameSettings& GlobalGameSettings::operator=(const GlobalGameSettings& ggs)
 {
@@ -60,58 +52,61 @@ GlobalGameSettings& GlobalGameSettings::operator=(const GlobalGameSettings& ggs)
     return *this;
 }
 
+GlobalGameSettings& GlobalGameSettings::operator=(GlobalGameSettings&&) noexcept = default;
+
 GlobalGameSettings::~GlobalGameSettings() = default;
 
 void GlobalGameSettings::registerAllAddons()
 {
-    registerAddon(std::make_unique<AddonLimitCatapults>());
-    registerAddon(std::make_unique<AddonInexhaustibleMines>());
-    registerAddon(std::make_unique<AddonRefundMaterials>());
-    registerAddon(std::make_unique<AddonExhaustibleWater>());
-    registerAddon(std::make_unique<AddonRefundOnEmergency>());
-    registerAddon(std::make_unique<AddonManualRoadEnlargement>());
-    registerAddon(std::make_unique<AddonCatapultGraphics>());
-    registerAddon(std::make_unique<AddonMetalworksBehaviorOnZero>());
-
-    registerAddon(std::make_unique<AddonDemolitionProhibition>());
-    registerAddon(std::make_unique<AddonCharburner>());
-    registerAddon(std::make_unique<AddonTrade>());
-
-    registerAddon(std::make_unique<AddonChangeGoldDeposits>());
-    registerAddon(std::make_unique<AddonMaxWaterwayLength>());
-    registerAddon(std::make_unique<AddonCustomBuildSequence>());
-    registerAddon(std::make_unique<AddonStatisticsVisibility>());
-
-    registerAddon(std::make_unique<AddonDefenderBehavior>());
-    registerAddon(std::make_unique<AddonAIDebugWindow>());
-
-    registerAddon(std::make_unique<AddonNoCoinsDefault>());
-
-    registerAddon(std::make_unique<AddonAdjustMilitaryStrength>());
-
-    registerAddon(std::make_unique<AddonToolOrdering>());
-
-    registerAddon(std::make_unique<AddonMilitaryAid>());
-    registerAddon(std::make_unique<AddonInexhaustibleGraniteMines>());
-    registerAddon(std::make_unique<AddonMaxRank>());
-    registerAddon(std::make_unique<AddonSeaAttack>());
-    registerAddon(std::make_unique<AddonInexhaustibleFish>());
-
-    registerAddon(std::make_unique<AddonShipSpeed>());
-    registerAddon(std::make_unique<AddonMoreAnimals>());
-    registerAddon(std::make_unique<AddonBurnDuration>());
-    registerAddon(std::make_unique<AddonNoAlliedPush>());
-    registerAddon(std::make_unique<AddonBattlefieldPromotion>());
-    registerAddon(std::make_unique<AddonHalfCostMilEquip>());
-    registerAddon(std::make_unique<AddonMilitaryControl>());
-
-    registerAddon(std::make_unique<AddonMilitaryHitpoints>());
-
-    registerAddon(std::make_unique<AddonNumScoutsExploration>());
-
-    registerAddon(std::make_unique<AddonFrontierDistanceReachable>());
-    registerAddon(std::make_unique<AddonCoinsCapturedBld>());
-    registerAddon(std::make_unique<AddonDemolishBldWORes>());
+    // clang-format off
+    using AllAddons = boost::mp11::mp_list<
+        AddonAdjustMilitaryStrength,
+        AddonAIDebugWindow,
+        AddonBattlefieldPromotion,
+        AddonBurnDuration,
+        AddonCatapultGraphics,
+        AddonChangeGoldDeposits,
+        AddonCharburner,
+        AddonCoinsCapturedBld,
+        AddonCustomBuildSequence,
+        AddonDefenderBehavior,
+        AddonDemolishBldWORes,
+        AddonDemolitionProhibition,
+        AddonDurableGeologistSigns,
+        AddonEconomyModeGameLength,
+        AddonExhaustibleWater,
+        AddonFrontierDistanceReachable,
+        AddonHalfCostMilEquip,
+        AddonInexhaustibleFish,
+        AddonInexhaustibleGraniteMines,
+        AddonInexhaustibleMines,
+        AddonLimitCatapults,
+        AddonManualRoadEnlargement,
+        AddonMaxRank,
+        AddonMaxWaterwayLength,
+        AddonMetalworksBehaviorOnZero,
+        AddonMilitaryAid,
+        AddonMilitaryControl,
+        AddonMilitaryHitpoints,
+        AddonMoreAnimals,
+        AddonNoAlliedPush,
+        AddonNoCoinsDefault,
+        AddonNumScoutsExploration,
+        AddonPeacefulMode,
+        AddonRefundMaterials,
+        AddonRefundOnEmergency,
+        AddonSeaAttack,
+        AddonShipSpeed,
+        AddonStatisticsVisibility,
+        AddonToolOrdering,
+        AddonTrade
+    >;
+    // clang-format on
+    using namespace boost::mp11;
+    mp_for_each<mp_transform<mp_identity, AllAddons>>([this](auto addonType) {
+        using AddonType = typename decltype(addonType)::type;
+        this->registerAddon(std::make_unique<AddonType>());
+    });
 }
 
 void GlobalGameSettings::resetAddons()
@@ -204,11 +199,11 @@ void GlobalGameSettings::Serialize(Serializer& ser) const
 {
     // LOG.writeToFile(">>> Addon Status:\n");
 
-    ser.PushUnsignedChar(static_cast<unsigned char>(speed));
-    ser.PushUnsignedChar(static_cast<unsigned char>(objective));
-    ser.PushUnsignedChar(static_cast<unsigned char>(startWares));
+    helpers::pushEnum<uint8_t>(ser, speed);
+    helpers::pushEnum<uint8_t>(ser, objective);
+    helpers::pushEnum<uint8_t>(ser, startWares);
     ser.PushBool(lockedTeams);
-    ser.PushUnsignedChar(static_cast<unsigned char>(exploration));
+    helpers::pushEnum<uint8_t>(ser, exploration);
     ser.PushBool(teamView);
     ser.PushBool(randomStartPosition);
 
@@ -227,11 +222,11 @@ void GlobalGameSettings::Serialize(Serializer& ser) const
  */
 void GlobalGameSettings::Deserialize(Serializer& ser)
 {
-    speed = static_cast<GameSpeed>(ser.PopUnsignedChar());
-    objective = static_cast<GameObjective>(ser.PopUnsignedChar());
-    startWares = static_cast<StartWares>(ser.PopUnsignedChar());
+    speed = helpers::popEnum<GameSpeed>(ser);
+    objective = helpers::popEnum<GameObjective>(ser);
+    startWares = helpers::popEnum<StartWares>(ser);
     lockedTeams = ser.PopBool();
-    exploration = static_cast<Exploration>(ser.PopUnsignedChar());
+    exploration = helpers::popEnum<Exploration>(ser);
     teamView = ser.PopBool();
     randomStartPosition = ser.PopBool();
 
@@ -239,15 +234,11 @@ void GlobalGameSettings::Deserialize(Serializer& ser)
 
     resetAddons();
 
-    // LOG.writeToFile("<<< Addon Status:\n");
-
     for(unsigned i = 0; i < count; ++i)
     {
         auto addon = static_cast<AddonId>(ser.PopUnsignedInt());
         unsigned status = ser.PopUnsignedInt();
         setSelection(addon, status);
-
-        // LOG.writeToFile("\t0x%08X=%d\n") % AddonId::type_(addon) % status;
     }
 }
 

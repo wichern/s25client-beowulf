@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -29,28 +16,29 @@ class nofBuildingWorker : public noFigure
 {
 public:
     /// Was der gerade so schönes macht
-    enum State
+    enum class State : uint8_t
     {
-        STATE_FIGUREWORK = 0, /// Arbeiten der noFigure (Laufen zum Arbeitsplatz, Rumirren usw)
-        STATE_ENTERBUILDING,  /// Betreten des Gebäudes
-        STATE_WAITING1,       /// Warten, bis man anfängt zu produzieren
-        STATE_WAITING2,       /// Warten nach dem Produzieren, bis man Ware rausträgt (nur Handwerker)
-        STATE_CARRYOUTWARE,   /// Raustragen der Ware
-        STATE_WORK,           /// Arbeiten
-        STATE_WAITINGFORWARES_OR_PRODUCTIONSTOPPED, /// Warten auf Waren oder weil Produktion eingetellt wurde
-        STATE_WALKTOWORKPOINT,                      /// Zum "Arbeitspunkt" laufen (nur Landarbeiter)
-        STATE_WALKINGHOME,                          /// vom Arbeitspunkt zurück nach Hause laufen (nur Landarbeiter)
-        STATE_WAITFORWARESPACE,                     /// auf einen freien Platz an der Flagge vor dem Gebäude warten
-        STATE_HUNTER_CHASING,                       /// Jäger: verfolgt das Tier bis auf eine gewisse Distanz
-        STATE_HUNTER_FINDINGSHOOTINGPOINT, /// Jäger: sucht einen Punkt rund um das Tier, von dem er es abschießen kann
-        STATE_HUNTER_SHOOTING,             /// Jäger: Tier erschießen
-        STATE_HUNTER_WALKINGTOCADAVER,     /// Jäger: Zum Kadaver laufen
-        STATE_HUNTER_EVISCERATING,         /// Jäger: Tier ausnehmen
-        STATE_CATAPULT_TARGETBUILDING,     /// Katapult: Dreht den Katapult oben auf das Ziel zu und schießt
-        STATE_CATAPULT_BACKOFF, /// Katapult: beendet schießen und dreht Katapult in die Ausgangsstellung zurück
-        STATE_HUNTER_WAITING_FOR_ANIMAL_READY, /// Hunter: Arrived at shooting pos and waiting for animal to be ready to
-                                               /// be shot
+        FigureWork,                         /// Arbeiten der noFigure (Laufen zum Arbeitsplatz, Rumirren usw)
+        EnterBuilding,                      /// Betreten des Gebäudes
+        Waiting1,                           /// Warten, bis man anfängt zu produzieren
+        Waiting2,                           /// Warten nach dem Produzieren, bis man Ware rausträgt (nur Handwerker)
+        CarryoutWare,                       /// Raustragen der Ware
+        Work,                               /// Arbeiten
+        WaitingForWaresOrProductionStopped, /// Warten auf Waren oder weil Produktion eingetellt wurde
+        WalkToWorkpoint,                    /// Zum "Arbeitspunkt" laufen (nur Landarbeiter)
+        WalkingHome,                        /// vom Arbeitspunkt zurück nach Hause laufen (nur Landarbeiter)
+        WaitForWareSpace,                   /// auf einen freien Platz an der Flagge vor dem Gebäude warten
+        HunterChasing,                      /// Jäger: verfolgt das Tier bis auf eine gewisse Distanz
+        HunterFindingShootingpoint,  /// Jäger: sucht einen Punkt rund um das Tier, von dem er es abschießen kann
+        HunterShooting,              /// Jäger: Tier erschießen
+        HunterWalkingToCadaver,      /// Jäger: Zum Kadaver laufen
+        HunterEviscerating,          /// Jäger: Tier ausnehmen
+        CatapultTargetBuilding,      /// Katapult: Dreht den Katapult oben auf das Ziel zu und schießt
+        CatapultBackoff,             /// Katapult: beendet schießen und dreht Katapult in die Ausgangsstellung zurück
+        HunterWaitingForAnimalReady, /// Hunter: Arrived at shooting pos and waiting for animal to be ready to
+                                     /// be shot
     };
+    friend constexpr auto maxEnumValue(State) { return State::HunterWaitingForAnimalReady; }
 
 protected:
     State state;
@@ -104,29 +92,18 @@ protected:
     virtual void DrawOtherStates(DrawPoint drawPt);
 
 public:
-    State GetState() { return state; }
+    State GetState() const { return state; }
 
     nofBuildingWorker(Job job, MapPoint pos, unsigned char player, nobUsual* workplace);
     nofBuildingWorker(Job job, MapPoint pos, unsigned char player, nobBaseWarehouse* goalWh);
     nofBuildingWorker(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Aufräummethoden
-protected:
-    void Destroy_nofBuildingWorker()
+    void Destroy() override
     {
         RTTR_Assert(!workplace);
-        Destroy_noFigure();
+        noFigure::Destroy();
     }
-
-public:
-    void Destroy() override { Destroy_nofBuildingWorker(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_nofBuildingWorker(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofBuildingWorker(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
     void Draw(DrawPoint drawPt) override;
 

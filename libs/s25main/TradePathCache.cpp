@@ -1,69 +1,51 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "TradePathCache.h"
 #include "EventManager.h"
 #include "GamePlayer.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/GameConsts.h"
 
-bool TradePathCache::PathExists(const GameWorldGame& gwg, const MapPoint& start, const MapPoint& goal,
-                                const unsigned char player)
+bool TradePathCache::pathExists(const MapPoint start, const MapPoint goal, const unsigned char player)
 {
     RTTR_Assert(start != goal);
 
-    unsigned entryIdx = FindEntry(gwg, start, goal, player);
-    if(entryIdx < curSize)
+    int entryIdx = findEntry(start, goal, player);
+    if(entryIdx >= 0)
     {
         // Found an entry --> Check if the route is still valid
         MapPoint checkedGoal;
-        if(gwg.CheckTradeRoute(pathes[entryIdx].path.start, pathes[entryIdx].path.route, 0, player, &checkedGoal))
+        if(world.CheckTradeRoute(paths[entryIdx].path.start, paths[entryIdx].path.route, 0, player, &checkedGoal))
         {
             RTTR_Assert(checkedGoal == start || checkedGoal == goal);
-            pathes[entryIdx].lastUse = gwg.GetEvMgr().GetCurrentGF();
+            paths[entryIdx].lastUse = world.GetEvMgr().GetCurrentGF();
             return true;
         } else
         {
             // TradePath is now invalid -> remove it
-            curSize--;
-            if(entryIdx != curSize)
-                pathes[entryIdx] = pathes[curSize];
+            if(static_cast<unsigned>(entryIdx) != paths.size() - 1u)
+                std::swap(paths[entryIdx], paths.back());
+            paths.pop_back();
         }
     }
 
-    TradePath path;
-    if(!gwg.FindTradePath(start, goal, player, std::numeric_limits<unsigned>::max(), false, &path.route))
+    std::vector<Direction> route;
+    if(!world.FindTradePath(start, goal, player, std::numeric_limits<unsigned>::max(), false, &route))
         return false;
 
-    path.start = start;
-    path.goal = goal;
-
-    AddEntry(gwg, path, player);
+    addEntry(TradePath(start, goal, std::move(route)), player);
     return true;
 }
 
-unsigned TradePathCache::FindEntry(const GameWorldGame& gwg, const MapPoint& start, const MapPoint& goal,
-                                   const unsigned char player) const
+int TradePathCache::findEntry(const MapPoint start, const MapPoint goal, const PlayerIdx player) const
 {
-    const GamePlayer& thisPlayer = gwg.GetPlayer(player);
+    const GamePlayer& thisPlayer = world.GetPlayer(player);
 
-    for(unsigned i = 0; i < curSize; i++)
+    for(unsigned i = 0; i < paths.size(); i++)
     {
-        const Entry& pathEntry = pathes[i];
+        const Entry& pathEntry = paths[i];
         if(pathEntry.path.start != start && pathEntry.path.goal != start)
             continue;
         if(pathEntry.path.goal != goal && pathEntry.path.start != goal)
@@ -72,36 +54,26 @@ unsigned TradePathCache::FindEntry(const GameWorldGame& gwg, const MapPoint& sta
             continue;
         return i;
     }
-    return curSize;
+    return -1;
 }
 
-void TradePathCache::AddEntry(const GameWorldGame& gwg, const TradePath& path, const unsigned char player)
+void TradePathCache::addEntry(TradePath path, const unsigned char player)
 {
-    // Find the idx of the new entry
-    // First look for an existing entry
-    unsigned idx = FindEntry(gwg, path.start, path.goal, player);
-    if(idx >= curSize)
+    Entry entry{player, world.GetEvMgr().GetCurrentGF(), std::move(path)};
+
+    int idx = findEntry(entry.path.start, entry.path.goal, player);
+    if(idx < 0)
     {
         // None found --> Find a new spot
-        if(curSize < pathes.size())
-            idx = curSize++; // We got space left --> append
+        if(paths.size() < paths.max_size())
+            paths.emplace_back(std::move(entry)); // We got space left --> append
         else
         {
             // No space left --> Replace oldest
-            idx = 0;
-            unsigned minLastUse = pathes[0].lastUse;
-            for(unsigned i = 1; i < curSize; i++)
-            {
-                if(pathes[i].lastUse < minLastUse)
-                {
-                    minLastUse = pathes[i].lastUse;
-                    idx = i;
-                }
-            }
+            const auto itOldestElement = std::min_element(
+              paths.begin(), paths.end(), [](const Entry& rhs, const Entry& lhs) { return rhs.lastUse < lhs.lastUse; });
+            *itOldestElement = std::move(entry);
         }
-    }
-
-    pathes[idx].player = player;
-    pathes[idx].lastUse = gwg.GetEvMgr().GetCurrentGF();
-    pathes[idx].path = path;
+    } else
+        paths[idx] = std::move(entry);
 }

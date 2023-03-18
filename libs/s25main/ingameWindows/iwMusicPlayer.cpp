@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMusicPlayer.h"
 #include "ListDir.h"
@@ -72,9 +59,9 @@ iwMusicPlayer::InputWindow::InputWindow(iwMusicPlayer& playerWnd, const unsigned
                    true),
       win_id(win_id), playerWnd_(playerWnd)
 {
-    AddEdit(ID_edtName, DrawPoint(20, 30), Extent(GetSize().x - 40, 22), TC_GREEN2, NormalFont)->SetFocus();
-    AddTextButton(ID_btOk, DrawPoint(20, 60), Extent(100, 22), TC_GREEN1, _("OK"), NormalFont);
-    AddTextButton(ID_btAbort, DrawPoint(130, 60), Extent(100, 22), TC_RED1, _("Abort"), NormalFont);
+    AddEdit(ID_edtName, DrawPoint(20, 30), Extent(GetSize().x - 40, 22), TextureColor::Green2, NormalFont)->SetFocus();
+    AddTextButton(ID_btOk, DrawPoint(20, 60), Extent(100, 22), TextureColor::Green1, _("OK"), NormalFont);
+    AddTextButton(ID_btAbort, DrawPoint(130, 60), Extent(100, 22), TextureColor::Red1, _("Abort"), NormalFont);
 }
 
 void iwMusicPlayer::InputWindow::Msg_ButtonClick(const unsigned ctrl_id)
@@ -95,34 +82,38 @@ iwMusicPlayer::iwMusicPlayer()
                    LOADER.GetImageN("resource", 41)),
       changed(false)
 {
-    AddList(ID_lstSongs, DrawPoint(20, 30), Extent(330, 200), TC_GREEN1, NormalFont);
+    AddList(ID_lstSongs, DrawPoint(20, 30), Extent(330, 200), TextureColor::Green1, NormalFont);
     AddText(ID_txtPlaylist, DrawPoint(20, 240), _("Playlist:"), COLOR_YELLOW, FontStyle{}, NormalFont);
-    AddComboBox(ID_cbPlaylist, DrawPoint(20, 260), Extent(330, 22), TC_GREEN1, NormalFont, 200);
+    AddComboBox(ID_cbPlaylist, DrawPoint(20, 260), Extent(330, 22), TextureColor::Green1, NormalFont, 200);
 
     // Playlistbuttons
     const unsigned short button_distance = 10;
     const Extent buttonSize((330 - button_distance) / 2, 22);
-    ctrlButton* b1 = AddTextButton(ID_btAddPlaylist, DrawPoint(20, 288), buttonSize, TC_GREEN2, _("Add"), NormalFont);
+    ctrlButton* b1 =
+      AddTextButton(ID_btAddPlaylist, DrawPoint(20, 288), buttonSize, TextureColor::Green2, _("Add"), NormalFont);
     AddTextButton(ID_btRemovePlaylist, b1->GetPos() + DrawPoint(buttonSize.x + button_distance, 0), buttonSize,
-                  TC_GREEN2, _("Remove"), NormalFont);
+                  TextureColor::Green2, _("Remove"), NormalFont);
 
     // Buttons für die Musikstücke
-    AddImageButton(ID_btAddTrack, DrawPoint(360, 30), Extent(30, 40), TC_GREY, LOADER.GetImageN("io", 138),
+    AddImageButton(ID_btAddTrack, DrawPoint(360, 30), Extent(30, 40), TextureColor::Grey, LOADER.GetImageN("io", 138),
                    _("Add track"));
-    AddImageButton(ID_btAddTrackDir, DrawPoint(390, 30), Extent(30, 40), TC_GREY, LOADER.GetImageN("io_new", 2),
-                   _("Add directory of tracks"));
-    AddImageButton(ID_btRemoveTrack, DrawPoint(370, 80), Extent(40, 40), TC_RED1, LOADER.GetImageN("io", 220),
-                   _("Remove track"));
-    AddImageButton(ID_btUp, DrawPoint(370, 130), Extent(40, 15), TC_GREY, LOADER.GetImageN("io", 33), _("Upwards"));
-    AddImageButton(ID_btDown, DrawPoint(370, 145), Extent(40, 15), TC_GREY, LOADER.GetImageN("io", 34), _("Downwards"));
-    AddTextDeepening(ID_txtRepeat, DrawPoint(370, 170), Extent(40, 20), TC_GREY, "1", NormalFont, COLOR_YELLOW);
-    AddImageButton(ID_btDecRepeat, DrawPoint(370, 190), Extent(20, 20), TC_RED1, LOADER.GetImageN("io", 139),
+    AddImageButton(ID_btAddTrackDir, DrawPoint(390, 30), Extent(30, 40), TextureColor::Grey,
+                   LOADER.GetImageN("io_new", 2), _("Add directory of tracks"));
+    AddImageButton(ID_btRemoveTrack, DrawPoint(370, 80), Extent(40, 40), TextureColor::Red1,
+                   LOADER.GetImageN("io", 220), _("Remove track"));
+    AddImageButton(ID_btUp, DrawPoint(370, 130), Extent(40, 15), TextureColor::Grey, LOADER.GetImageN("io", 33),
+                   _("Upwards"));
+    AddImageButton(ID_btDown, DrawPoint(370, 145), Extent(40, 15), TextureColor::Grey, LOADER.GetImageN("io", 34),
+                   _("Downwards"));
+    AddTextDeepening(ID_txtRepeat, DrawPoint(370, 170), Extent(40, 20), TextureColor::Grey, "1", NormalFont,
+                     COLOR_YELLOW);
+    AddImageButton(ID_btDecRepeat, DrawPoint(370, 190), Extent(20, 20), TextureColor::Red1, LOADER.GetImageN("io", 139),
                    _("Less repeats"));
-    AddImageButton(ID_btIncRepeat, DrawPoint(390, 190), Extent(20, 20), TC_GREY, LOADER.GetImageN("io", 138),
+    AddImageButton(ID_btIncRepeat, DrawPoint(390, 190), Extent(20, 20), TextureColor::Grey, LOADER.GetImageN("io", 138),
                    _("More repeats"));
-    AddImageButton(ID_btRandom, DrawPoint(370, 220), Extent(40, 40), TC_GREY, LOADER.GetImageN("io", 107),
+    AddImageButton(ID_btRandom, DrawPoint(370, 220), Extent(40, 40), TextureColor::Grey, LOADER.GetImageN("io", 107),
                    _("Playback in this order"));
-    AddImageButton(ID_btSave, DrawPoint(370, 270), Extent(40, 40), TC_GREY, LOADER.GetImageN("io", 37),
+    AddImageButton(ID_btSave, DrawPoint(370, 270), Extent(40, 40), TextureColor::Grey, LOADER.GetImageN("io", 37),
                    _("Save playlist"));
 
     // Mit Werten füllen
@@ -142,25 +133,26 @@ static bool isReadonlyPlaylist(const std::string& name)
     return name == boost::filesystem::path(s25::files::defaultPlaylist).stem();
 }
 
-iwMusicPlayer::~iwMusicPlayer()
+void iwMusicPlayer::Close()
 {
-    try
+    IngameWindow::Close();
+
+    if(SaveCurrentPlaylist())
     {
-        SaveCurrentPlaylist();
-    } catch(...)
-    {}
+        const auto& selection = GetCtrl<ctrlComboBox>(ID_cbPlaylist)->GetSelection();
+        if(selection)
+        {
+            SETTINGS.sound.playlist =
+              GetFullPlaylistPath(GetCtrl<ctrlComboBox>(ID_cbPlaylist)->GetText(*selection)).string();
+        }
+    }
 
-    const auto& selection = GetCtrl<ctrlComboBox>(ID_cbPlaylist)->GetSelection();
-
-    if(selection)
-        SETTINGS.sound.playlist =
-          GetFullPlaylistPath(GetCtrl<ctrlComboBox>(ID_cbPlaylist)->GetText(*selection)).string();
-
-    // Werte in Musikplayer bringen
+    // Update the player if anything has changed
     if(changed)
     {
         MUSICPLAYER.SetPlaylist(MakePlaylist());
         MUSICPLAYER.Play();
+        changed = false;
     }
 }
 
@@ -175,7 +167,7 @@ void iwMusicPlayer::Msg_ComboSelectItem(const unsigned /*ctrl_id*/, const unsign
     } else
     {
         WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("The specified file couldn't be loaded!"), this,
-                                                      MSB_OK, MSB_EXCLAMATIONRED));
+                                                      MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
     }
     const bool isReadOnly = isReadonlyPlaylist(playlistName);
     for(const auto id : {ID_btRemovePlaylist, ID_btSave})
@@ -184,13 +176,13 @@ void iwMusicPlayer::Msg_ComboSelectItem(const unsigned /*ctrl_id*/, const unsign
 
 void iwMusicPlayer::Msg_ListChooseItem(const unsigned /*ctrl_id*/, const unsigned selection)
 {
-    // Werte in Musikplayer bringen
+    // (Re)create playlist with selected song as start song set in musicplayer
     Playlist pl = MakePlaylist();
     pl.SetStartSong(selection);
     MUSICPLAYER.SetPlaylist(std::move(pl));
     MUSICPLAYER.Play();
 
-    // Wir haben ab jetzt quasi keine Veränderungen mehr --> damit Musik nicht neugestartet werden muss
+    // No changes anymore
     changed = false;
 }
 
@@ -226,7 +218,7 @@ void iwMusicPlayer::UpdateFromPlaylist(const Playlist& playlist)
     for(const auto& song : playlist.getSongs())
         lstSongs->AddString(song);
 
-    const auto currentSong = playlist.getCurrentSong();
+    const auto& currentSong = playlist.getCurrentSong();
     if(!currentSong.empty())
     {
         for(const auto i : helpers::Range<unsigned>{lstSongs->GetNumLines()})
@@ -272,7 +264,7 @@ void iwMusicPlayer::Msg_ButtonClick(const unsigned ctrl_id)
                 {
                     WINDOWMANAGER.Show(
                       std::make_unique<iwMsgbox>(_("Error"), _("You are not allowed to delete the standard playlist!"),
-                                                 this, MSB_OK, MSB_EXCLAMATIONRED));
+                                                 this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
                     return;
                 }
 
@@ -322,8 +314,7 @@ void iwMusicPlayer::Msg_ButtonClick(const unsigned ctrl_id)
         case ID_btDecRepeat:
         {
             unsigned repeats = GetRepeats();
-
-            if(repeats)
+            if(repeats > 0u)
             {
                 --repeats;
                 SetRepeats(repeats);
@@ -332,28 +323,22 @@ void iwMusicPlayer::Msg_ButtonClick(const unsigned ctrl_id)
         }
         break;
         case ID_btIncRepeat:
-        {
-            unsigned repeats = GetRepeats();
-            ++repeats;
-            SetRepeats(repeats);
+            SetRepeats(GetRepeats() + 1);
             changed = true;
-        }
-        break;
+            break;
         case ID_btRandom:
-        {
             SetRandomPlayback(!GetRandomPlayback());
             changed = true;
-        }
-        break;
+            break;
         case ID_btSave:
             if(SaveCurrentPlaylist())
             {
-                WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Ok"), _("The playlist was saved!"), nullptr, MSB_OK,
-                                                              MSB_EXCLAMATIONGREEN));
+                WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Ok"), _("The playlist was saved!"), nullptr,
+                                                              MsgboxButton::Ok, MsgboxIcon::ExclamationGreen));
             } else
             {
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("The specified file couldn't be saved!"),
-                                                              nullptr, MSB_OK, MSB_EXCLAMATIONRED));
+                                                              nullptr, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
             }
             break;
     }
@@ -386,7 +371,7 @@ void iwMusicPlayer::Msg_Input(const unsigned win_id, const std::string& msg)
                 changed = true;
             } else
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("The specified file couldn't be opened!"),
-                                                              this, MSB_OK, MSB_EXCLAMATIONRED));
+                                                              this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
         }
         break;
         case ID_wndAddPlaylist:
@@ -403,7 +388,7 @@ void iwMusicPlayer::Msg_Input(const unsigned win_id, const std::string& msg)
             {
                 // Fehler, konnte nicht gespeichert werden
                 WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), _("The specified file couldn't be saved!"),
-                                                              this, MSB_OK, MSB_EXCLAMATIONRED));
+                                                              this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed));
             }
         }
         break;

@@ -1,3 +1,7 @@
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 if(MSVC)
     include(AppendToStringUnique)
     # systemintern functions for faster code; Optimize whole program
@@ -66,8 +70,8 @@ int main(int argc, char** argv){
 
     if(APPLE)
         # ppc only?
-        IF(CMAKE_OSX_ARCHITECTURES MATCHES "^ppc[^;]*$")
+        if(CMAKE_OSX_ARCHITECTURES MATCHES "^ppc[^;]*$")
             CheckAndAddFlags(-faltivec -maltivec) # Clang and GCC version
-        ENDIF()
+        endif()
     endif()
 endif()

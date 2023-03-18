@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "buildings/noBuilding.h"
+#include "helpers/PtrSpan.h"
 #include <boost/container/flat_set.hpp>
 #include <list>
 
@@ -36,7 +24,7 @@ class nobBaseMilitary : public noBuilding
 {
 protected:
     /// Liste von Figuren, die das Gebäude verlassen wollen (damit nicht alle auf einmal rauskommen)
-    std::list<noFigure*> leave_house;
+    std::list<std::unique_ptr<noFigure>> leave_house;
     /// Event, damit nicht alle auf einmal rauskommen
     const GameEvent* leaving_event;
     /// Geht gerade jemand raus? (damit nicht alle auf einmal rauskommen), für Lager- und Militärhäuser
@@ -58,12 +46,11 @@ public:
 
 protected:
     void DestroyBuilding() override;
-    void Serialize_nobBaseMilitary(SerializedGameData& sgd) const;
 
 public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nobBaseMilitary(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
-    const std::list<noFigure*>& GetLeavingFigures() const { return leave_house; }
+    auto GetLeavingFigures() const { return helpers::nonNullPtrSpan(leave_house); }
 
     /// Gibt Verteidiger zurück
     const nofDefender* GetDefender() const { return defender_; }
@@ -76,25 +63,25 @@ public:
     void AddLeavingEvent();
 
     /// Fügt aktiven Soldaten (der aus von einer Mission) zum Militärgebäude hinzu
-    virtual void AddActiveSoldier(nofActiveSoldier* soldier) = 0;
+    virtual void AddActiveSoldier(std::unique_ptr<nofActiveSoldier> soldier) = 0;
 
     /// Schickt einen Verteidiger raus, der einem Angreifer in den Weg rennt
-    virtual nofAggressiveDefender* SendAggressiveDefender(nofAttacker* attacker) = 0;
+    virtual nofAggressiveDefender* SendAggressiveDefender(nofAttacker& attacker) = 0;
 
     /// Soldaten zur Angreifer-Liste hinzufügen und wieder entfernen
-    void LinkAggressor(nofAttacker* soldier) { aggressors.push_back(soldier); }
-    virtual void UnlinkAggressor(nofAttacker* soldier)
+    void LinkAggressor(nofAttacker& soldier) { aggressors.push_back(&soldier); }
+    virtual void UnlinkAggressor(nofAttacker& soldier)
     {
         RTTR_Assert(IsAggressor(soldier));
-        aggressors.remove(soldier);
+        aggressors.remove(&soldier);
     }
 
     /// Soldaten zur Aggressiven-Verteidiger-Liste hinzufügen und wieder entfernen
-    void LinkAggressiveDefender(nofAggressiveDefender* soldier) { aggressive_defenders.push_back(soldier); }
-    void UnlinkAggressiveDefender(nofAggressiveDefender* soldier)
+    void LinkAggressiveDefender(nofAggressiveDefender& soldier) { aggressive_defenders.push_back(&soldier); }
+    void UnlinkAggressiveDefender(nofAggressiveDefender& soldier)
     {
         RTTR_Assert(IsAggressiveDefender(soldier));
-        aggressive_defenders.remove(soldier);
+        aggressive_defenders.remove(&soldier);
     }
 
     /// Wird aufgerufen, wenn ein Soldat nicht mehr kommen kann
@@ -106,13 +93,13 @@ public:
     nofAttacker* FindAggressor(nofAggressiveDefender* defender);
     /// Sucht für einen Angreifer den nächsten (bzw. genau den) Platz zur Fahne, damit die sich darum postieren und
     /// warten
-    MapPoint FindAnAttackerPlace(unsigned short& ret_radius, nofAttacker* soldier);
+    MapPoint FindAnAttackerPlace(unsigned short& ret_radius, const nofAttacker& soldier);
     /// Sucht einen Nachrücker, der weiter hinten steht, auf diesen Posten und schickt diesen auch los
     bool SendSuccessor(MapPoint pt, unsigned short radius);
 
     /// Gibt zurück, ob es noch einenen Verteidiger in dieser Hütte gibt, wenn ja wird dieser losgeschickt,
     /// aggressor ist der Angreifer an der Fahne, mit dem er kämpfen soll
-    bool CallDefender(nofAttacker* attacker);
+    bool CallDefender(nofAttacker& attacker);
     /// Sucht einen Angreifer auf dieses Gebäude und schickt ihn ggf. zur Flagge zum Kämpfen
     nofAttacker* FindAttackerNearBuilding();
     /// Wird aufgerufen nach einem Kampf an einer Flagge, der evtl. die anderen Soldaten gehindert hat, zur Flagge
@@ -127,14 +114,19 @@ public:
     /// Sind noch Truppen drinne, die dieses Gebäude verteidigen können
     virtual bool DefendersAvailable() const = 0;
 
+    /// Return the list of all current aggressors, that is enemy soldiers currently attacking this military building.
+    const std::list<nofAttacker*>& GetAggressors() const { return aggressors; }
+
+    /// Return true if the military building is under attack.
     bool IsUnderAttack() const { return !aggressors.empty(); };
+
     /// Return whether this building can be attacked by the given player.
     virtual bool IsAttackable(unsigned playerIdx) const;
 
     /// Debugging
-    bool IsAggressor(nofAttacker* attacker) const;
-    bool IsAggressiveDefender(nofAggressiveDefender* soldier) const;
-    bool IsOnMission(nofActiveSoldier* soldier) const;
+    bool IsAggressor(const nofAttacker& attacker) const;
+    bool IsAggressiveDefender(const nofAggressiveDefender& soldier) const;
+    bool IsOnMission(const nofActiveSoldier& soldier) const;
     const std::list<nofAggressiveDefender*>& GetAggresiveDefenders() const { return aggressive_defenders; }
 
     // Vergleicht Gebäude anhand ihrer Bauzeit, um eine geordnete Reihenfolge hinzubekommen
@@ -148,9 +140,9 @@ public:
 
 protected:
     /// The building shall provide a soldier for defense. Return nullptr if none available
-    virtual nofDefender* ProvideDefender(nofAttacker* attacker) = 0;
+    virtual std::unique_ptr<nofDefender> ProvideDefender(nofAttacker& attacker) = 0;
     /// Add a figure that will leave the house
-    void AddLeavingFigure(noFigure* fig);
+    void AddLeavingFigure(std::unique_ptr<noFigure> fig);
 };
 
 class sortedMilitaryBlds : public boost::container::flat_set<nobBaseMilitary*, nobBaseMilitary::Comparer>

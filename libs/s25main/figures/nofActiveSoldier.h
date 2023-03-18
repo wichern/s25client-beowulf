@@ -1,23 +1,9 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
-#include "helpers/MaxEnumValue.h"
 #include "nofSoldier.h"
 #include <cstdint>
 
@@ -31,34 +17,35 @@ class nofActiveSoldier : public nofSoldier
 {
 public:
     /// State of each soldier
-    enum SoldierState : uint8_t
+    enum class SoldierState : uint8_t
     {
-        STATE_FIGUREWORK = 0,  /// Go to work etc., all which is done by noFigure
-        STATE_WALKINGHOME,     /// Walking home after work to the military building
-        STATE_MEETENEMY,       /// Prepare fighting with an enemy
-        STATE_WAITINGFORFIGHT, /// Standing still and waiting for a fight
-        STATE_FIGHTING,        // Fighting
+        FigureWork,      /// Go to work etc., all which is done by noFigure
+        WalkingHome,     /// Walking home after work to the military building
+        MeetEnemy,       /// Prepare fighting with an enemy
+        WaitingForFight, /// Standing still and waiting for a fight
+        Fighting,        // Fighting
 
-        STATE_ATTACKING_WALKINGTOGOAL,         // Attacker is walking to his attacked destination
-        STATE_ATTACKING_WAITINGAROUNDBUILDING, // Attacker is waiting around the building for his fight at the flag
-                                               // against the defender(s)
-        STATE_ATTACKING_WAITINGFORDEFENDER,    // Waiting at the flag until the defender emerges from the building
-        STATE_ATTACKING_CAPTURINGFIRST,        // Captures the hostile building as first person
-        STATE_ATTACKING_CAPTURINGNEXT,         // The next soldiers capture the building in this state
-        STATE_ATTACKING_ATTACKINGFLAG,         // Goes to the flag to fight the defender
-        STATE_ATTACKING_FIGHTINGVSDEFENDER,    // Fighting against a defender at the flag
+        AttackingWalkingToGoal,         // Attacker is walking to his attacked destination
+        AttackingWaitingAroundBuilding, // Attacker is waiting around the building for his fight at the flag
+                                        // against the defender(s)
+        AttackingWaitingForDefender,    // Waiting at the flag until the defender emerges from the building
+        AttackingCapturingFirst,        // Captures the hostile building as first person
+        AttackingCapturingNext,         // The next soldiers capture the building in this state
+        AttackingAttackingFlag,         // Goes to the flag to fight the defender
+        AttackingFightingVsDefender,    // Fighting against a defender at the flag
 
-        STATE_SEAATTACKING_GOTOHARBOR,   // Goes from his home military building to the start harbor
-        STATE_SEAATTACKING_WAITINHARBOR, // Waiting in the start harbor for the ship
-        STATE_SEAATTACKING_ONSHIP,       // On the ship to the destination
-        STATE_SEAATTACKING_RETURNTOSHIP, // Returns to the ship at the destination environment
+        SeaattackingGoToHarbor,   // Goes from his home military building to the start harbor
+        SeaattackingWaitInHarbor, // Waiting in the start harbor for the ship
+        SeaattackingOnShip,       // On the ship to the destination
+        SeaattackingReturnToShip, // Returns to the ship at the destination environment
 
-        STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR, // Follow the attacker in order to fight against him
+        AggressivedefendingWalkingToAggressor, // Follow the attacker in order to fight against him
 
-        STATE_DEFENDING_WAITING,    // Waiting at the flag for further attackers
-        STATE_DEFENDING_WALKINGTO,  // Goes to the flag before the fight
-        STATE_DEFENDING_WALKINGFROM // Goes into the building after the fight
+        DefendingWaiting,    // Waiting at the flag for further attackers
+        DefendingWalkingTo,  // Goes to the flag before the fight
+        DefendingWalkingFrom // Goes into the building after the fight
     };
+    friend constexpr auto maxEnumValue(SoldierState) { return nofActiveSoldier::SoldierState::DefendingWalkingFrom; }
 
 protected:
     /// State of the soldier, always has to be a valid value
@@ -105,28 +92,17 @@ private:
     unsigned GetVisualRange() const override;
 
 public:
-    nofActiveSoldier(MapPoint pos, unsigned char player, nobBaseMilitary* home, unsigned char rank,
+    nofActiveSoldier(MapPoint pos, unsigned char player, nobBaseMilitary& home, unsigned char rank,
                      SoldierState init_state);
     nofActiveSoldier(const nofSoldier& other, SoldierState init_state);
     nofActiveSoldier(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Tidy up
-protected:
-    void Destroy_nofActiveSoldier()
+    void Destroy() override
     {
         RTTR_Assert(!enemy);
-        Destroy_nofSoldier();
+        nofSoldier::Destroy();
     }
-
-public:
-    void Destroy() override { Destroy_nofActiveSoldier(); }
-
-    /// Serializer
-protected:
-    void Serialize_nofActiveSoldier(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_nofActiveSoldier(sgd); }
+    void Serialize(SerializedGameData& sgd) const override;
 
     /// Draw soldier (for all types of soldiers done by this base class!)
     void Draw(DrawPoint drawPt) override;
@@ -154,9 +130,8 @@ public:
     /// Sets the home (building) to nullptr e.g. after the soldier was removed from the homes list but it was not
     /// destroyed
     void ResetHome() { building = nullptr; }
-    void FightVsDefenderStarted() { state = STATE_ATTACKING_FIGHTINGVSDEFENDER; }
+    void FightVsDefenderStarted() { state = SoldierState::AttackingFightingVsDefender; }
 
     // For debugging
     const nofActiveSoldier* GetEnemy() const { return enemy; }
 };
-DEFINE_MAX_ENUM_VALUE(nofActiveSoldier::SoldierState, nofActiveSoldier::SoldierState::STATE_DEFENDING_WALKINGFROM)

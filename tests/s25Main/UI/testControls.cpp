@@ -1,31 +1,19 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "PointOutput.h"
+#include "RectOutput.h"
 #include "controls/ctrlDeepening.h"
 #include "controls/ctrlEdit.h"
 #include "controls/ctrlPreviewMinimap.h"
 #include "controls/ctrlTable.h"
+#include "controls/ctrlText.h"
 #include "controls/ctrlTextButton.h"
 #include "controls/ctrlTextDeepening.h"
 #include "driver/KeyEvent.h"
 #include "driver/MouseCoords.h"
 #include "helpers/mathFuncs.h"
-#include "ogl/glArchivItem_Map.h"
 #include "ogl/glFont.h"
 #include "uiHelper/uiHelpers.hpp"
 #include "libsiedler2/ArchivItem_Bitmap_Player.h"
@@ -41,10 +29,12 @@
 #include <array>
 #include <numeric>
 
+// LCOV_EXCL_START
 static std::ostream& boost_test_print_type(std::ostream& stream, TableSortDir dir)
 {
     return stream << static_cast<int>(dir);
 }
+// LCOV_EXCL_STOP
 
 static std::unique_ptr<glFont> createMockFont(const std::vector<char32_t>& chars)
 {
@@ -64,17 +54,14 @@ static std::unique_ptr<glFont> createMockFont(const std::vector<char32_t>& chars
 
 BOOST_AUTO_TEST_SUITE(Controls)
 
-static void resizeMap(glArchivItem_Map& glMap, const Extent& size)
+static void resizeMap(libsiedler2::ArchivItem_Map& glMap, const Extent& size)
 {
     libsiedler2::ArchivItem_Map map;
     auto header = std::make_unique<libsiedler2::ArchivItem_Map_Header>();
     header->setWidth(size.x);
     header->setHeight(size.y);
     header->setNumPlayers(2);
-    map.push(std::move(header));
-    for(int i = 0; i <= MAP_TYPE; i++)
-        map.push(std::make_unique<libsiedler2::ArchivItem_Raw>(std::vector<uint8_t>(prodOfComponents(size))));
-    glMap.load(map);
+    glMap.init(std::move(header));
 }
 
 BOOST_FIXTURE_TEST_CASE(PreviewMinimap, uiHelper::Fixture)
@@ -87,7 +74,7 @@ BOOST_FIXTURE_TEST_CASE(PreviewMinimap, uiHelper::Fixture)
     // Remove padding
     mm.SetPadding(Extent::all(0));
     BOOST_TEST_REQUIRE(mm.GetBoundaryRect().getSize() == Extent::all(0));
-    glArchivItem_Map map;
+    libsiedler2::ArchivItem_Map map;
     resizeMap(map, size);
     mm.SetMap(&map);
     BOOST_TEST_REQUIRE(mm.GetBoundaryRect().getSize().x <= size.x); //-V807
@@ -135,8 +122,8 @@ BOOST_FIXTURE_TEST_CASE(EditShowsCorrectChars, uiHelper::Fixture)
     });
     codepoints.back() = '?';
     const auto font = createMockFont(codepoints);
-    ctrlEdit edt(nullptr, 0, DrawPoint(0, 0), Extent(90, 15), TC_GREEN1, font.get());
-    ctrlEdit edt2(nullptr, 0, DrawPoint(0, 0), Extent(90, 15), TC_GREEN1, font.get());
+    ctrlEdit edt(nullptr, 0, DrawPoint(0, 0), Extent(90, 15), TextureColor::Green1, font.get());
+    ctrlEdit edt2(nullptr, 0, DrawPoint(0, 0), Extent(90, 15), TextureColor::Green1, font.get());
     const ctrlBaseText* txt = edt.GetCtrl<ctrlBaseText>(0);
     const ctrlBaseText* txt2 = edt2.GetCtrl<ctrlBaseText>(0);
     BOOST_TEST_REQUIRE(txt);
@@ -156,7 +143,7 @@ BOOST_FIXTURE_TEST_CASE(EditShowsCorrectChars, uiHelper::Fixture)
         // Activate
         edt2.Msg_LeftDown(MouseCoords(edt2.GetPos(), true));
         edt2.Msg_PaintAfter();
-        edt2.Msg_KeyDown(KeyEvent{KT_CHAR, c, false, false, false});
+        edt2.Msg_KeyDown(KeyEvent{KeyType::Char, c, false, false, false});
         // Remove chars from front until in size
         auto itFirst = curChars.begin();
         while(font->getWidth(curText) > allowedWidth)
@@ -175,12 +162,12 @@ BOOST_FIXTURE_TEST_CASE(EditShowsCorrectChars, uiHelper::Fixture)
         int moveOffset = rttr::test::randomValue<int>(-curCursorPos - 1,
                                                       curChars.size() - curCursorPos + 1); //+-1 to check for "overrun"
         for(; moveOffset < 0; ++moveOffset, --curCursorPos)
-            edt.Msg_KeyDown(KeyEvent{KT_LEFT, 0, false, false, false});
+            edt.Msg_KeyDown(KeyEvent{KeyType::Left, 0, false, false, false});
         for(; moveOffset > 0; --moveOffset, ++curCursorPos)
-            edt.Msg_KeyDown(KeyEvent{KT_RIGHT, 0, false, false, false});
+            edt.Msg_KeyDown(KeyEvent{KeyType::Right, 0, false, false, false});
         curCursorPos = helpers::clamp(curCursorPos, 0, static_cast<int>(curChars.size()));
         // Erase one char (currently only good way to check where the cursor is
-        edt.Msg_KeyDown(KeyEvent{KT_BACKSPACE, 0, false, false, false});
+        edt.Msg_KeyDown(KeyEvent{KeyType::Backspace, 0, false, false, false});
         if(curCursorPos > 0)
         {
             curChars.erase(curChars.begin() + --curCursorPos);
@@ -206,18 +193,18 @@ BOOST_FIXTURE_TEST_CASE(EditShowsCorrectChars, uiHelper::Fixture)
     do
     {
         BOOST_TEST_REQUIRE(txt->GetText() == txtWithoutFirst);
-        edt.Msg_KeyDown(KeyEvent{KT_LEFT, 0, false, false, false});
+        edt.Msg_KeyDown(KeyEvent{KeyType::Left, 0, false, false, false});
         --curCursorPos;
     } while(curCursorPos > 5);
     while(curCursorPos-- >= 0)
     {
         BOOST_TEST_REQUIRE(txt->GetText() == curText); // Trailing chars are removed by font rendering
-        edt.Msg_KeyDown(KeyEvent{KT_LEFT, 0, false, false, false});
+        edt.Msg_KeyDown(KeyEvent{KeyType::Left, 0, false, false, false});
     }
     // Moving fully right shows txt again
     curCursorPos = 0;
     while(static_cast<unsigned>(curCursorPos++) < curChars.size())
-        edt.Msg_KeyDown(KeyEvent{KT_RIGHT, 0, false, false, false});
+        edt.Msg_KeyDown(KeyEvent{KeyType::Right, 0, false, false, false});
     BOOST_TEST_REQUIRE(txt->GetText() == txtWithoutFirst);
 }
 
@@ -226,7 +213,7 @@ BOOST_AUTO_TEST_CASE(AdjustWidthForMaxChars_SetsCorrectSize)
     auto font = createMockFont({'?', 'a', 'z'});
     {
         ctrlTextDeepening txt(nullptr, 1, rttr::test::randomPoint<DrawPoint>(), rttr::test::randomPoint<Extent>(),
-                              TC_GREEN1, "foo", font.get(), COLOR_BLACK);
+                              TextureColor::Green1, "foo", font.get(), COLOR_BLACK);
         const Extent sizeBefore = txt.GetSize();
         // Don't assume size, so get size for 0 chars
         txt.ResizeForMaxChars(0);
@@ -238,7 +225,7 @@ BOOST_AUTO_TEST_CASE(AdjustWidthForMaxChars_SetsCorrectSize)
     }
     {
         ctrlTextButton txt(nullptr, 1, rttr::test::randomPoint<DrawPoint>(), rttr::test::randomPoint<Extent>(),
-                           TC_GREEN1, "foo", font.get(), "tooltip");
+                           TextureColor::Green1, "foo", font.get(), "tooltip");
         const Extent sizeBefore = txt.GetSize();
         // Don't assume size, so get size for 0 chars
         txt.ResizeForMaxChars(0);
@@ -247,6 +234,58 @@ BOOST_AUTO_TEST_CASE(AdjustWidthForMaxChars_SetsCorrectSize)
         const auto numChars = rttr::test::randomValue(1u, 20u);
         txt.ResizeForMaxChars(numChars);
         BOOST_TEST(txt.GetSize() == Extent(sizeZero.x + numChars * font->getDx(), sizeBefore.y));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(TextControlWorks)
+{
+    auto font = createMockFont({'?', 'a', 'z'});
+    const auto parentPos = rttr::test::randomPoint<DrawPoint>(-1000, 1000);
+    Window parent(nullptr, 0, parentPos);
+    const auto pos = rttr::test::randomPoint<DrawPoint>(-1000, 1000);
+    const auto* testText = "a?z?a?z?a?z?a?z?a?z?";
+    ctrlText text(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle{}, font.get());
+
+    // Test positioning
+    BOOST_TEST(text.GetPos() == pos);
+    const auto origBoundaryRect = text.GetBoundaryRect();
+    BOOST_TEST(origBoundaryRect.getOrigin() == pos + parentPos);
+    const auto fullTextWidth = font->getWidth(testText);
+    BOOST_TEST(origBoundaryRect.getSize() == Extent(fullTextWidth, font->getHeight()));
+
+    // Test alignment
+    {
+        const Position origSize(origBoundaryRect.getSize()); // Convert to signed type
+        ctrlText textRight(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle::RIGHT, font.get());
+        BOOST_TEST(textRight.GetBoundaryRect() == Rect::move(origBoundaryRect, Position(-origSize.x, 0)));
+        ctrlText textCenter(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle::CENTER, font.get());
+        BOOST_TEST(textCenter.GetBoundaryRect() == Rect::move(origBoundaryRect, Position(-origSize.x / 2, 0)));
+        ctrlText textBottom(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle::BOTTOM, font.get());
+        BOOST_TEST(textBottom.GetBoundaryRect() == Rect::move(origBoundaryRect, Position(0, -origSize.y)));
+        ctrlText textVCenter(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle::VCENTER, font.get());
+        BOOST_TEST(textVCenter.GetBoundaryRect() == Rect::move(origBoundaryRect, Position(0, -origSize.y / 2)));
+        ctrlText textFullCenter(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle::CENTER | FontStyle::VCENTER,
+                                font.get());
+        BOOST_TEST(textFullCenter.GetBoundaryRect()
+                   == Rect::move(origBoundaryRect, Position(-origSize.x / 2, -origSize.y / 2)));
+        ctrlText textBottomRight(&parent, 0, pos, testText, COLOR_YELLOW, FontStyle::RIGHT | FontStyle::BOTTOM,
+                                 font.get());
+        BOOST_TEST(textBottomRight.GetBoundaryRect()
+                   == Rect::move(origBoundaryRect, Position(-origSize.x, -origSize.y)));
+    }
+
+    // Test maxWidth
+    {
+        text.setMaxWidth(fullTextWidth); // Limit width without actually limiting it
+        BOOST_TEST(text.GetBoundaryRect() == origBoundaryRect);
+        // Limit width truncating the text
+        const auto maxWidth = rttr::test::randomValue(font->getDx(), fullTextWidth - 1u);
+        text.setMaxWidth(maxWidth);
+        const auto newBoundaryRect = text.GetBoundaryRect();
+        BOOST_TEST(newBoundaryRect.getOrigin() == origBoundaryRect.getOrigin());
+        // TODO: Test that with a maxWidth of x-1 the width matches that of the last few chars replaced by dots
+        BOOST_TEST(newBoundaryRect.getSize().x <= maxWidth);
+        BOOST_TEST(newBoundaryRect.getSize().y == origBoundaryRect.getSize().y);
     }
 }
 
@@ -261,7 +300,7 @@ static std::vector<std::string> getRow(const ctrlTable& table, unsigned row)
 BOOST_AUTO_TEST_CASE(TableSorting)
 {
     auto font = createMockFont({'?', 'a', 'z'});
-    ctrlTable table(nullptr, 0, DrawPoint::all(0), Extent(400, 300), TC_GREEN1, font.get(),
+    ctrlTable table(nullptr, 0, DrawPoint::all(0), Extent(400, 300), TextureColor::Green1, font.get(),
                     ctrlTable::Columns{{"String", 1, TableSortType::String},
                                        {"MapSize", 2, TableSortType::MapSize},
                                        {"Number", 3, TableSortType::Number},

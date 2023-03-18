@@ -1,43 +1,33 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
-#include "helpers/MaxEnumValue.h"
 #include "helpers/OptionalEnum.h"
 #include "nodeObjs/noMovable.h"
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/RoadPathDirection.h"
 #include <cstdint>
 
+class ResourceId;
 class RoadSegment;
 class noRoadNode;
 class glArchivItem_Bob;
-enum Job : unsigned char;
-enum GoodType : unsigned char;
+enum class Job : uint8_t;
+enum class GoodType : uint8_t;
 
-enum FigureState : uint8_t
+enum class FigureState : uint8_t
 {
-    FS_GOTOGOAL = 0,
-    FS_GOHOME,
-    FS_WANDER,
-    FS_JOB
+    GotToGoal,
+    GoHome,
+    Wander,
+    Job
 };
-DEFINE_MAX_ENUM_VALUE(FigureState, FigureState::FS_JOB)
+constexpr auto maxEnumValue(FigureState)
+{
+    return FigureState::Job;
+}
 
 class SerializedGameData;
 
@@ -64,7 +54,7 @@ protected:
     /// Wegpunkt, also auch beliebig dazwischen!
     bool waiting_for_free_node;
 
-    // nur bei FS_WANDER von Bedeutung:
+    // nur bei FigureState::Wander von Bedeutung:
     /// Restlicher Weg für das Rumirren (0xFFFF wenn schon auf dem Weg zu einer Flagge!)
     unsigned short wander_way;
     /// Wieviel (erfolglose) Rumirr-Flaggensuch-Versuche hat es schon gegeben (nach bestimmter Zahl Figur sterben
@@ -125,19 +115,8 @@ public:
 
     noFigure(SerializedGameData& sgd, unsigned obj_id);
 
-    /// Aufräummethoden
-protected:
-    void Destroy_noFigure();
-
-public:
-    void Destroy() override { Destroy_noFigure(); }
-
-    /// Serialisierungsfunktionen
-protected:
-    void Serialize_noFigure(SerializedGameData& sgd) const;
-
-public:
-    void Serialize(SerializedGameData& sgd) const override { Serialize_noFigure(sgd); }
+    void Destroy() override;
+    void Serialize(SerializedGameData& sgd) const override;
 
     void HandleEvent(unsigned id) override;
 
@@ -149,7 +128,7 @@ public:
     /// Getter
     bool GetRoadDir() const { return rs_dir; }
     const RoadSegment* GetCurrentRoad() const { return cur_rs; }
-    bool IsWandering() const { return fs == FS_WANDER; }
+    bool IsWandering() const { return fs == FigureState::Wander; }
     /// Tut was, nachdem er rausgehen soll
     void ActAtFirst();
     /// Legt die Anfangsdaten für das Laufen auf Wegen fest
@@ -169,7 +148,7 @@ public:
     /// Zeichnet standardmäßig die Figur, wenn sie läuft
     void DrawWalking(DrawPoint drawPt, glArchivItem_Bob* file, unsigned id, bool fat);
     /// Zeichnet standardmäßig die Figur, wenn sie läuft aus einem bestimmten normalen LST Archiv
-    void DrawWalking(DrawPoint drawPt, const char* file, unsigned id);
+    void DrawWalking(DrawPoint drawPt, const ResourceId& file, unsigned id);
     /// Zeichnet standardmäßig die Figur, wenn sie läuft, nimmt automatisch richtige Job-ID/Datei
     void DrawWalking(DrawPoint drawPt);
     /// Interpoliert die Positon zwischen zwei Knotenpunkten
@@ -216,7 +195,7 @@ public:
     unsigned char GetPlayer() const { return player; }
 
     /// Macht die Figur Job-Arbeiten?
-    bool DoJobWorks() const { return (fs == FS_JOB); }
+    bool DoJobWorks() const { return fs == FigureState::Job; }
 
     void Abrogate(); // beim Arbeitsplatz "kündigen" soll, man das Laufen zum Ziel unterbrechen muss (warum auch immer)
 
@@ -231,9 +210,9 @@ public:
     bool IsWalkingOnRoad() const
     {
         // Nur Träger arbeiten richtig auf Straßen
-        if(fs == FS_JOB)
-            return (GetGOT() == GOT_NOF_CARRIER);
-        else if(fs == FS_GOHOME || fs == FS_GOTOGOAL)
+        if(fs == FigureState::Job)
+            return (GetGOT() == GO_Type::NofCarrier);
+        else if(fs == FigureState::GoHome || fs == FigureState::GotToGoal)
             return true;
         else
             return false;

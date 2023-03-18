@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "nofAggressiveDefender.h"
 #include "GlobalGameSettings.h"
@@ -22,53 +9,52 @@
 #include "nofAttacker.h"
 #include "nofPassiveSoldier.h"
 #include "random/Random.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 
-nofAggressiveDefender::nofAggressiveDefender(const MapPoint pos, const unsigned char player,
-                                             nobBaseMilitary* const home, const unsigned char rank,
-                                             nofAttacker* const attacker)
-    : nofActiveSoldier(pos, player, home, rank, STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR), attacker(attacker),
-      attacked_goal(attacker->GetAttackedGoal())
+nofAggressiveDefender::nofAggressiveDefender(const MapPoint pos, const unsigned char player, nobBaseMilitary& home,
+                                             const unsigned char rank, nofAttacker& attacker)
+    : nofActiveSoldier(pos, player, home, rank, SoldierState::AggressivedefendingWalkingToAggressor),
+      attacker(&attacker), attacked_goal(attacker.GetAttackedGoal())
 {
     // Angegriffenem Gebäude Bescheid sagen
-    attacked_goal->LinkAggressiveDefender(this);
+    attacked_goal->LinkAggressiveDefender(*this);
 }
 
-nofAggressiveDefender::nofAggressiveDefender(nofPassiveSoldier* other, nofAttacker* const attacker)
-    : nofActiveSoldier(*other, STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR), attacker(attacker),
-      attacked_goal(attacker->GetAttackedGoal())
+nofAggressiveDefender::nofAggressiveDefender(const nofPassiveSoldier& other, nofAttacker& attacker)
+    : nofActiveSoldier(other, SoldierState::AggressivedefendingWalkingToAggressor), attacker(&attacker),
+      attacked_goal(attacker.GetAttackedGoal())
 {
     // Angegriffenem Gebäude Bescheid sagen
-    attacked_goal->LinkAggressiveDefender(this);
+    attacked_goal->LinkAggressiveDefender(*this);
 }
 
 nofAggressiveDefender::~nofAggressiveDefender() = default;
 
-void nofAggressiveDefender::Destroy_nofAggressiveDefender()
+void nofAggressiveDefender::Destroy()
 {
     RTTR_Assert(!attacker);
     RTTR_Assert(!attacked_goal);
-    Destroy_nofActiveSoldier();
+    nofActiveSoldier::Destroy();
 }
 
-void nofAggressiveDefender::Serialize_nofAggressiveDefender(SerializedGameData& sgd) const
+void nofAggressiveDefender::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_nofActiveSoldier(sgd);
+    nofActiveSoldier::Serialize(sgd);
 
-    if(state != STATE_WALKINGHOME && state != STATE_FIGUREWORK)
+    if(state != SoldierState::WalkingHome && state != SoldierState::FigureWork)
     {
         sgd.PushObject(attacker, true);
-        sgd.PushObject(attacked_goal, false);
+        sgd.PushObject(attacked_goal);
     }
 }
 
 nofAggressiveDefender::nofAggressiveDefender(SerializedGameData& sgd, const unsigned obj_id)
     : nofActiveSoldier(sgd, obj_id)
 {
-    if(state != STATE_WALKINGHOME && state != STATE_FIGUREWORK)
+    if(state != SoldierState::WalkingHome && state != SoldierState::FigureWork)
     {
-        attacker = sgd.PopObject<nofAttacker>(GOT_NOF_ATTACKER);
-        attacked_goal = sgd.PopObject<nobBaseMilitary>(GOT_UNKNOWN);
+        attacker = sgd.PopObject<nofAttacker>(GO_Type::NofAttacker);
+        attacked_goal = sgd.PopObject<nobBaseMilitary>();
     } else
     {
         attacker = nullptr;
@@ -82,7 +68,7 @@ void nofAggressiveDefender::Walked()
     switch(state)
     {
         default: nofActiveSoldier::Walked(); return;
-        case STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR:
+        case SoldierState::AggressivedefendingWalkingToAggressor:
         {
             MissAggressiveDefendingWalk();
         }
@@ -103,18 +89,18 @@ void nofAggressiveDefender::HomeDestroyedAtBegin()
     // angegriffenem Gebäude Bescheid sagen, dass wir doch nicht mehr kommen
     InformTargetsAboutCancelling();
 
-    state = STATE_FIGUREWORK;
+    state = SoldierState::FigureWork;
 
     // Rumirren
     StartWandering();
-    StartWalking(Direction(RANDOM.Rand(__FILE__, __LINE__, GetObjId(), 6)));
+    StartWalking(RANDOM_ENUM(Direction));
 }
 
 void nofAggressiveDefender::CancelAtAttackedBld()
 {
     if(attacked_goal)
     {
-        attacked_goal->UnlinkAggressiveDefender(this);
+        attacked_goal->UnlinkAggressiveDefender(*this);
         attacked_goal = nullptr;
     }
 }
@@ -123,7 +109,7 @@ void nofAggressiveDefender::CancelAtAttackedBld()
 void nofAggressiveDefender::WonFighting()
 {
     // addon BattlefieldPromotion active? -> increase rank!
-    if(gwg->GetGGS().isEnabled(AddonId::BATTLEFIELD_PROMOTION))
+    if(world->GetGGS().isEnabled(AddonId::BATTLEFIELD_PROMOTION))
         IncreaseRank();
 
     // Ist evtl. unser Heimatgebäude zerstört?
@@ -133,7 +119,7 @@ void nofAggressiveDefender::WonFighting()
         InformTargetsAboutCancelling();
 
         // Rumirren
-        state = STATE_FIGUREWORK;
+        state = SoldierState::FigureWork;
         StartWandering();
         Wander();
 
@@ -167,7 +153,7 @@ void nofAggressiveDefender::MissionAggressiveDefendingLookForNewAggressor()
 
     /// Vermeiden, dass in FindAggressor nochmal der Soldat zum Loslaufen gezwungen wird, weil er als state
     // noch drinstehen hat, dass er auf einen Kampf wartet
-    state = STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR;
+    state = SoldierState::AggressivedefendingWalkingToAggressor;
 
     // nach anderen suchen, die in meiner Nähe sind und mich evtl noch mit denen kloppen
     attacker = attacked_goal->FindAggressor(this);
@@ -188,13 +174,13 @@ void nofAggressiveDefender::AttackedGoalDestroyed()
     attacked_goal = nullptr;
 
     /*// Stehen wir? Dann losgehen
-    if(state == STATE_WAITINGFORFIGHT)
+    if(state == Waitingforfight)
         ReturnHome();*/
 }
 
 void nofAggressiveDefender::MissAggressiveDefendingContinueWalking()
 {
-    state = STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR;
+    state = SoldierState::AggressivedefendingWalkingToAggressor;
     MissAggressiveDefendingWalk();
 }
 
@@ -206,7 +192,7 @@ void nofAggressiveDefender::MissAggressiveDefendingWalk()
         InformTargetsAboutCancelling();
 
         // Rumirren
-        state = STATE_FIGUREWORK;
+        state = SoldierState::FigureWork;
         StartWandering();
         Wander();
         return;
@@ -249,7 +235,7 @@ void nofAggressiveDefender::MissAggressiveDefendingWalk()
     RTTR_Assert(pos != attacker->GetPos()); // If so, why was it not found?
 
     // Calc next walking direction
-    const auto dir = gwg->FindHumanPath(pos, attacker->GetPos(), 100, true);
+    const auto dir = world->FindHumanPath(pos, attacker->GetPos(), 100, true);
 
     if(dir)
     {
@@ -308,5 +294,5 @@ void nofAggressiveDefender::FreeFightEnded()
 {
     nofActiveSoldier::FreeFightEnded();
     // Continue with normal walking towards our goal
-    state = STATE_AGGRESSIVEDEFENDING_WALKINGTOAGGRESSOR;
+    state = SoldierState::AggressivedefendingWalkingToAggressor;
 }

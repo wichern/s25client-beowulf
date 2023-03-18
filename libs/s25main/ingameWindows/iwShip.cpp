@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwShip.h"
 #include "DrawPoint.h"
@@ -47,18 +34,22 @@ iwShip::iwShip(GameWorldView& gwv, GameCommandFactory& gcFactory, const noShip* 
       ship_id(ship ? gwv.GetWorld().GetPlayer(player).GetShipID(ship) : 0)
 {
     AddImage(0, DrawPoint(126, 101), LOADER.GetImageN("io", 228));
-    AddImageButton(2, DrawPoint(18, 192), Extent(30, 35), TC_GREY, LOADER.GetImageN("io", 225)); // Viewer: 226 - Hilfe
-    AddImageButton(3, DrawPoint(51, 196), Extent(30, 26), TC_GREY,
+    AddImageButton(2, DrawPoint(18, 192), Extent(30, 35), TextureColor::Grey,
+                   LOADER.GetImageN("io", 225)); // Viewer: 226 - Hilfe
+    AddImageButton(3, DrawPoint(51, 196), Extent(30, 26), TextureColor::Grey,
                    LOADER.GetImageN("io", 102)); // Viewer: 103 - Schnell zurück
-    AddImageButton(4, DrawPoint(81, 196), Extent(30, 26), TC_GREY, LOADER.GetImageN("io", 103)); // Viewer: 104 - Zurück
-    AddImageButton(5, DrawPoint(111, 196), Extent(30, 26), TC_GREY, LOADER.GetImageN("io", 104)); // Viewer: 105 - Vor
-    AddImageButton(6, DrawPoint(141, 196), Extent(30, 26), TC_GREY,
+    AddImageButton(4, DrawPoint(81, 196), Extent(30, 26), TextureColor::Grey,
+                   LOADER.GetImageN("io", 103)); // Viewer: 104 - Zurück
+    AddImageButton(5, DrawPoint(111, 196), Extent(30, 26), TextureColor::Grey,
+                   LOADER.GetImageN("io", 104)); // Viewer: 105 - Vor
+    AddImageButton(6, DrawPoint(141, 196), Extent(30, 26), TextureColor::Grey,
                    LOADER.GetImageN("io", 105)); // Viewer: 106 - Schnell vor
-    AddImageButton(7, DrawPoint(181, 196), Extent(30, 26), TC_GREY, LOADER.GetImageN("io", 107),
+    AddImageButton(7, DrawPoint(181, 196), Extent(30, 26), TextureColor::Grey, LOADER.GetImageN("io", 107),
                    _("Go to place")); // "Gehe Zu Ort"
 
     // Die Expeditionsweiterfahrbuttons
-    AddImageButton(10, DrawPoint(60, 81), Extent(18, 18), TC_GREY, LOADER.GetImageN("io", 187), _("Found colony"))
+    AddImageButton(10, DrawPoint(60, 81), Extent(18, 18), TextureColor::Grey, LOADER.GetImageN("io", 187),
+                   _("Found colony"))
       ->SetVisible(false);
 
     constexpr helpers::EnumArray<DrawPoint, ShipDirection> BUTTON_POS = {
@@ -66,12 +57,13 @@ iwShip::iwShip(GameWorldView& gwv, GameCommandFactory& gcFactory, const noShip* 
     constexpr helpers::EnumArray<unsigned, ShipDirection> BUTTON_IDs = {{185, 186, 181, 182, 183, 184}};
 
     // Expedition abbrechen
-    AddImageButton(11, DrawPoint(200, 143), Extent(18, 18), TC_RED1, LOADER.GetImageN("io", 40), _("Return to harbor"))
+    AddImageButton(11, DrawPoint(200, 143), Extent(18, 18), TextureColor::Red1, LOADER.GetImageN("io", 40),
+                   _("Return to harbor"))
       ->SetVisible(false);
 
     // Die 6 Richtungen
     for(const auto dir : helpers::EnumRange<ShipDirection>{})
-        AddImageButton(12 + rttr::enum_cast(dir), BUTTON_POS[dir], Extent(18, 18), TC_GREY,
+        AddImageButton(12 + rttr::enum_cast(dir), BUTTON_POS[dir], Extent(18, 18), TextureColor::Grey,
                        LOADER.GetImageN("io", BUTTON_IDs[dir]))
           ->SetVisible(false);
 }
@@ -149,13 +141,16 @@ void iwShip::Msg_ButtonClick(const unsigned ctrl_id)
     // Expeditionskommando? (Schiff weiterfahren lassen, Kolonie gründen)
     if(ctrl_id >= 10 && ctrl_id <= 17)
     {
+        bool success = false;
         if(ctrl_id == 10)
-            gcFactory.FoundColony(ship_id);
+            success = gcFactory.FoundColony(ship_id);
         else if(ctrl_id == 11)
-            gcFactory.CancelExpedition(ship_id);
+            success = gcFactory.CancelExpedition(ship_id);
         else
-            gcFactory.TravelToNextSpot(ShipDirection(ctrl_id - 12), ship_id);
-        Close();
+            success = gcFactory.TravelToNextSpot(ShipDirection(ctrl_id - 12), ship_id);
+
+        if(success)
+            Close();
     }
 
     switch(ctrl_id)
@@ -205,25 +200,23 @@ void iwShip::DrawCargo()
 
     // Count figures by type
     helpers::EnumArray<unsigned short, Job> orderedFigures{};
-    for(const auto* figure : ship->GetFigures())
-        orderedFigures[figure->GetJobType()]++;
+    for(const noFigure& figure : ship->GetFigures())
+        orderedFigures[figure.GetJobType()]++;
 
     // Count wares by type
     helpers::EnumArray<unsigned short, GoodType> orderedWares{};
-    for(const auto* ware : ship->GetWares())
-    {
-        orderedWares[ware->type]++;
-    }
+    for(const Ware& ware : ship->GetWares())
+        orderedWares[ware.type]++;
 
     // Special cases: expeditions
     if(ship->IsOnExpedition())
     {
-        orderedFigures[JOB_BUILDER] = 1;
-        orderedWares[GD_BOARDS] = BUILDING_COSTS[owner.nation][BLD_HARBORBUILDING].boards;
-        orderedWares[GD_STONES] = BUILDING_COSTS[owner.nation][BLD_HARBORBUILDING].stones;
+        orderedFigures[Job::Builder] = 1;
+        orderedWares[GoodType::Boards] = BUILDING_COSTS[BuildingType::HarborBuilding].boards;
+        orderedWares[GoodType::Stones] = BUILDING_COSTS[BuildingType::HarborBuilding].stones;
     } else if(ship->IsOnExplorationExpedition())
     {
-        orderedFigures[JOB_SCOUT] = gwv.GetWorld().GetGGS().GetNumScoutsExpedition();
+        orderedFigures[Job::Scout] = gwv.GetWorld().GetGGS().GetNumScoutsExpedition();
     }
 
     // Start Offset zum malen
@@ -254,10 +247,11 @@ void iwShip::DrawCargo()
             }
             orderedFigures[job]--;
 
-            if(job == JOB_PACKDONKEY)
-                LOADER.GetMapImageN(2016)->DrawFull(drawPt);
-            else if(job == JOB_BOATCARRIER)
-                LOADER.GetBob("carrier")->Draw(GD_BOAT, libsiedler2::ImgDir::SW, false, 0, drawPt, owner.color);
+            if(job == Job::PackDonkey)
+                LOADER.GetMapTexture(2016)->DrawFull(drawPt);
+            else if(job == Job::BoatCarrier)
+                LOADER.GetBob("carrier")->Draw(rttr::enum_cast(GoodType::Boat), libsiedler2::ImgDir::SW, false, 0,
+                                               drawPt, owner.color);
             else
             {
                 const auto& spriteData = JOB_SPRITE_CONSTS[job];
@@ -283,9 +277,9 @@ void iwShip::DrawCargo()
             }
             orderedWares[ware]--;
 
-            const unsigned draw_id = convertShieldToNation(ware, owner.nation);
+            const auto draw_id = convertShieldToNation(ware, owner.nation);
 
-            LOADER.GetMapImageN(2200 + draw_id)->DrawFull(drawPt);
+            LOADER.GetMapTexture(WARE_STACK_TEX_MAP_OFFSET + rttr::enum_cast(draw_id))->DrawFull(drawPt);
             drawPt.x += xStep;
             lineCounter++;
         }

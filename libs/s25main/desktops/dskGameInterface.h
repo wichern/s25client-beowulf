@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -51,7 +38,7 @@ class dskGameInterface :
     public IChatCmdListener
 {
 public:
-    dskGameInterface(const std::shared_ptr<Game>& game, std::shared_ptr<const NWFInfo> nwfInfo, unsigned playerIdx,
+    dskGameInterface(std::shared_ptr<Game> game, std::shared_ptr<const NWFInfo> nwfInfo, unsigned playerIdx,
                      bool initOGL = true);
     ~dskGameInterface() override;
 
@@ -60,8 +47,6 @@ public:
 
     void LC_Status_ConnectionLost() override;
     void LC_Status_Error(const std::string& error) override;
-    /// Called whenever Settings are changed ingame
-    void SettingsChanged();
 
     RoadBuildMode GetRoadMode() const { return road.mode; }
 
@@ -85,6 +70,9 @@ public:
     void GI_PlayerDefeated(unsigned playerId) override;
     /// Es wurde etwas Minimap entscheidendes geändert --> Minimap updaten
     void GI_UpdateMinimap(MapPoint pt) override;
+    /// Update minimap and colors for whole map
+    void GI_UpdateMapVisibility() override;
+
     /// Bündnisvertrag wurde abgeschlossen oder abgebrochen --> Minimap updaten
     void GI_TreatyOfAllianceChanged(unsigned playerId) override;
     void GI_Winner(unsigned playerId) override;
@@ -93,7 +81,6 @@ public:
     void GI_CancelRoadBuilding() override;
     /// Baut die gewünschte bis jetzt noch visuelle Straße (schickt Anfrage an Server)
     void GI_BuildRoad() override;
-    void GI_WindowClosed(Window* wnd) override;
 
     // Sucht einen Weg von road_point_x/y zu cselx/y und baut ihn ( nur visuell )
     // Bei Wasserwegen kann die Reichweite nicht bis zum gewünschten
@@ -116,7 +103,7 @@ public:
 
     void OnChatCommand(const std::string& cmd) override;
 
-private:
+protected:
     /// Initializes player specific stuff after start or player swap
     void InitPlayer();
 
@@ -140,10 +127,14 @@ private:
     bool Msg_WheelDown(const MouseCoords& mc) override;
     void WheelZoom(float step);
 
+    void Msg_WindowClosed(IngameWindow& wnd) override;
+
     void OnBuildingNote(const BuildingNote& note);
 
     void StopScrolling();
     void StartScrolling(const Position& mousePos);
+
+    void ShowPersistentWindowsAfterSwitch();
 
     PostBox& GetPostBox();
     std::shared_ptr<const Game> game_;

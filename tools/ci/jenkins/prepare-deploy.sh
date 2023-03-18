@@ -1,4 +1,9 @@
 #!/bin/bash
+
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 ###############################################################################
 #
 # This file will only be read by Jenkinsfile.
@@ -37,15 +42,16 @@ fi
 
 for artifact in $artifacts ; do
     echo "Processing file $artifact"
-    _version=$(echo $(basename $artifact) | cut -f2- -d '_' | cut -f 1-2 -d '.')
-    RTTR_VERSION=$(echo $_version | cut -f 1 -d '-')
-    RTTR_REVISION=$(echo $_version | cut -f 2 -d '-')
 
-    _platform=$(echo $_version | cut -f 3 -d '-')
+    _file=$(echo $(basename $artifact) | cut -f2- -d '_')
+    RTTR_VERSION=$(echo $_file | cut -f 1 -d '-')
+    RTTR_REVISION=$(echo $_file | cut -f 2 -d '-')
+    _platform=$(echo $_file | cut -f 3 -d '-')
+
     PLATFORM_NAME=$(echo $_platform | cut -f 1 -d '.')
     PLATFORM_ARCH=$(echo $_platform | cut -f 2 -d '.')
 
-    ARCHIVE_TYPE=$(echo $(basename $artifact) | cut -f 3- -d '.')
+    ARCHIVE_TYPE=$(echo $_platform | cut -f 3- -d '.')
 
     echo "- Version:       $RTTR_VERSION"
     echo "- Revision:      $RTTR_REVISION"

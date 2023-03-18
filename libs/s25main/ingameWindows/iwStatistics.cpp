@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwStatistics.h"
 #include "GamePlayer.h"
@@ -61,28 +48,28 @@ iwStatistics::iwStatistics(const GameWorldViewer& gwv)
 
         switch(curPlayer.nation)
         {
-            case NAT_AFRICANS:
-                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TC_GREEN1,
+            case Nation::Africans:
+                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TextureColor::Green1,
                                LOADER.GetImageN("io", 257), curPlayer.name)
                   ->SetBorder(false);
                 break;
-            case NAT_JAPANESE:
-                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TC_GREEN1,
+            case Nation::Japanese:
+                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TextureColor::Green1,
                                LOADER.GetImageN("io", 253), curPlayer.name)
                   ->SetBorder(false);
                 break;
-            case NAT_ROMANS:
-                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TC_GREEN1,
+            case Nation::Romans:
+                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TextureColor::Green1,
                                LOADER.GetImageN("io", 252), curPlayer.name)
                   ->SetBorder(false);
                 break;
-            case NAT_VIKINGS:
-                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TC_GREEN1,
+            case Nation::Vikings:
+                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TextureColor::Green1,
                                LOADER.GetImageN("io", 256), curPlayer.name)
                   ->SetBorder(false);
                 break;
-            case NAT_BABYLONIANS:
-                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TC_GREEN1,
+            case Nation::Babylonians:
+                AddImageButton(1 + i, DrawPoint(startX + pos * 34 - 17, 45 - 23), Extent(34, 47), TextureColor::Green1,
                                LOADER.GetImageN("io_new", 7), curPlayer.name)
                   ->SetBorder(false);
                 break;
@@ -120,33 +107,33 @@ iwStatistics::iwStatistics(const GameWorldViewer& gwv)
     AddImage(10, DrawPoint(11 + 115, 84 + 81), LOADER.GetImageN("io", 228));
 
     // Die Buttons zum Wechseln der Statistiken
-    ctrlOptionGroup* statChanger = AddOptionGroup(19, ctrlOptionGroup::ILLUMINATE);
-    statChanger->AddImageButton(11, DrawPoint(18, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 167),
+    ctrlOptionGroup* statChanger = AddOptionGroup(19, GroupSelectType::Illuminate);
+    statChanger->AddImageButton(11, DrawPoint(18, 250), Extent(26, 30), TextureColor::Grey, LOADER.GetImageN("io", 167),
                                 _("Size of country"));
-    statChanger->AddImageButton(12, DrawPoint(45, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 168),
+    statChanger->AddImageButton(12, DrawPoint(45, 250), Extent(26, 30), TextureColor::Grey, LOADER.GetImageN("io", 168),
                                 _("Buildings"));
-    statChanger->AddImageButton(13, DrawPoint(72, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 169),
+    statChanger->AddImageButton(13, DrawPoint(72, 250), Extent(26, 30), TextureColor::Grey, LOADER.GetImageN("io", 169),
                                 _("Inhabitants"));
-    statChanger->AddImageButton(14, DrawPoint(99, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 170),
+    statChanger->AddImageButton(14, DrawPoint(99, 250), Extent(26, 30), TextureColor::Grey, LOADER.GetImageN("io", 170),
                                 _("Merchandise"));
-    statChanger->AddImageButton(15, DrawPoint(126, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 171),
-                                _("Military strength"));
-    statChanger->AddImageButton(16, DrawPoint(153, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 172),
-                                _("Gold"));
-    statChanger->AddImageButton(17, DrawPoint(180, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 173),
-                                _("Productivity"));
-    statChanger->AddImageButton(18, DrawPoint(207, 250), Extent(26, 30), TC_GREY, LOADER.GetImageN("io", 217),
-                                _("Vanquished enemies"));
+    statChanger->AddImageButton(15, DrawPoint(126, 250), Extent(26, 30), TextureColor::Grey,
+                                LOADER.GetImageN("io", 171), _("Military strength"));
+    statChanger->AddImageButton(16, DrawPoint(153, 250), Extent(26, 30), TextureColor::Grey,
+                                LOADER.GetImageN("io", 172), _("Gold"));
+    statChanger->AddImageButton(17, DrawPoint(180, 250), Extent(26, 30), TextureColor::Grey,
+                                LOADER.GetImageN("io", 173), _("Productivity"));
+    statChanger->AddImageButton(18, DrawPoint(207, 250), Extent(26, 30), TextureColor::Grey,
+                                LOADER.GetImageN("io", 217), _("Vanquished enemies"));
 
     // Zeit-Buttons
-    ctrlOptionGroup* timeChanger = AddOptionGroup(20, ctrlOptionGroup::ILLUMINATE);
-    timeChanger->AddTextButton(21, DrawPoint(51, 288), Extent(43, 28), TC_GREY, _("15 m"), NormalFont);
-    timeChanger->AddTextButton(22, DrawPoint(96, 288), Extent(43, 28), TC_GREY, _("1 h"), NormalFont);
-    timeChanger->AddTextButton(23, DrawPoint(141, 288), Extent(43, 28), TC_GREY, _("4 h"), NormalFont);
-    timeChanger->AddTextButton(24, DrawPoint(186, 288), Extent(43, 28), TC_GREY, _("16 h"), NormalFont);
+    ctrlOptionGroup* timeChanger = AddOptionGroup(20, GroupSelectType::Illuminate);
+    timeChanger->AddTextButton(21, DrawPoint(51, 288), Extent(43, 28), TextureColor::Grey, _("15 m"), NormalFont);
+    timeChanger->AddTextButton(22, DrawPoint(96, 288), Extent(43, 28), TextureColor::Grey, _("1 h"), NormalFont);
+    timeChanger->AddTextButton(23, DrawPoint(141, 288), Extent(43, 28), TextureColor::Grey, _("4 h"), NormalFont);
+    timeChanger->AddTextButton(24, DrawPoint(186, 288), Extent(43, 28), TextureColor::Grey, _("16 h"), NormalFont);
 
     // Hilfe-Button
-    AddImageButton(25, DrawPoint(18, 288), Extent(30, 32), TC_GREY, LOADER.GetImageN("io", 225), _("Help"));
+    AddImageButton(25, DrawPoint(18, 288), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io", 225), _("Help"));
 
     // Aktuelle Überschrift über der Statistik
     headline = AddText(30, DrawPoint(130, 120), _("Size of country"), MakeColor(255, 136, 96, 52),
@@ -171,9 +158,9 @@ iwStatistics::iwStatistics(const GameWorldViewer& gwv)
 
     // Standardansicht: 15min / Landesgröße
     statChanger->SetSelection(11);
-    currentView = STAT_COUNTRY;
+    currentView = StatisticType::Country;
     timeChanger->SetSelection(21);
-    currentTime = STAT_15M;
+    currentTime = StatisticTime::T15Minutes;
 
     if(!SETTINGS.ingame.scale_statistics)
         minValue->SetVisible(false);
@@ -214,35 +201,35 @@ void iwStatistics::Msg_OptionGroupChange(const unsigned ctrl_id, const unsigned 
             switch(selection)
             {
                 case 11:
-                    currentView = STAT_COUNTRY;
+                    currentView = StatisticType::Country;
                     headline->SetText(_("Size of country"));
                     break;
                 case 12:
-                    currentView = STAT_BUILDINGS;
+                    currentView = StatisticType::Buildings;
                     headline->SetText(_("Buildings"));
                     break;
                 case 13:
-                    currentView = STAT_INHABITANTS;
+                    currentView = StatisticType::Inhabitants;
                     headline->SetText(_("Inhabitants"));
                     break;
                 case 14:
-                    currentView = STAT_MERCHANDISE;
+                    currentView = StatisticType::Merchandise;
                     headline->SetText(_("Merchandise"));
                     break;
                 case 15:
-                    currentView = STAT_MILITARY;
+                    currentView = StatisticType::Military;
                     headline->SetText(_("Military strength"));
                     break;
                 case 16:
-                    currentView = STAT_GOLD;
+                    currentView = StatisticType::Gold;
                     headline->SetText(_("Gold"));
                     break;
                 case 17:
-                    currentView = STAT_PRODUCTIVITY;
+                    currentView = StatisticType::Productivity;
                     headline->SetText(_("Productivity"));
                     break;
                 case 18:
-                    currentView = STAT_VANQUISHED;
+                    currentView = StatisticType::Vanquished;
                     headline->SetText(_("Vanquished enemies"));
                     break;
             }
@@ -250,10 +237,10 @@ void iwStatistics::Msg_OptionGroupChange(const unsigned ctrl_id, const unsigned 
         case 20: // Zeitbereich wählen
             switch(selection)
             {
-                case 21: currentTime = STAT_15M; break;
-                case 22: currentTime = STAT_1H; break;
-                case 23: currentTime = STAT_4H; break;
-                case 24: currentTime = STAT_16H; break;
+                case 21: currentTime = StatisticTime::T15Minutes; break;
+                case 22: currentTime = StatisticTime::T1Hour; break;
+                case 23: currentTime = StatisticTime::T4Hours; break;
+                case 24: currentTime = StatisticTime::T16Hours; break;
             }
             break;
     }
@@ -262,6 +249,10 @@ void iwStatistics::Msg_OptionGroupChange(const unsigned ctrl_id, const unsigned 
 void iwStatistics::Draw_()
 {
     IngameWindow::Draw_();
+
+    if(IsMinimized())
+        return;
+
     // Die farbigen Boxen unter den Spielerportraits malen
     unsigned short startX = 126 - numPlayingPlayers * 17;
     DrawPoint drawPt = GetDrawPos() + DrawPoint(startX, 68);
@@ -381,7 +372,7 @@ void iwStatistics::DrawAxis()
 
     switch(currentTime)
     {
-        case STAT_15M:
+        case StatisticTime::T15Minutes:
             // -15
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));
@@ -419,7 +410,7 @@ void iwStatistics::DrawAxis()
 
             timeAnnotations[5]->SetVisible(false);
             break;
-        case STAT_1H:
+        case StatisticTime::T1Hour:
             // -60
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));
@@ -462,7 +453,7 @@ void iwStatistics::DrawAxis()
             timeAnnotations[5]->SetText("-10");
             timeAnnotations[5]->SetVisible(true);
             break;
-        case STAT_4H:
+        case StatisticTime::T4Hours:
             // -240
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));
@@ -494,7 +485,7 @@ void iwStatistics::DrawAxis()
             timeAnnotations[4]->SetVisible(false);
             timeAnnotations[5]->SetVisible(false);
             break;
-        case STAT_16H:
+        case StatisticTime::T16Hours:
             // -960
             DrawLine(topLeft + DrawPoint(6, sizeY + 2), topLeft + DrawPoint(6, sizeY + 4), 1,
                      MakeColor(255, 88, 44, 16));

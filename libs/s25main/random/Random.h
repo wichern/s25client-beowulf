@@ -1,35 +1,27 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
 #include "RTTR_Assert.h"
 #include "random/XorShift.h"
 #include "s25util/Singleton.h"
-#include <boost/filesystem/path.hpp>
 #include <array>
 #include <cstddef>
-#include <iosfwd>
 #include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
 class Serializer;
+/// Struct similar to std::source_location but includes the objId
+struct RandomContext
+{
+    const char* srcName;
+    unsigned srcLine;
+    unsigned objId;
+};
 
 /// Random class for the random values in the game
 /// Guarantees reproducible sequences given same seeds/states
@@ -48,20 +40,16 @@ public:
     struct RandomEntry
     {
         unsigned counter;
-        int max;
+        int maxExcl;
         PRNG rngState;
-        std::string src_name;
-        unsigned src_line;
-        unsigned obj_id;
+        std::string srcName;
+        unsigned srcLine;
+        unsigned objId;
 
-        RandomEntry() : counter(0), max(0), src_line(0), obj_id(0){};
-        RandomEntry(unsigned counter, int max, const PRNG& rngState, std::string src_name, unsigned src_line,
-                    unsigned obj_id)
-            : counter(counter), max(max), rngState(rngState), src_name(std::move(src_name)), src_line(src_line),
-              obj_id(obj_id){};
-
-        friend std::ostream& operator<<(std::ostream& os, const RandomEntry& entry) { return entry.print(os); }
-        std::ostream& print(std::ostream& os) const;
+        RandomEntry() : counter(0), maxExcl(0), srcLine(0), objId(0){};
+        RandomEntry(unsigned counter, int maxExcl, const PRNG& rngState, const RandomContext& ctx)
+            : counter(counter), maxExcl(maxExcl), rngState(rngState), srcName(ctx.srcName), srcLine(ctx.srcLine),
+              objId(ctx.objId){};
 
         void Serialize(Serializer& ser) const;
         void Deserialize(Serializer& ser);
@@ -74,8 +62,8 @@ public:
     void Init(const uint64_t& seed);
     /// Reset the Random class to start from a given state
     void ResetState(const PRNG& newState);
-    /// Return a random number in the range [0, max)
-    int Rand(const char* src_name, unsigned src_line, unsigned obj_id, int max);
+    /// Return a random number in the range [0, maxExcl)
+    int Rand(const RandomContext& context, int maxExcl);
 
     /// Get a checksum of the RNG
     unsigned GetChecksum() const;
@@ -85,9 +73,6 @@ public:
     const PRNG& GetCurrentState() const;
 
     std::vector<RandomEntry> GetAsyncLog();
-
-    /// Save the log to a file
-    void SaveLog(const boost::filesystem::path& filepath);
 
 private:
     PRNG rng_; /// the PRNG
@@ -105,37 +90,37 @@ using RandomEntry = UsedRandom::RandomEntry;
 ///////////////////////////////////////////////////////////////////////////////
 // Macros / Defines
 #define RANDOM UsedRandom::inst()
+#define RANDOM_CONTEXT() \
+    RandomContext { __FILE__, __LINE__, GetObjId() }
+#define RANDOM_CONTEXT2(objId) \
+    RandomContext { __FILE__, __LINE__, objId }
 /// Shortcut to get a new random value in range [0, maxVal) for a given object id
 /// Note: maxVal has to be small (at least <= 32768)
-#define RANDOM_RAND(objId, maxVal) RANDOM.Rand(__FILE__, __LINE__, objId, maxVal)
+#define RANDOM_RAND(maxValExcl) RANDOM.Rand(RANDOM_CONTEXT(), maxValExcl)
+/// Return a random element from the container. Must not be empty
+#define RANDOM_ELEMENT(container) detail::randomElement(container, RANDOM_CONTEXT())
+/// Return a random enumerator of the given type. Requires the <helpers/MaxEnumValue.h> include
+#define RANDOM_ENUM(EnumType) static_cast<EnumType>(RANDOM_RAND(helpers::NumEnumValues_v<EnumType>))
+/// Shuffle the given container
+#define RANDOM_SHUFFLE(container) detail::shuffleContainer(container, RANDOM_CONTEXT())
+#define RANDOM_SHUFFLE2(container, objId) detail::shuffleContainer(container, RANDOM_CONTEXT2(objId))
 
-/// functor using RANDOM.Rand(...) e.g. for std::shuffle
-class RandomFunctor
+namespace detail {
+template<typename T>
+auto randomElement(const T& container, const RandomContext& ctx)
 {
-    const char* file_;
-    unsigned line_;
-
-public:
-    constexpr RandomFunctor(const char* file, unsigned line) : file_(file), line_(line) {}
-
-    ptrdiff_t operator()(ptrdiff_t max) const
+    RTTR_Assert(!container.empty());
+    return *(container.begin() + RANDOM.Rand(ctx, container.size()));
+}
+template<class T>
+static void shuffleContainer(T& container, const RandomContext& ctx)
+{
+    if(container.empty())
+        return;
+    for(int i = container.size() - 1; i > 0; --i)
     {
-        RTTR_Assert(max < std::numeric_limits<int>::max());
-        return RANDOM.Rand(file_, line_, 0, static_cast<int>(max));
+        using std::swap;
+        swap(container[i], container[RANDOM.Rand(ctx, i + 1)]);
     }
-    template<class T>
-    static void shuffleContainer(T& container, const char* file, unsigned line)
-    {
-        if(container.empty())
-            return;
-        const RandomFunctor getIdx(file, line);
-        for(auto i = container.size() - 1; i > 0; --i)
-        {
-            using std::swap;
-            swap(container[i], container[getIdx(i + 1)]);
-        }
-    }
-};
-
-/// Shortcut for creating an instance of RandomFunctor
-#define RANDOM_SHUFFLE(container) RandomFunctor::shuffleContainer(container, __FILE__, __LINE__)
+}
+} // namespace detail

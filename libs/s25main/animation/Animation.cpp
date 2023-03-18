@@ -1,26 +1,13 @@
-// Copyright (c) 2017 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Animation.h"
 #include "Window.h"
 
 Animation::Animation(Window* element, unsigned numFrames, unsigned frameRate, RepeatType repeat)
     : elementId_(element->GetID()), numFrames_(numFrames), frameRate_(frameRate), repeat_(repeat), lastTime_(0),
-      curFrame_(0), countUp_(true), skipType_(SKIP_FRAMES), hasStarted_(false)
+      curFrame_(0), countUp_(true), skipType_(SkipType::Frames), hasStarted_(false)
 {
     // We need at least 2 frames: current state and next state
     RTTR_Assert(numFrames_ > 1);
@@ -75,12 +62,12 @@ void Animation::execFrame(Window* parent, unsigned remainingTime)
     // Element missing -> Done
     if(!element)
     {
-        repeat_ = RPT_None;
+        repeat_ = RepeatType::None;
         countUp_ = true;
         curFrame_ = numFrames_ - 1u;
     }
     // Do not overshoot on last frame unless we are in oscillate mode
-    if(isLastFrame() && repeat_ != RPT_Oscillate && (repeat_ != RPT_OscillateOnce || !countUp_))
+    if(isLastFrame() && repeat_ != RepeatType::Oscillate && (repeat_ != RepeatType::OscillateOnce || !countUp_))
         remainingTime = 0;
     doUpdate(element, static_cast<double>(remainingTime) / static_cast<double>(frameRate_));
 }
@@ -104,7 +91,7 @@ void Animation::advanceFrames(unsigned passedTime)
     unsigned numFramesPassed = passedTime / frameRate_;
     if(numFramesPassed > 1u)
     {
-        if(skipType_ == SKIP_TIME)
+        if(skipType_ == SkipType::Time)
         {
             // Advance time by the full passed time less 1 frame
             // Add 1ms so the next frame is just not due yet
@@ -115,16 +102,16 @@ void Animation::advanceFrames(unsigned passedTime)
         {
             // Advance time by full frames passed
             lastTime_ += numFramesPassed * frameRate_;
-            if(repeat_ == RPT_None)
+            if(repeat_ == RepeatType::None)
             {
                 // Maximum number of frames passed are the number of remaining frames
                 numFramesPassed = std::min(numFramesPassed, numFrames_ - 1 - curFrame_);
-            } else if(repeat_ == RPT_Repeat)
+            } else if(repeat_ == RepeatType::Repeat)
             {
                 // We can reduce the number of passed frames by full cycles
                 // So passing 6 frames on an animation with 5 frames is the same as just passing 1 frame
                 numFramesPassed = numFramesPassed % numFrames_;
-            } else if(repeat_ == RPT_Oscillate)
+            } else if(repeat_ == RepeatType::Oscillate)
             {
                 // Oscillate is similar to repeat but we have twice as many frames less one (last is not played twice)
                 numFramesPassed = numFramesPassed % (numFrames_ * 2u - 2u);
@@ -152,8 +139,8 @@ void Animation::advanceFrame()
         curFrame_++;
         if(curFrame_ >= numFrames_)
         {
-            RTTR_Assert(repeat_ != RPT_None);
-            if(repeat_ == RPT_Oscillate || repeat_ == RPT_OscillateOnce)
+            RTTR_Assert(repeat_ != RepeatType::None);
+            if(repeat_ == RepeatType::Oscillate || repeat_ == RepeatType::OscillateOnce)
             {
                 countUp_ = false;
                 curFrame_ = numFrames_ - 2u;
@@ -164,8 +151,8 @@ void Animation::advanceFrame()
     {
         if(curFrame_ == 0)
         {
-            RTTR_Assert(repeat_ != RPT_None && repeat_ != RPT_OscillateOnce);
-            if(repeat_ == RPT_Oscillate)
+            RTTR_Assert(repeat_ != RepeatType::None && repeat_ != RepeatType::OscillateOnce);
+            if(repeat_ == RepeatType::Oscillate)
             {
                 countUp_ = true;
                 curFrame_ = 1u;
@@ -174,20 +161,21 @@ void Animation::advanceFrame()
         } else
             curFrame_--;
     }
-    if((repeat_ == RPT_Oscillate && isLastFrame()) || (repeat_ == RPT_OscillateOnce && curFrame_ + 1u >= numFrames_))
+    if((repeat_ == RepeatType::Oscillate && isLastFrame())
+       || (repeat_ == RepeatType::OscillateOnce && curFrame_ + 1u >= numFrames_))
         countUp_ = !countUp_;
 }
 
 void Animation::finish(Window* parent, bool finishImmediately)
 {
-    if(repeat_ == RPT_Repeat)
-        repeat_ = RPT_None;
-    else if(repeat_ == RPT_Oscillate)
-        repeat_ = RPT_OscillateOnce;
+    if(repeat_ == RepeatType::Repeat)
+        repeat_ = RepeatType::None;
+    else if(repeat_ == RepeatType::Oscillate)
+        repeat_ = RepeatType::OscillateOnce;
     if(!hasStarted_)
     {
         // When we haven't started yet, just execute the last frame immediately
-        if(repeat_ == RPT_OscillateOnce)
+        if(repeat_ == RepeatType::OscillateOnce)
         {
             curFrame_ = 0u;
             countUp_ = false;
@@ -198,11 +186,11 @@ void Animation::finish(Window* parent, bool finishImmediately)
         return;
     }
     // Finish immediately if we are at the start/end
-    if(repeat_ == RPT_OscillateOnce && curFrame_ == 0u)
+    if(repeat_ == RepeatType::OscillateOnce && curFrame_ == 0u)
         countUp_ = false;
     if(!finishImmediately || isFinished())
         return;
-    if(repeat_ == RPT_None)
+    if(repeat_ == RepeatType::None)
         curFrame_ = numFrames_ - 1u;
     else
     {
@@ -214,9 +202,9 @@ void Animation::finish(Window* parent, bool finishImmediately)
 
 bool Animation::isFinished() const
 {
-    if(repeat_ == RPT_None)
+    if(repeat_ == RepeatType::None)
         return isLastFrame();
-    else if(repeat_ == RPT_OscillateOnce)
+    else if(repeat_ == RepeatType::OscillateOnce)
         return !countUp_ && curFrame_ == 0;
     else
         return false;

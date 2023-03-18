@@ -1,35 +1,24 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
-#include "helpers/MaxEnumValue.h"
+#include <cstdint>
 
 /// Nations (byte sized)
-enum Nation : unsigned char
+enum class Nation : uint8_t
 {
-    NAT_AFRICANS = 0,
-    NAT_JAPANESE,
-    NAT_ROMANS,
-    NAT_VIKINGS,
-    NAT_BABYLONIANS
+    Africans,
+    Japanese,
+    Romans,
+    Vikings,
+    Babylonians
 };
-DEFINE_MAX_ENUM_VALUE(Nation, NAT_BABYLONIANS)
+constexpr auto maxEnumValue(Nation)
+{
+    return Nation::Babylonians;
+}
 
-/// Number of native notions
+/// Number of native nations
 constexpr unsigned NUM_NATIVE_NATIONS = 4;
-constexpr unsigned NUM_NATIONS = helpers::NumEnumValues_v<Nation>;

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -56,36 +43,30 @@ namespace detail {
     };
 } // namespace detail
 
-/// Removes an element from a container by its iterator and returns an iterator to the next element
-/// Works only for list and set as they don't invalidate other iterators, so erase is save to call inside a loop
-/// Works also for reverse iterators
+/// Removes an element from a container by its reverse iterator and returns an iterator to the next element
+/// IMPORTANT: For containers other than list and set existing iterators may be invalidated!
 template<typename T>
-typename T::iterator erase(T& container, typename T::iterator it)
+auto erase_reverse(T& container, typename T::reverse_iterator it)
 {
-    return container.erase(it);
-}
-
-template<typename T>
-auto erase(T& container, typename T::reverse_iterator it)
-{
-    return typename T::reverse_iterator(erase(container, (++it).base()));
+    return typename T::reverse_iterator(container.erase((++it).base()));
 }
 
 template<typename T, typename T_Element>
-void remove(T& container, T_Element&& element)
+void erase(T& container, T_Element&& element)
 {
     using std::begin;
     using std::end;
-    container.erase(std::remove(begin(container), end(container), std::forward<T_Element>(element)), end(container));
+    const auto it = std::remove(begin(container), end(container), std::forward<T_Element>(element));
+    container.erase(it, end(container));
 }
 
 template<typename T, typename T_Predicate>
-void remove_if(T& container, T_Predicate&& predicate)
+void erase_if(T& container, T_Predicate&& predicate)
 {
     using std::begin;
     using std::end;
-    container.erase(std::remove_if(begin(container), end(container), std::forward<T_Predicate>(predicate)),
-                    end(container));
+    const auto it = std::remove_if(begin(container), end(container), std::forward<T_Predicate>(predicate));
+    container.erase(it, end(container));
 }
 
 /// Removes the first element in a container
@@ -126,6 +107,23 @@ bool contains_if(const T& container, T_Predicate&& predicate)
 {
     using std::end;
     return find_if(container, std::forward<T_Predicate>(predicate)) != end(container);
+}
+
+/// Count the number of occurences of the given value. Returns an unsigned value
+template<typename T, typename U>
+size_t count(const T& container, const U& value)
+{
+    const auto result = std::count(container.begin(), container.end(), value);
+    return static_cast<std::make_unsigned_t<decltype(result)>>(result);
+}
+
+/// Count the number of items for which the predicate returns true.
+/// Returns an unsigned value
+template<typename T, class T_Predicate>
+size_t count_if(const T& container, T_Predicate&& predicate)
+{
+    const auto result = std::count_if(container.begin(), container.end(), std::forward<T_Predicate>(predicate));
+    return static_cast<std::make_unsigned_t<decltype(result)>>(result);
 }
 
 /// Remove duplicate values from the given sorted container

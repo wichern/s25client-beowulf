@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GameClient.h"
 #include "CreateServerInfo.h"
@@ -33,26 +20,28 @@
 #include "Savegame.h"
 #include "SerializedGameData.h"
 #include "Settings.h"
-#include "addons/const_addons.h"
 #include "ai/AIPlayer.h"
 #include "drivers/VideoDriverWrapper.h"
 #include "factories/AIFactory.h"
 #include "files.h"
 #include "helpers/containerUtils.h"
 #include "helpers/format.hpp"
+#include "helpers/mathFuncs.h"
 #include "lua/LuaInterfaceBase.h"
 #include "network/ClientInterface.h"
 #include "network/GameMessages.h"
 #include "network/GameServer.h"
 #include "ogl/FontStyle.h"
 #include "ogl/glArchivItem_Bitmap.h"
-#include "ogl/glArchivItem_Map.h"
 #include "ogl/glFont.h"
 #include "random/Random.h"
+#include "random/randomIO.h"
 #include "world/GameWorld.h"
 #include "world/GameWorldView.h"
+#include "world/MapLoader.h"
 #include "gameTypes/RoadBuildState.h"
 #include "gameData/GameConsts.h"
+#include "libsiedler2/ArchivItem_Map.h"
 #include "libsiedler2/ArchivItem_Map_Header.h"
 #include "libsiedler2/prototypen.h"
 #include "s25util/SocketSet.h"
@@ -74,7 +63,7 @@ void GameClient::ClientConfig::Clear()
     isHost = false;
 }
 
-GameClient::GameClient() : skiptogf(0), mainPlayer(0), state(CS_STOPPED), ci(nullptr), replayMode(false) {}
+GameClient::GameClient() : skiptogf(0), mainPlayer(0), state(ClientState::Stopped), ci(nullptr), replayMode(false) {}
 
 GameClient::~GameClient()
 {
@@ -113,10 +102,8 @@ bool GameClient::Connect(const std::string& server, const std::string& password,
         return false;
     }
 
-    state = CS_CONNECT;
-
-    if(ci)
-        ci->CI_NextConnectState(CS_WAITFORANSWER);
+    state = ClientState::Connect;
+    AdvanceState(ConnectState::Initiated);
 
     // Es wird kein Replay abgespielt, sondern dies ist ein richtiges Spiel
     replayMode = false;
@@ -127,6 +114,19 @@ bool GameClient::Connect(const std::string& server, const std::string& password,
 bool GameClient::HostGame(const CreateServerInfo& csi, const boost::filesystem::path& map_path, MapType map_type)
 {
     std::string hostPw = createRandString(20);
+    // Copy the map to the played map folders to avoid having to transmit it from the (local) server
+    const auto playedMapPath = RTTRCONFIG.ExpandPath(s25::folders::mapsPlayed) / map_path.filename();
+    if(playedMapPath != map_path)
+    {
+        boost::system::error_code ignoredEc;
+        constexpr auto overwrite_existing =
+#if BOOST_VERSION >= 107400
+          boost::filesystem::copy_options::overwrite_existing;
+#else
+          boost::filesystem::copy_option::overwrite_if_exists;
+#endif
+        copy_file(map_path, playedMapPath, overwrite_existing, ignoredEc);
+    }
     return GAMESERVER.Start(csi, map_path, map_type, hostPw)
            && Connect("localhost", hostPw, csi.type, csi.port, true, csi.ipv6);
 }
@@ -136,7 +136,7 @@ bool GameClient::HostGame(const CreateServerInfo& csi, const boost::filesystem::
  */
 void GameClient::Run()
 {
-    if(state == CS_STOPPED)
+    if(state == ClientState::Stopped)
         return;
 
     SocketSet set;
@@ -173,12 +173,12 @@ void GameClient::Run()
         }
     }
 
-    if(state == CS_LOADED)
+    if(state == ClientState::Loaded)
     {
         // All players ready?
         if(nwfInfo->isReady())
             OnGameStart();
-    } else if(state == CS_GAME)
+    } else if(state == ClientState::Game)
         ExecuteGameFrame();
 
     // maximal 10 Pakete verschicken
@@ -192,12 +192,12 @@ void GameClient::Run()
  */
 void GameClient::Stop()
 {
-    if(state == CS_STOPPED)
+    if(state == ClientState::Stopped)
         return;
 
     if(game)
         ExitGame();
-    else if(state == CS_CONNECT || state == CS_CONFIG)
+    else if(state == ClientState::Connect || state == ClientState::Config)
         gameLobby.reset();
 
     if(IsHost())
@@ -209,6 +209,8 @@ void GameClient::Stop()
 
     if(replayinfo)
     {
+        if(replayinfo->replay.IsRecording())
+            replayinfo->replay.StopRecording();
         replayinfo->replay.Close();
         replayinfo.reset();
     }
@@ -222,14 +224,13 @@ void GameClient::Stop()
     RTTR_Assert(!game);
     RTTR_Assert(!gameLobby);
 
-    state = CS_STOPPED;
+    state = ClientState::Stopped;
     LOG.write("client state changed to stop\n");
 }
 
 std::shared_ptr<GameLobby> GameClient::GetGameLobby()
 {
-    RTTR_Assert(state == CS_CONFIG);
-    RTTR_Assert(gameLobby);
+    RTTR_Assert(state != ClientState::Config || gameLobby);
     return gameLobby;
 }
 
@@ -247,7 +248,7 @@ const AIPlayer* GameClient::GetAIPlayer(unsigned id) const
  */
 void GameClient::StartGame(const unsigned random_init)
 {
-    RTTR_Assert(state == CS_CONFIG || (state == CS_STOPPED && replayMode));
+    RTTR_Assert(state == ClientState::Config || (state == ClientState::Stopped && replayMode));
 
     // Mond malen
     Position moonPos = VIDEODRIVER.GetMousePos();
@@ -259,7 +260,7 @@ void GameClient::StartGame(const unsigned random_init)
     framesinfo.isPaused = true;
 
     // Je nach Geschwindigkeit GF-Länge einstellen
-    framesinfo.gf_length = FramesInfo::milliseconds32_t(SPEED_GF_LENGTHS[gameLobby->getSettings().speed]);
+    framesinfo.gf_length = SPEED_GF_LENGTHS[gameLobby->getSettings().speed];
     framesinfo.gfLengthReq = framesinfo.gf_length;
 
     // Random-Generator initialisieren
@@ -267,15 +268,15 @@ void GameClient::StartGame(const unsigned random_init)
 
     if(!IsReplayModeOn() && mapinfo.savegame && !mapinfo.savegame->Load(mapinfo.filepath, SaveGameDataToLoad::All))
     {
-        OnError(CE_INVALID_MAP);
+        OnError(ClientError::InvalidMap);
         return;
     }
 
     // If we have a savegame, start at its first GF, else at 0
-    unsigned startGF = (mapinfo.type == MAPTYPE_SAVEGAME) ? mapinfo.savegame->start_gf : 0;
+    unsigned startGF = (mapinfo.type == MapType::Savegame) ? mapinfo.savegame->start_gf : 0;
     // Create the game
     game =
-      std::make_shared<Game>(gameLobby->getSettings(), startGF,
+      std::make_shared<Game>(std::move(gameLobby->getSettings()), startGF,
                              std::vector<PlayerInfo>(gameLobby->getPlayers().begin(), gameLobby->getPlayers().end()));
     if(!IsReplayModeOn())
     {
@@ -288,7 +289,7 @@ void GameClient::StartGame(const unsigned random_init)
     // Release lobby
     gameLobby.reset();
 
-    state = CS_LOADING;
+    state = ClientState::Loading;
 
     if(ci)
         ci->CI_GameLoading(game);
@@ -298,33 +299,22 @@ void GameClient::StartGame(const unsigned random_init)
 
     GameWorld& gameWorld = game->world_;
     if(mapinfo.savegame)
-        mapinfo.savegame->sgd.ReadSnapshot(game, *this);
+        mapinfo.savegame->sgd.ReadSnapshot(*game, *this);
     else
     {
-        RTTR_Assert(mapinfo.type != MAPTYPE_SAVEGAME);
+        RTTR_Assert(mapinfo.type != MapType::Savegame);
         /// Startbündnisse setzen
         for(unsigned i = 0; i < gameWorld.GetNumPlayers(); ++i)
             gameWorld.GetPlayer(i).MakeStartPacts();
 
-        if(!gameWorld.LoadMap(game, *this, mapinfo.filepath, mapinfo.luaFilepath))
+        MapLoader loader(gameWorld);
+        if(!loader.Load(mapinfo.filepath)
+           || (!mapinfo.luaFilepath.empty() && !loader.LoadLuaScript(*game, *this, mapinfo.luaFilepath)))
         {
-            OnError(CE_INVALID_MAP);
+            OnError(ClientError::InvalidMap);
             return;
         }
-
-        /// Evtl. Goldvorkommen ändern
-        Resource::Type target; // löschen
-        switch(game->ggs_.getSelection(AddonId::CHANGE_GOLD_DEPOSITS))
-        {
-            case 0:
-            default: target = Resource::Gold; break;
-            case 1: target = Resource::Nothing; break;
-            case 2: target = Resource::Iron; break;
-            case 3: target = Resource::Coal; break;
-            case 4: target = Resource::Granite; break;
-        }
-        gameWorld.ConvertMineResourceTypes(Resource::Gold, target);
-        gameWorld.PlaceAndFixWater();
+        gameWorld.SetupResources();
     }
     gameWorld.InitAfterLoad();
 
@@ -343,9 +333,9 @@ void GameClient::StartGame(const unsigned random_init)
 
 void GameClient::GameLoaded()
 {
-    RTTR_Assert(state == CS_LOADING);
+    RTTR_Assert(state == ClientState::Loading);
 
-    state = CS_LOADED;
+    state = ClientState::Loaded;
 
     if(replayMode)
         OnGameStart();
@@ -356,7 +346,7 @@ void GameClient::GameLoaded()
         {
             for(unsigned id = 0; id < GetNumPlayers(); id++)
             {
-                if(GetPlayer(id).ps == PS_AI)
+                if(GetPlayer(id).ps == PlayerState::AI)
                 {
                     game->AddAIPlayer(CreateAIPlayer(id, GetPlayer(id).aiInfo));
                     SendNothingNC(id);
@@ -369,7 +359,7 @@ void GameClient::GameLoaded()
 
 void GameClient::ExitGame()
 {
-    RTTR_Assert(state == CS_GAME || state == CS_LOADED || state == CS_LOADING);
+    RTTR_Assert(state == ClientState::Game || state == ClientState::Loaded || state == ClientState::Loading);
     game.reset();
     nwfInfo.reset();
     // Clear remaining commands
@@ -395,19 +385,20 @@ bool GameClient::OnGameMessage(const GameMessage_Ping& /*msg*/)
  */
 bool GameClient::OnGameMessage(const GameMessage_Player_Id& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::Initiated))
         return true;
     // haben wir eine ungültige ID erhalten? (aka Server-Voll)
     if(msg.player == GameMessageWithPlayer::NO_PLAYER_ID)
     {
-        OnError(CE_SERVER_FULL);
+        OnError(ClientError::ServerFull);
         return true;
     }
 
     mainPlayer.playerId = msg.player;
 
     // Server-Typ senden
-    mainPlayer.sendMsgAsync(new GameMessage_Server_Type(clientconfig.servertyp, RTTR_Version::GetRevision()));
+    mainPlayer.sendMsgAsync(new GameMessage_Server_Type(clientconfig.servertyp, rttr::version::GetRevision()));
+    AdvanceState(ConnectState::VerifyServer);
     return true;
 }
 
@@ -416,28 +407,27 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Id& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Player_List& msg)
 {
-    if(state != CS_CONNECT && state != CS_CONFIG)
+    if(state != ClientState::Config && !VerifyState(ConnectState::QueryPlayerList))
         return true;
     RTTR_Assert(gameLobby);
     RTTR_Assert(gameLobby->getNumPlayers() == msg.playerInfos.size());
     if(gameLobby->getNumPlayers() != msg.playerInfos.size())
+    {
+        OnError(ClientError::InvalidMessage);
         return true;
+    }
 
     for(unsigned i = 0; i < gameLobby->getNumPlayers(); ++i)
         gameLobby->getPlayer(i) = msg.playerInfos[i];
 
-    if(state != CS_CONFIG)
-    {
-        state = CS_CONFIG;
-        if(ci)
-            ci->CI_NextConnectState(CS_FINISHED);
-    }
+    if(state == ClientState::Connect)
+        AdvanceState(ConnectState::QuerySettings);
     return true;
 }
 
 bool GameClient::OnGameMessage(const GameMessage_Player_Name& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
     if(msg.player >= gameLobby->getNumPlayers())
         return true;
@@ -452,7 +442,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Name& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Player_New& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     if(msg.player >= gameLobby->getNumPlayers())
@@ -461,7 +451,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_New& msg)
     JoinPlayerInfo& playerInfo = gameLobby->getPlayer(msg.player);
 
     playerInfo.name = msg.name;
-    playerInfo.ps = PS_OCCUPIED;
+    playerInfo.ps = PlayerState::Occupied;
     playerInfo.ping = 0;
 
     if(ci)
@@ -471,12 +461,12 @@ bool GameClient::OnGameMessage(const GameMessage_Player_New& msg)
 
 bool GameClient::OnGameMessage(const GameMessage_Player_Ping& msg)
 {
-    if(state == CS_CONFIG)
+    if(state == ClientState::Config)
     {
         if(msg.player >= gameLobby->getNumPlayers())
             return true;
         gameLobby->getPlayer(msg.player).ping = msg.ping;
-    } else if(state == CS_LOADING || state == CS_LOADED || state == CS_GAME)
+    } else if(state == ClientState::Loading || state == ClientState::Loaded || state == ClientState::Game)
     {
         if(msg.player >= GetNumPlayers())
             return true;
@@ -497,7 +487,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Ping& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Player_State& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     if(msg.player >= gameLobby->getNumPlayers())
@@ -525,7 +515,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_State& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Player_Nation& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     if(msg.player >= gameLobby->getNumPlayers())
@@ -543,7 +533,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Nation& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Player_Team& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     if(msg.player >= gameLobby->getNumPlayers())
@@ -561,7 +551,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Team& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Player_Color& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     if(msg.player >= gameLobby->getNumPlayers())
@@ -581,7 +571,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Color& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Player_Ready& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     if(msg.player >= gameLobby->getNumPlayers())
@@ -599,19 +589,19 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Ready& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Player_Kicked& msg)
 {
-    if(state == CS_CONFIG)
+    if(state == ClientState::Config)
     {
         if(msg.player >= gameLobby->getNumPlayers())
             return true;
-        gameLobby->getPlayer(msg.player).ps = PS_FREE;
-    } else if(state == CS_LOADING || state == CS_LOADED || state == CS_GAME)
+        gameLobby->getPlayer(msg.player).ps = PlayerState::Free;
+    } else if(state == ClientState::Loading || state == ClientState::Loaded || state == ClientState::Game)
     {
         // Im Spiel anzeigen, dass der Spieler das Spiel verlassen hat
         GamePlayer& player = GetPlayer(msg.player);
-        if(player.ps != PS_AI)
+        if(player.ps != PlayerState::AI)
         {
-            player.ps = PS_AI;
-            player.aiInfo = AI::Info(AI::DUMMY);
+            player.ps = PlayerState::AI;
+            player.aiInfo = AI::Info(AI::Type::Dummy);
             // Host has to handle it
             if(IsHost())
             {
@@ -631,7 +621,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Swap& msg)
 {
     LOG.writeToFile("<<< NMS_PLAYER_SWAP(%u, %u)\n") % unsigned(msg.player) % unsigned(msg.player2);
 
-    if(state == CS_CONFIG)
+    if(state == ClientState::Config)
     {
         if(msg.player >= gameLobby->getNumPlayers() || msg.player2 >= gameLobby->getNumPlayers())
             return true;
@@ -640,7 +630,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Swap& msg)
         using std::swap;
         swap(gameLobby->getPlayer(msg.player), gameLobby->getPlayer(msg.player2));
         // Some things cannot be changed in savegames
-        if(mapinfo.type == MAPTYPE_SAVEGAME)
+        if(mapinfo.type == MapType::Savegame)
             gameLobby->getPlayer(msg.player).FixSwappedSaveSlot(gameLobby->getPlayer(msg.player2));
 
         // Evtl. sind wir betroffen?
@@ -651,7 +641,7 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Swap& msg)
 
         if(ci)
             ci->CI_PlayersSwapped(msg.player, msg.player2);
-    } else if(state == CS_LOADING || state == CS_LOADED || state == CS_GAME)
+    } else if(state == ClientState::Loading || state == ClientState::Loaded || state == ClientState::Game)
         ChangePlayerIngame(msg.player, msg.player2);
     else
         return true;
@@ -664,25 +654,27 @@ bool GameClient::OnGameMessage(const GameMessage_Player_Swap& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Server_TypeOK& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::VerifyServer))
         return true;
 
+    using StatusCode = GameMessage_Server_TypeOK::StatusCode;
     switch(msg.err_code)
     {
-        case 0: // ok
-            break;
+        case StatusCode::Ok: break;
 
         default:
-        case 1:
+        case StatusCode::InvalidServerType:
         {
-            OnError(CE_INVALID_SERVERTYPE);
+            OnError(ClientError::InvalidServerType);
             return true;
         }
         break;
 
-        case 2:
+        case StatusCode::WrongVersion:
         {
-            OnError(CE_WRONG_VERSION);
+            LOG.write(_("Version mismatch. Server version: %1%, your version %2%")) % msg.version
+              % rttr::version::GetRevision();
+            OnError(ClientError::WrongVersion);
             return true;
         }
         break;
@@ -690,8 +682,7 @@ bool GameClient::OnGameMessage(const GameMessage_Server_TypeOK& msg)
 
     mainPlayer.sendMsgAsync(new GameMessage_Server_Password(clientconfig.password));
 
-    if(ci)
-        ci->CI_NextConnectState(CS_QUERYPW);
+    AdvanceState(ConnectState::QueryPw);
     return true;
 }
 
@@ -700,20 +691,19 @@ bool GameClient::OnGameMessage(const GameMessage_Server_TypeOK& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Server_Password& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::QueryPw))
         return true;
 
     if(msg.password != "true")
     {
-        OnError(CE_WRONG_PW);
+        OnError(ClientError::WrongPassword);
         return true;
     }
 
     mainPlayer.sendMsgAsync(new GameMessage_Player_Name(0xFF, SETTINGS.lobby.name));
     mainPlayer.sendMsgAsync(new GameMessage_MapRequest(true));
 
-    if(ci)
-        ci->CI_NextConnectState(CS_QUERYMAPNAME);
+    AdvanceState(ConnectState::QueryMapInfo);
     return true;
 }
 
@@ -722,12 +712,11 @@ bool GameClient::OnGameMessage(const GameMessage_Server_Password& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Server_Name& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::QueryServerName))
         return true;
     clientconfig.gameName = msg.name;
 
-    if(ci)
-        ci->CI_NextConnectState(CS_QUERYPLAYERLIST);
+    AdvanceState(ConnectState::QueryPlayerList);
     return true;
 }
 
@@ -736,7 +725,7 @@ bool GameClient::OnGameMessage(const GameMessage_Server_Name& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Server_Start& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
 
     nwfInfo = std::make_shared<NWFInfo>();
@@ -758,12 +747,12 @@ bool GameClient::OnGameMessage(const GameMessage_Server_Start& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Chat& msg)
 {
-    if(msg.destination == CD_SYSTEM)
+    if(msg.destination == ChatDestination::System)
     {
         SystemChat(msg.text, (msg.player < game->world_.GetNumPlayers()) ? msg.player : GetPlayerId());
         return true;
     }
-    if(state == CS_GAME)
+    if(state == ClientState::Game)
     {
         // Ingame message: Do some checking and logging
         if(msg.player >= game->world_.GetNumPlayers())
@@ -773,20 +762,34 @@ bool GameClient::OnGameMessage(const GameMessage_Chat& msg)
         if(replayinfo && replayinfo->replay.IsRecording())
             replayinfo->replay.AddChatCommand(GetGFNumber(), msg.player, msg.destination, msg.text);
 
-        GamePlayer& player = game->world_.GetPlayer(msg.player);
+        const GamePlayer& player = game->world_.GetPlayer(msg.player);
 
         // Besiegte dürfen nicht mehr heimlich mit Verbüdeten oder Feinden reden
-        if(player.IsDefeated() && msg.destination != CD_ALL)
+        if(player.IsDefeated() && msg.destination != ChatDestination::All)
             return true;
-        // Entscheiden, ob ich ein Gegner oder Vebündeter bin vom Absender
-        bool ally = player.IsAlly(GetPlayerId());
 
-        // Chatziel unerscheiden und ggf. nicht senden
-        if(!ally && msg.destination == CD_ALLIES)
+        const auto isValidRecipient = [&msg, &player](const unsigned playerId) {
+            // Always send to self
+            if(msg.player == playerId)
+                return true;
+            switch(msg.destination)
+            {
+                case ChatDestination::System:
+                case ChatDestination::All: return true;
+                case ChatDestination::Allies: return player.IsAlly(playerId);
+                case ChatDestination::Enemies: return !player.IsAlly(playerId);
+            }
+            return true; // LCOV_EXCL_LINE
+        };
+        for(AIPlayer& ai : game->aiPlayers_)
+        {
+            if(isValidRecipient(ai.GetPlayerId()))
+                ai.OnChatMessage(msg.player, msg.destination, msg.text);
+        }
+
+        if(!isValidRecipient(GetPlayerId()))
             return true;
-        if(ally && msg.destination == CD_ENEMIES && msg.player != GetPlayerId())
-            return true;
-    } else if(state == CS_CONFIG)
+    } else if(state == ClientState::Config)
     {
         // GameLobby message: Just check for valid player
         if(msg.player >= gameLobby->getNumPlayers())
@@ -804,7 +807,7 @@ bool GameClient::OnGameMessage(const GameMessage_Chat& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Server_Async& msg)
 {
-    if(state != CS_GAME)
+    if(state != ClientState::Game)
         return true;
 
     // Liste mit Namen und Checksummen erzeugen
@@ -831,9 +834,9 @@ bool GameClient::OnGameMessage(const GameMessage_Server_Async& msg)
     const bfs::path filePathSave = RTTRCONFIG.ExpandPath(s25::folders::save) / makePortableFileName(fileName + ".sav");
     const bfs::path filePathLog =
       RTTRCONFIG.ExpandPath(s25::folders::logs) / makePortableFileName(fileName + "Player.log");
-    RANDOM.SaveLog(filePathLog);
+    saveRandomLog(filePathLog, RANDOM.GetAsyncLog());
     SaveToFile(filePathSave);
-    LOG.write(_("Async log saved at \"%s\",\ngame saved at \"%s\"\n")) % filePathLog % filePathSave;
+    LOG.write(_("Async log saved at %1%,\ngame saved at %2%\n")) % filePathLog % filePathSave;
     return true;
 }
 
@@ -842,7 +845,7 @@ bool GameClient::OnGameMessage(const GameMessage_Server_Async& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Countdown& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
     if(ci)
         ci->CI_Countdown(msg.countdown);
@@ -854,7 +857,7 @@ bool GameClient::OnGameMessage(const GameMessage_Countdown& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_CancelCountdown& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config)
         return true;
     if(ci)
         ci->CI_CancelCountdown(msg.error);
@@ -869,7 +872,7 @@ bool GameClient::OnGameMessage(const GameMessage_CancelCountdown& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Map_Info& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::QueryMapInfo))
         return true;
 
     // full path
@@ -877,7 +880,13 @@ bool GameClient::OnGameMessage(const GameMessage_Map_Info& msg)
     if(portFilename.empty())
     {
         LOG.write("Invalid filename received!\n");
-        OnError(CE_INVALID_MAP);
+        OnError(ClientError::InvalidMap);
+        return true;
+    }
+    if(!MapInfo::verifySize(msg.mapLen, msg.luaLen, msg.mapCompressedLen, msg.luaCompressedLen))
+    {
+        OnError(ClientError::InvalidMap);
+        return true;
     }
     mapinfo.filepath = RTTRCONFIG.ExpandPath(s25::folders::mapsPlayed) / portFilename;
     mapinfo.type = msg.mt;
@@ -888,32 +897,36 @@ bool GameClient::OnGameMessage(const GameMessage_Map_Info& msg)
     else
         mapinfo.luaFilepath.clear();
 
+    // We have the map locally already, so prepare and ask if this is the same as the one on the server
     if(bfs::exists(mapinfo.filepath) && (mapinfo.luaFilepath.empty() || bfs::exists(mapinfo.luaFilepath))
        && CreateLobby())
     {
         mapinfo.mapData.CompressFromFile(mapinfo.filepath, &mapinfo.mapChecksum);
-        if(mapinfo.mapData.data.size() == msg.mapCompressedLen && mapinfo.mapData.length == msg.mapLen)
+        if(mapinfo.mapData.data.size() == msg.mapCompressedLen && mapinfo.mapData.uncompressedLength == msg.mapLen)
         {
             bool ok = true;
             if(!mapinfo.luaFilepath.empty())
             {
                 mapinfo.luaData.CompressFromFile(mapinfo.luaFilepath, &mapinfo.luaChecksum);
-                ok = (mapinfo.luaData.data.size() == msg.luaCompressedLen && mapinfo.luaData.length == msg.luaLen);
+                ok = (mapinfo.luaData.data.size() == msg.luaCompressedLen
+                      && mapinfo.luaData.uncompressedLength == msg.luaLen);
             }
 
             if(ok)
             {
                 mainPlayer.sendMsgAsync(new GameMessage_Map_Checksum(mapinfo.mapChecksum, mapinfo.luaChecksum));
+                AdvanceState(ConnectState::VerifyMap);
                 return true;
             }
         }
         gameLobby.reset();
     }
-    mapinfo.mapData.length = msg.mapLen;
-    mapinfo.luaData.length = msg.luaLen;
+    mapinfo.mapData.uncompressedLength = msg.mapLen;
+    mapinfo.luaData.uncompressedLength = msg.luaLen;
     mapinfo.mapData.data.resize(msg.mapCompressedLen);
     mapinfo.luaData.data.resize(msg.luaCompressedLen);
     mainPlayer.sendMsgAsync(new GameMessage_MapRequest(false));
+    AdvanceState(ConnectState::ReceiveMap);
     return true;
 }
 
@@ -922,43 +935,52 @@ bool GameClient::OnGameMessage(const GameMessage_Map_Info& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Map_Data& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::ReceiveMap))
         return true;
 
     LOG.writeToFile("<<< NMS_MAP_DATA(%u)\n") % msg.data.size();
-    if(msg.isMapData)
-        std::copy(msg.data.begin(), msg.data.end(), mapinfo.mapData.data.begin() + msg.offset);
-    else
-        std::copy(msg.data.begin(), msg.data.end(), mapinfo.luaData.data.begin() + msg.offset);
+    std::vector<char>& targetData = (msg.isMapData) ? mapinfo.mapData.data : mapinfo.luaData.data;
+    if(msg.data.size() > targetData.size() || msg.offset > targetData.size() - msg.data.size())
+    {
+        OnError(ClientError::MapTransmission);
+        return true;
+    }
+    std::copy(msg.data.begin(), msg.data.end(), targetData.begin() + msg.offset);
 
-    const unsigned curSize = msg.offset + msg.data.size();
-    bool isCompleted;
-    if(msg.isMapData)
-        isCompleted = mapinfo.luaFilepath.empty() && curSize == mapinfo.mapData.data.size();
-    else
-        isCompleted = curSize == mapinfo.luaData.data.size();
+    uint32_t totalSize = mapinfo.mapData.data.size();
+    uint32_t receivedSize = msg.offset + msg.data.size();
+    if(!mapinfo.luaFilepath.empty())
+    {
+        totalSize += mapinfo.luaData.data.size();
+        // Assumes lua data comes after the map data
+        if(!msg.isMapData)
+            receivedSize += mapinfo.mapData.data.size();
+    }
+    if(ci)
+        ci->CI_MapPartReceived(receivedSize, totalSize);
 
-    if(isCompleted)
+    if(receivedSize == totalSize)
     {
         if(!mapinfo.mapData.DecompressToFile(mapinfo.filepath, &mapinfo.mapChecksum))
         {
-            OnError(CE_MAP_TRANSMISSION);
+            OnError(ClientError::MapTransmission);
             return true;
         }
         if(!mapinfo.luaFilepath.empty() && !mapinfo.luaData.DecompressToFile(mapinfo.luaFilepath, &mapinfo.luaChecksum))
         {
-            OnError(CE_MAP_TRANSMISSION);
+            OnError(ClientError::MapTransmission);
             return true;
         }
         RTTR_Assert(!mapinfo.luaFilepath.empty() || mapinfo.luaChecksum == 0);
 
         if(!CreateLobby())
         {
-            OnError(CE_MAP_TRANSMISSION);
+            OnError(ClientError::MapTransmission);
             return true;
         }
 
         mainPlayer.sendMsgAsync(new GameMessage_Map_Checksum(mapinfo.mapChecksum, mapinfo.luaChecksum));
+        AdvanceState(ConnectState::VerifyMap);
     }
     return true;
 }
@@ -977,6 +999,23 @@ void GameClient::OnError(ClientError error)
     Stop();
 }
 
+void GameClient::AdvanceState(ConnectState newState)
+{
+    connectState = newState;
+    if(ci)
+        ci->CI_NextConnectState(connectState);
+}
+
+bool GameClient::VerifyState(ConnectState expectedState)
+{
+    if(state != ClientState::Connect || connectState != expectedState)
+    {
+        OnError(ClientError::InvalidMessage);
+        return false;
+    }
+    return true;
+}
+
 bool GameClient::CreateLobby()
 {
     RTTR_Assert(!gameLobby);
@@ -985,24 +1024,24 @@ bool GameClient::CreateLobby()
 
     switch(mapinfo.type)
     {
-        case MAPTYPE_OLDMAP:
+        case MapType::OldMap:
         {
             libsiedler2::Archiv map;
 
             // Karteninformationen laden
             if(libsiedler2::loader::LoadMAP(mapinfo.filepath, map, true) != 0)
             {
-                LOG.write("GameClient::OnMapData: ERROR: Map \"%s\", couldn't load header!\n") % mapinfo.filepath;
+                LOG.write("GameClient::OnMapData: ERROR: Map %1%, couldn't load header!\n") % mapinfo.filepath;
                 return false;
             }
 
             const libsiedler2::ArchivItem_Map_Header& header =
-              checkedCast<const glArchivItem_Map*>(map.get(0))->getHeader();
+              checkedCast<const libsiedler2::ArchivItem_Map*>(map.get(0))->getHeader();
             numPlayers = header.getNumPlayers();
             mapinfo.title = s25util::ansiToUTF8(header.getName());
         }
         break;
-        case MAPTYPE_SAVEGAME:
+        case MapType::Savegame:
             mapinfo.savegame = std::make_unique<Savegame>();
             if(!mapinfo.savegame->Load(mapinfo.filepath, SaveGameDataToLoad::HeaderAndSettings))
                 return false;
@@ -1016,7 +1055,7 @@ bool GameClient::CreateLobby()
     if(GetPlayerId() >= numPlayers)
         return false;
 
-    gameLobby = std::make_shared<GameLobby>(mapinfo.type == MAPTYPE_SAVEGAME, IsHost(), numPlayers);
+    gameLobby = std::make_shared<GameLobby>(mapinfo.type == MapType::Savegame, IsHost(), numPlayers);
     return true;
 }
 
@@ -1025,17 +1064,21 @@ bool GameClient::CreateLobby()
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_Map_ChecksumOK& msg)
 {
-    if(state != CS_CONNECT)
+    if(!VerifyState(ConnectState::VerifyMap))
         return true;
     LOG.writeToFile("<<< NMS_MAP_CHECKSUM(%d)\n") % (msg.correct ? 1 : 0);
 
-    if(!msg.correct)
+    if(msg.correct)
+        AdvanceState(ConnectState::QueryServerName);
+    else
     {
         gameLobby.reset();
         if(msg.retryAllowed)
+        {
             mainPlayer.sendMsgAsync(new GameMessage_MapRequest(false));
-        else
-            OnError(CE_MAP_TRANSMISSION);
+            AdvanceState(ConnectState::ReceiveMap);
+        } else
+            OnError(ClientError::MapTransmission);
     }
     return true;
 }
@@ -1045,20 +1088,24 @@ bool GameClient::OnGameMessage(const GameMessage_Map_ChecksumOK& msg)
 /// @param message  Nachricht, welche ausgeführt wird
 bool GameClient::OnGameMessage(const GameMessage_GGSChange& msg)
 {
-    if(state != CS_CONFIG)
+    if(state != ClientState::Config && !VerifyState(ConnectState::QuerySettings))
         return true;
     LOG.writeToFile("<<< NMS_GGS_CHANGE\n");
 
     gameLobby->getSettings() = msg.ggs;
 
-    if(ci)
+    if(state == ClientState::Connect)
+    {
+        state = ClientState::Config;
+        AdvanceState(ConnectState::Finished);
+    } else if(ci)
         ci->CI_GGSChanged(msg.ggs);
     return true;
 }
 
 bool GameClient::OnGameMessage(const GameMessage_RemoveLua&)
 {
-    if(state != CS_CONNECT && state != CS_CONFIG)
+    if(state != ClientState::Connect && state != ClientState::Config)
         return true;
     mapinfo.luaFilepath.clear();
     mapinfo.luaData.Clear();
@@ -1151,7 +1198,7 @@ bool GameClient::OnGameMessage(const GameMessage_Server_NWFDone& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_Pause& msg)
 {
-    if(state != CS_GAME)
+    if(state != ClientState::Game)
         return true;
     if(framesinfo.isPaused == msg.paused)
         return true;
@@ -1173,7 +1220,7 @@ bool GameClient::OnGameMessage(const GameMessage_Pause& msg)
  */
 bool GameClient::OnGameMessage(const GameMessage_GetAsyncLog& /*msg*/)
 {
-    if(state != CS_GAME)
+    if(state != ClientState::Game)
         return true;
     std::string systemInfo = System::getCompilerName() + " @ " + System::getOSName();
     mainPlayer.sendMsgAsync(new GameMessage_AsyncLog(systemInfo));
@@ -1217,11 +1264,21 @@ void GameClient::ExecuteGameFrame()
     }
 
     const unsigned curGF = GetGFNumber();
+    const bool isSkipping = skiptogf > curGF;
     // Is it time for the next GF? If we are skipping, it is always time for the next GF
-    if(skiptogf > curGF || (currentTime - framesinfo.lastTime) >= framesinfo.gf_length)
+    if(isSkipping || (currentTime - framesinfo.lastTime) >= framesinfo.gf_length)
     {
         try
         {
+            if(isSkipping)
+            {
+                // We are always in realtime
+                framesinfo.lastTime = currentTime;
+            } else
+            {
+                // Advance simulation time (lastTime) by 1 GF
+                framesinfo.lastTime += framesinfo.gf_length;
+            }
             if(replayMode)
             {
                 // In replay mode we have all commands in the file -> Execute them
@@ -1254,8 +1311,9 @@ void GameClient::ExecuteGameFrame()
                     nwfInfo->execute(framesinfo);
                     if(oldGFLen != framesinfo.gf_length)
                     {
-                        LOG.write("Client: Speed changed at %1% from %2% to %3% (NWF: %4%)\n") % curGF % oldGFLen
-                          % framesinfo.gf_length % framesinfo.nwf_length;
+                        LOG.write("Client: Speed changed at %1% from %2% to %3% (NWF: %4%)\n") % curGF
+                          % helpers::withUnit(oldGFLen) % helpers::withUnit(framesinfo.gf_length)
+                          % framesinfo.nwf_length;
                     }
                 }
 
@@ -1268,29 +1326,36 @@ void GameClient::ExecuteGameFrame()
                     replayinfo->replay.UpdateLastGF(curGF);
             }
 
-            // Store this timestamp
-            framesinfo.lastTime = currentTime;
-            // Reset frameTime
-            framesinfo.frameTime = FramesInfo::milliseconds32_t::zero();
         } catch(LuaExecutionError& e)
         {
-            if(ci)
-            {
-                SystemChat(
-                  (boost::format(_("Error during execution of lua script: %1\nGame stopped!")) % e.what()).str());
-                ci->CI_Error(CE_INVALID_MAP);
-            }
-            Stop();
+            SystemChat((boost::format(_("Error during execution of lua script: %1\nGame stopped!")) % e.what()).str());
+            OnError(ClientError::InvalidMap);
         }
         if(skiptogf == GetGFNumber())
             skiptogf = 0;
-    } else
-    {
-        // Next GF not yet reached, just update the time in the current one for drawing
-        framesinfo.frameTime =
-          std::chrono::duration_cast<FramesInfo::milliseconds32_t>(currentTime - framesinfo.lastTime);
-        RTTR_Assert(framesinfo.frameTime < framesinfo.gf_length);
     }
+    framesinfo.frameTime = std::chrono::duration_cast<FramesInfo::milliseconds32_t>(currentTime - framesinfo.lastTime);
+    // Check remaining time until next GF
+    if(framesinfo.frameTime >= framesinfo.gf_length)
+    {
+        // This can happen, if we don't call this method in intervalls less than gf_length or gf_length has changed
+        // TODO: Run multiple GFs per call.
+        // For now just make sure it is less than gf_length by skipping some simulation time,
+        // until we are only a bit less than 1 GF behind
+        // However we allow the simulation to lack behind for a few frames, so if there was a single spike we can still
+        // catch up in the next visual frames
+        using DurationType = decltype(framesinfo.gf_length);
+        constexpr auto maxLackFrames = 5;
+
+        RTTR_Assert(framesinfo.gf_length > DurationType::zero());
+        const auto maxFrameTime = framesinfo.gf_length - DurationType(1);
+
+        if(framesinfo.frameTime > maxLackFrames * framesinfo.gf_length)
+            framesinfo.lastTime += framesinfo.frameTime - maxFrameTime; // Skip simulation time until caught up
+        framesinfo.frameTime = maxFrameTime;
+    }
+    // This is assumed by drawing code for interpolation
+    RTTR_Assert(framesinfo.frameTime < framesinfo.gf_length);
 }
 
 void GameClient::HandleAutosave()
@@ -1334,7 +1399,7 @@ void GameClient::SendNothingNC(uint8_t player)
 
 void GameClient::WritePlayerInfo(SavedFile& file)
 {
-    RTTR_Assert(state == CS_LOADING || state == CS_LOADED || state == CS_GAME);
+    RTTR_Assert(state == ClientState::Loading || state == ClientState::Loaded || state == ClientState::Game);
     // Spielerdaten
     for(unsigned i = 0; i < GetNumPlayers(); ++i)
         file.AddPlayer(GetPlayer(i));
@@ -1342,14 +1407,14 @@ void GameClient::WritePlayerInfo(SavedFile& file)
 
 void GameClient::OnGameStart()
 {
-    if(state == CS_LOADED)
+    if(state == ClientState::Loaded)
     {
         GAMEMANAGER.ResetAverageGFPS();
         framesinfo.lastTime = FramesInfo::UsedClock::now();
-        state = CS_GAME;
+        state = ClientState::Game;
         if(ci)
-            ci->CI_GameStarted(game);
-    } else if(state == CS_GAME && !game->IsStarted())
+            ci->CI_GameStarted();
+    } else if(state == ClientState::Game && !game->IsStarted())
     {
         framesinfo.isPaused = replayMode;
         game->Start(!!mapinfo.savegame);
@@ -1375,19 +1440,19 @@ void GameClient::StartReplayRecording(const unsigned random_init)
 
 bool GameClient::StartReplay(const boost::filesystem::path& path)
 {
-    RTTR_Assert(state == CS_STOPPED);
+    RTTR_Assert(state == ClientState::Stopped);
     mapinfo.Clear();
     replayinfo = std::make_unique<ReplayInfo>();
 
-    if(!replayinfo->replay.LoadHeader(path, true) || !replayinfo->replay.LoadGameData(mapinfo)) //-V807
+    if(!replayinfo->replay.LoadHeader(path) || !replayinfo->replay.LoadGameData(mapinfo)) //-V807
     {
         LOG.write(_("Invalid Replay %1%! Reason: %2%\n")) % path
           % (replayinfo->replay.GetLastErrorMsg().empty() ? _("Unknown") : replayinfo->replay.GetLastErrorMsg());
-        OnError(CE_INVALID_MAP);
+        OnError(ClientError::InvalidMap);
         replayinfo.reset();
         return false;
     }
-    replayinfo->filename = replayinfo->replay.GetFile().getFilePath().filename();
+    replayinfo->filename = path.filename();
 
     gameLobby = std::make_shared<GameLobby>(true, true, replayinfo->replay.GetNumPlayers());
 
@@ -1399,7 +1464,7 @@ bool GameClient::StartReplay(const boost::filesystem::path& path)
     // First find a human player
     for(unsigned char i = 0; i < gameLobby->getNumPlayers(); ++i)
     {
-        if(gameLobby->getPlayer(i).ps == PS_OCCUPIED)
+        if(gameLobby->getPlayer(i).ps == PlayerState::Occupied)
         {
             mainPlayer.playerId = i;
             playerFound = true;
@@ -1411,7 +1476,7 @@ bool GameClient::StartReplay(const boost::filesystem::path& path)
         // If no human found, take the first AI
         for(unsigned char i = 0; i < gameLobby->getNumPlayers(); ++i)
         {
-            if(gameLobby->getPlayer(i).ps == PS_AI)
+            if(gameLobby->getPlayer(i).ps == PlayerState::AI)
             {
                 mainPlayer.playerId = i;
                 break;
@@ -1425,7 +1490,7 @@ bool GameClient::StartReplay(const boost::filesystem::path& path)
     switch(mapinfo.type)
     {
         default: break;
-        case MAPTYPE_OLDMAP:
+        case MapType::OldMap:
         {
             // Richtigen Pfad zur Map erstellen
             bfs::path mapFilePath = RTTRCONFIG.ExpandPath(s25::folders::mapsPlayed) / mapinfo.filepath.filename();
@@ -1433,22 +1498,22 @@ bool GameClient::StartReplay(const boost::filesystem::path& path)
             if(!mapinfo.mapData.DecompressToFile(mapinfo.filepath))
             {
                 LOG.write(_("Error decompressing map file"));
-                OnError(CE_MAP_TRANSMISSION);
+                OnError(ClientError::MapTransmission);
                 return false;
             }
-            if(mapinfo.luaData.length)
+            if(mapinfo.luaData.uncompressedLength)
             {
                 mapinfo.luaFilepath = mapFilePath.replace_extension("lua");
                 if(!mapinfo.luaData.DecompressToFile(mapinfo.luaFilepath))
                 {
                     LOG.write(_("Error decompressing lua file"));
-                    OnError(CE_MAP_TRANSMISSION);
+                    OnError(ClientError::MapTransmission);
                     return false;
                 }
             }
         }
         break;
-        case MAPTYPE_SAVEGAME: break;
+        case MapType::Savegame: break;
     }
 
     replayMode = true;
@@ -1461,7 +1526,7 @@ bool GameClient::StartReplay(const boost::filesystem::path& path)
     } catch(SerializedGameData::Error& error)
     {
         LOG.write(_("Error when loading game from replay: %s\n")) % error.what();
-        OnError(CE_INVALID_MAP);
+        OnError(ClientError::InvalidMap);
         return false;
     }
 
@@ -1478,9 +1543,6 @@ unsigned GameClient::GetGlobalAnimation(const unsigned short max, const unsigned
     // every frame of an 8-part animation anymore.
     // An animation runs fully in (factor_numerator / factor_denumerator) multiples of 630ms
     const unsigned unit = 630 /*ms*/ * factor_numerator / factor_denumerator;
-    // Good approximation of current time in ms
-    // (Accuracy of a possibly expensive VideoDriverWrapper::GetTicks() isn't needed here):
-    using namespace std::chrono;
     const unsigned currenttime = std::chrono::duration_cast<FramesInfo::milliseconds32_t>(
                                    (framesinfo.lastTime + framesinfo.frameTime).time_since_epoch())
                                    .count();
@@ -1492,33 +1554,29 @@ unsigned GameClient::Interpolate(unsigned max_val, const GameEvent* ev)
     RTTR_Assert(ev);
     // TODO: Move to some animation system that is part of game
     FramesInfo::milliseconds32_t elapsedTime;
-    if(state == CS_GAME)
+    if(state == ClientState::Game)
         elapsedTime = (GetGFNumber() - ev->startGF) * framesinfo.gf_length + framesinfo.frameTime;
     else
         elapsedTime = FramesInfo::milliseconds32_t::zero();
     FramesInfo::milliseconds32_t duration = ev->length * framesinfo.gf_length;
-    unsigned result = (max_val * elapsedTime) / duration;
-    if(result >= max_val)
-        RTTR_Assert(result < max_val); //-V547
-    return result;
+    return helpers::interpolate(0u, max_val, elapsedTime, duration);
 }
 
 int GameClient::Interpolate(int x1, int x2, const GameEvent* ev)
 {
     RTTR_Assert(ev);
-    using milliseconds32_t = std::chrono::duration<int32_t, std::milli>;
-    milliseconds32_t elapsedTime;
-    if(state == CS_GAME)
+    FramesInfo::milliseconds32_t elapsedTime;
+    if(state == ClientState::Game)
         elapsedTime = (GetGFNumber() - ev->startGF) * framesinfo.gf_length + framesinfo.frameTime;
     else
-        elapsedTime = milliseconds32_t::zero();
-    milliseconds32_t duration = ev->length * framesinfo.gf_length;
-    return x1 + ((x2 - x1) * elapsedTime) / duration;
+        elapsedTime = FramesInfo::milliseconds32_t::zero();
+    FramesInfo::milliseconds32_t duration = ev->length * framesinfo.gf_length;
+    return helpers::interpolate(x1, x2, elapsedTime, duration);
 }
 
 void GameClient::ServerLost()
 {
-    OnError(CE_CONNECTION_LOST);
+    OnError(ClientError::ConnectionLost);
     // Stop game
     framesinfo.isPaused = true;
 }
@@ -1552,7 +1610,7 @@ void GameClient::SkipGF(unsigned gf, GameWorldView& gwv)
         if(i % 1000 == 0)
         {
             RoadBuildState road;
-            road.mode = RM_DISABLED;
+            road.mode = RoadBuildMode::Disabled;
 
             // spiel aktualisieren
             gwv.Draw(road, MapPoint::Invalid(), false);
@@ -1584,12 +1642,12 @@ void GameClient::SystemChat(const std::string& text)
 void GameClient::SystemChat(const std::string& text, unsigned char fromPlayerIdx)
 {
     if(ci)
-        ci->CI_Chat(fromPlayerIdx, CD_SYSTEM, text);
+        ci->CI_Chat(fromPlayerIdx, ChatDestination::System, text);
 }
 
 bool GameClient::SaveToFile(const boost::filesystem::path& filepath)
 {
-    mainPlayer.sendMsg(GameMessage_Chat(GetPlayerId(), CD_SYSTEM, "Saving game..."));
+    mainPlayer.sendMsg(GameMessage_Chat(GetPlayerId(), ChatDestination::System, "Saving game..."));
 
     // Mond malen
     Position moonPos = VIDEODRIVER.GetMousePos();
@@ -1612,7 +1670,7 @@ bool GameClient::SaveToFile(const boost::filesystem::path& filepath)
     try
     {
         // Spiel serialisieren
-        save.sgd.MakeSnapshot(game);
+        save.sgd.MakeSnapshot(*game);
         // Und alles speichern
         return save.Save(filepath, mapinfo.title);
     } catch(std::exception& e)
@@ -1629,7 +1687,7 @@ void GameClient::ResetVisualSettings()
 
 void GameClient::SetPause(bool pause)
 {
-    if(state == CS_STOPPED)
+    if(state == ClientState::Stopped)
     {
         // We can never continue from pause if stopped as the reason for stopping might be that the game was finished
         // However we allow to pause even when stopped so we can pause after we received the stop notification
@@ -1644,9 +1702,10 @@ void GameClient::SetPause(bool pause)
     } else if(IsHost())
     {
         // Pause instantly
+        auto* msg = new GameMessage_Pause(pause);
         if(pause)
-            framesinfo.isPaused = true;
-        mainPlayer.sendMsgAsync(new GameMessage_Pause(pause));
+            OnGameMessage(*msg);
+        mainPlayer.sendMsgAsync(msg);
     }
 }
 
@@ -1678,13 +1737,13 @@ bool GameClient::AddGC(gc::GameCommandPtr gc)
 
 unsigned GameClient::GetNumPlayers() const
 {
-    RTTR_Assert(state == CS_LOADING || state == CS_LOADED || state == CS_GAME);
+    RTTR_Assert(state == ClientState::Loading || state == ClientState::Loaded || state == ClientState::Game);
     return game->world_.GetNumPlayers();
 }
 
 GamePlayer& GameClient::GetPlayer(const unsigned id)
 {
-    RTTR_Assert(state == CS_LOADING || state == CS_LOADED || state == CS_GAME);
+    RTTR_Assert(state == ClientState::Loading || state == ClientState::Loaded || state == ClientState::Game);
     RTTR_Assert(id < GetNumPlayers());
     return game->world_.GetPlayer(id);
 }
@@ -1703,17 +1762,17 @@ std::string GameClient::FormatGFTime(const unsigned gf) const
     using std::chrono::duration_cast;
 
     // In Sekunden umrechnen
-    seconds numSeconds = duration_cast<seconds>(gf * framesinfo.gf_length);
+    seconds numSeconds = duration_cast<seconds>(gf * SPEED_GF_LENGTHS[referenceSpeed]);
 
     // Angaben rausfiltern
     hours numHours = duration_cast<hours>(numSeconds);
     numSeconds -= numHours;
-    minutes numMinutes = duration_cast<hours>(numSeconds);
+    minutes numMinutes = duration_cast<minutes>(numSeconds);
     numSeconds -= numMinutes;
 
     // ganze Stunden mit dabei? Dann entsprechend anderes format, ansonsten ignorieren wir die einfach
     if(numHours.count())
-        return helpers::format("%02u:%02u:%02u", numHours.count(), numMinutes.count(), numSeconds.count());
+        return helpers::format("%u:%02u:%02u", numHours.count(), numMinutes.count(), numSeconds.count());
     else
         return helpers::format("%02u:%02u", numMinutes.count(), numSeconds.count());
 }
@@ -1738,9 +1797,13 @@ std::shared_ptr<const NWFInfo> GameClient::GetNWFInfo() const
 unsigned GameClient::GetTournamentModeDuration() const
 {
     using namespace std::chrono;
-    if(game && unsigned(game->ggs_.objective) >= NUM_OBJECTIVES)
-        return minutes(TOURNAMENT_MODES_DURATION[game->ggs_.objective - NUM_OBJECTIVES]) / framesinfo.gf_length;
-    else
+    if(game && rttr::enum_cast(game->ggs_.objective) >= rttr::enum_cast(GameObjective::Tournament1)
+       && static_cast<unsigned>(rttr::enum_cast(game->ggs_.objective))
+            < rttr::enum_cast(GameObjective::Tournament1) + NUM_TOURNAMENT_MODES)
+    {
+        const auto turnamentMode = rttr::enum_cast(game->ggs_.objective) - rttr::enum_cast(GameObjective::Tournament1);
+        return minutes(TOURNAMENT_MODES_DURATION[turnamentMode]) / SPEED_GF_LENGTHS[referenceSpeed];
+    } else
         return 0;
 }
 
@@ -1752,14 +1815,14 @@ void GameClient::ToggleHumanAIPlayer()
     if(it != game->aiPlayers_.end())
         game->aiPlayers_.erase(it);
     else
-        game->AddAIPlayer(CreateAIPlayer(GetPlayerId(), AI::Info(AI::DEFAULT, AI::EASY)));
+        game->AddAIPlayer(CreateAIPlayer(GetPlayerId(), AI::Info(AI::Type::Default, AI::Level::Easy)));
 }
 
 void GameClient::RequestSwapToPlayer(const unsigned char newId)
 {
-    if(state != CS_GAME)
+    if(state != ClientState::Game)
         return;
     GamePlayer& player = GetPlayer(newId);
-    if(player.ps == PS_AI && player.aiInfo.type == AI::DUMMY)
+    if(player.ps == PlayerState::AI && player.aiInfo.type == AI::Type::Dummy)
         mainPlayer.sendMsgAsync(new GameMessage_Player_Swap(0xFF, newId));
 }

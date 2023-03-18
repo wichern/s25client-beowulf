@@ -1,31 +1,17 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
-#include <utility>
-
 #include "GameMessage.h"
 #include "GameMessageInterface.h"
+#include "GameMessage_Chat.h"
 #include "GameProtocol.h"
 #include "GlobalGameSettings.h"
+#include "helpers/serializeEnums.h"
 #include "random/Random.h"
 #include "gameTypes/AIInfo.h"
-#include "gameTypes/ChatDestination.h"
 #include "gameTypes/MapType.h"
 #include "gameTypes/Nation.h"
 #include "gameTypes/PlayerState.h"
@@ -33,6 +19,7 @@
 #include "gameTypes/TeamTypes.h"
 #include "s25util/Log.h"
 #include "s25util/Serializer.h"
+#include <utility>
 
 struct JoinPlayerInfo;
 class MessageInterface;
@@ -87,14 +74,14 @@ public:
     void Serialize(Serializer& ser) const override
     {
         GameMessage::Serialize(ser);
-        ser.PushUnsignedShort(static_cast<unsigned short>(type));
+        helpers::pushEnum<uint16_t>(ser, type);
         ser.PushLongString(revision);
     }
 
     void Deserialize(Serializer& ser) override
     {
         GameMessage::Deserialize(ser);
-        type = static_cast<ServerType>(ser.PopUnsignedShort());
+        type = helpers::popEnum<ServerType>(ser);
         revision = ser.PopLongString();
     }
 
@@ -108,23 +95,25 @@ public:
 class GameMessage_Server_TypeOK : public GameMessage
 {
 public:
+    enum class StatusCode : uint32_t
+    {
+        Ok,
+        InvalidServerType,
+        WrongVersion
+    };
+    friend constexpr auto maxEnumValue(StatusCode) { return StatusCode::WrongVersion; }
+
     /// Vom Server akzeptiert?
-    uint32_t err_code;
+    StatusCode err_code;
+    std::string version;
 
     GameMessage_Server_TypeOK() : GameMessage(NMS_SERVER_TYPEOK) {} //-V730
-    GameMessage_Server_TypeOK(const uint32_t err_code) : GameMessage(NMS_SERVER_TYPEOK), err_code(err_code) {}
+    GameMessage_Server_TypeOK(const StatusCode err_code, std::string version)
+        : GameMessage(NMS_SERVER_TYPEOK), err_code(err_code), version(std::move(version))
+    {}
 
-    void Serialize(Serializer& ser) const override
-    {
-        GameMessage::Serialize(ser);
-        ser.PushUnsignedInt(err_code);
-    }
-
-    void Deserialize(Serializer& ser) override
-    {
-        GameMessage::Deserialize(ser);
-        err_code = ser.PopUnsignedInt();
-    }
+    void Serialize(Serializer& ser) const override;
+    void Deserialize(Serializer& ser) override;
 
     bool Run(GameMessageInterface* callback) const override { return callback->OnGameMessage(*this); }
 };
@@ -273,35 +262,6 @@ public:
     bool Run(GameMessageInterface* callback) const override { return callback->OnGameMessage(*this); }
 };
 
-/// ein/ausgehende Server-Chat-Nachricht
-class GameMessage_Chat : public GameMessageWithPlayer
-{
-public:
-    ChatDestination destination;
-    std::string text;
-
-    GameMessage_Chat() : GameMessageWithPlayer(NMS_CHAT) {} //-V730
-    GameMessage_Chat(uint8_t player, const ChatDestination destination, std::string text)
-        : GameMessageWithPlayer(NMS_CHAT, player), destination(destination), text(std::move(text))
-    {}
-
-    void Serialize(Serializer& ser) const override
-    {
-        GameMessageWithPlayer::Serialize(ser);
-        ser.PushUnsignedChar(static_cast<unsigned char>(destination));
-        ser.PushString(text);
-    }
-
-    void Deserialize(Serializer& ser) override
-    {
-        GameMessageWithPlayer::Deserialize(ser);
-        destination = ChatDestination(ser.PopUnsignedChar());
-        text = ser.PopString();
-    }
-
-    bool Run(GameMessageInterface* callback) const override { return callback->OnGameMessage(*this); }
-};
-
 /// eingehende Server-Async-Nachricht
 class GameMessage_Server_Async : public GameMessage
 {
@@ -315,22 +275,9 @@ public:
         LOG.writeToFile(">>> NMS_SERVER_ASYNC(%d)\n") % checksums.size();
     }
 
-    void Serialize(Serializer& ser) const override
-    {
-        GameMessage::Serialize(ser);
-        ser.PushUnsignedInt(unsigned(checksums.size()));
-        for(unsigned int checksum : checksums)
-            ser.PushUnsignedInt(checksum);
-    }
+    void Serialize(Serializer& ser) const override;
 
-    void Deserialize(Serializer& ser) override
-    {
-        GameMessage::Deserialize(ser);
-        unsigned size = ser.PopUnsignedInt();
-        checksums.resize(size);
-        for(unsigned i = 0; i < size; ++i)
-            checksums[i] = ser.PopUnsignedInt();
-    }
+    void Deserialize(Serializer& ser) override;
 
     bool Run(GameMessageInterface* callback) const override
     {
@@ -421,17 +368,17 @@ public:
     void Serialize(Serializer& ser) const override
     {
         GameMessageWithPlayer::Serialize(ser);
-        ser.PushUnsignedChar(static_cast<unsigned char>(ps));
-        ser.PushUnsignedChar(static_cast<unsigned char>(aiInfo.level));
-        ser.PushUnsignedChar(static_cast<unsigned char>(aiInfo.type));
+        helpers::pushEnum<uint8_t>(ser, ps);
+        helpers::pushEnum<uint8_t>(ser, aiInfo.level);
+        helpers::pushEnum<uint8_t>(ser, aiInfo.type);
     }
 
     void Deserialize(Serializer& ser) override
     {
         GameMessageWithPlayer::Deserialize(ser);
-        ps = PlayerState(ser.PopUnsignedChar());
-        aiInfo.level = AI::Level(ser.PopUnsignedChar());
-        aiInfo.type = AI::Type(ser.PopUnsignedChar());
+        ps = helpers::popEnum<PlayerState>(ser);
+        aiInfo.level = helpers::popEnum<AI::Level>(ser);
+        aiInfo.type = helpers::popEnum<AI::Type>(ser);
     }
 
     bool Run(GameMessageInterface* callback) const override
@@ -458,13 +405,13 @@ public:
     void Serialize(Serializer& ser) const override
     {
         GameMessageWithPlayer::Serialize(ser);
-        ser.PushUnsignedChar(static_cast<unsigned char>(nation));
+        helpers::pushEnum<uint8_t>(ser, nation);
     }
 
     void Deserialize(Serializer& ser) override
     {
         GameMessageWithPlayer::Deserialize(ser);
-        nation = Nation(ser.PopUnsignedChar());
+        nation = helpers::popEnum<Nation>(ser);
     }
 
     bool Run(GameMessageInterface* callback) const override
@@ -490,13 +437,13 @@ public:
     void Serialize(Serializer& ser) const override
     {
         GameMessageWithPlayer::Serialize(ser);
-        ser.PushUnsignedChar(static_cast<unsigned char>(team));
+        helpers::pushEnum<uint8_t>(ser, team);
     }
 
     void Deserialize(Serializer& ser) override
     {
         GameMessageWithPlayer::Deserialize(ser);
-        team = Team(ser.PopUnsignedChar());
+        team = helpers::popEnum<Team>(ser);
     }
 
     bool Run(GameMessageInterface* callback) const override
@@ -552,14 +499,14 @@ public:
     void Serialize(Serializer& ser) const override
     {
         GameMessageWithPlayer::Serialize(ser);
-        ser.PushUnsignedChar(cause);
+        helpers::pushEnum<uint8_t>(ser, cause);
         ser.PushUnsignedInt(param);
     }
 
     void Deserialize(Serializer& ser) override
     {
         GameMessageWithPlayer::Deserialize(ser);
-        cause = KickReason(ser.PopUnsignedChar());
+        cause = helpers::popEnum<KickReason>(ser);
         param = ser.PopUnsignedInt();
     }
 
@@ -741,7 +688,7 @@ public:
     {
         GameMessage::Serialize(ser);
         ser.PushString(filename);
-        ser.PushUnsignedChar(static_cast<unsigned char>(mt));
+        helpers::pushEnum<uint8_t>(ser, mt);
         ser.PushUnsignedInt(mapLen);
         ser.PushUnsignedInt(mapCompressedLen);
         ser.PushUnsignedInt(luaLen);
@@ -901,7 +848,7 @@ public:
     GlobalGameSettings ggs;
 
     GameMessage_GGSChange() : GameMessage(NMS_GGS_CHANGE) {}
-    GameMessage_GGSChange(const GlobalGameSettings& ggs) : GameMessage(NMS_GGS_CHANGE), ggs(ggs)
+    GameMessage_GGSChange(GlobalGameSettings ggs) : GameMessage(NMS_GGS_CHANGE), ggs(std::move(ggs))
     {
         LOG.writeToFile(">>> NMS_GGS_CHANGE\n");
     }

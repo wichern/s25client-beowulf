@@ -1,28 +1,16 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "world/MapLoader.h"
+#include "Game.h"
 #include "GamePlayer.h"
 #include "GameWorldBase.h"
+#include "GlobalGameSettings.h"
 #include "PointOutput.h"
 #include "RttrForeachPt.h"
 #include "factories/BuildingFactory.h"
 #include "lua/GameDataLoader.h"
-#include "ogl/glArchivItem_Map.h"
 #include "pathfinding/PathConditionShip.h"
 #include "random/Random.h"
 #include "world/World.h"
@@ -34,17 +22,21 @@
 #include "gameTypes/ShipDirection.h"
 #include "gameData/MaxPlayers.h"
 #include "gameData/TerrainDesc.h"
+#include "libsiedler2/Archiv.h"
+#include "libsiedler2/ArchivItem_Map.h"
 #include "libsiedler2/ArchivItem_Map_Header.h"
+#include "libsiedler2/prototypen.h"
 #include "s25util/Log.h"
+#include <boost/filesystem/operations.hpp>
 #include <algorithm>
 #include <map>
 #include <queue>
 
 class noBase;
 
-MapLoader::MapLoader(World& world) : world_(world) {}
+MapLoader::MapLoader(GameWorldBase& world) : world_(world) {}
 
-bool MapLoader::Load(const glArchivItem_Map& map, Exploration exploration)
+bool MapLoader::Load(const libsiedler2::ArchivItem_Map& map, Exploration exploration)
 {
     GameDataLoader gdLoader(world_.GetDescriptionWriteable());
     if(!gdLoader.Load())
@@ -73,15 +65,47 @@ bool MapLoader::Load(const glArchivItem_Map& map, Exploration exploration)
     InitShadows(world_);
 
     // If we have explored FoW, create the FoW objects
-    if(exploration == EXP_FOGOFWARE_EXPLORED)
+    if(exploration == Exploration::FogOfWarExplored)
         SetMapExplored(world_);
 
     return true;
 }
 
-bool MapLoader::PlaceHQs(GameWorldBase& world, bool randomStartPos)
+bool MapLoader::Load(const boost::filesystem::path& mapFilePath)
 {
-    return PlaceHQs(world, hqPositions_, randomStartPos);
+    // Map laden
+    libsiedler2::Archiv mapArchiv;
+
+    // Karteninformationen laden
+    if(libsiedler2::loader::LoadMAP(mapFilePath, mapArchiv) != 0)
+        return false;
+
+    const libsiedler2::ArchivItem_Map& map = *static_cast<libsiedler2::ArchivItem_Map*>(mapArchiv[0]);
+
+    if(!Load(map, world_.GetGGS().exploration))
+        return false;
+    if(!PlaceHQs(world_.GetGGS().randomStartPosition))
+        return false;
+
+    world_.CreateTradeGraphs();
+
+    return true;
+}
+
+bool MapLoader::LoadLuaScript(Game& game, ILocalGameState& localgameState, const boost::filesystem::path& luaFilePath)
+{
+    if(!bfs::exists(luaFilePath))
+        return false;
+    auto lua = std::make_unique<LuaInterfaceGame>(game, localgameState);
+    if(!lua->loadScript(luaFilePath) || !lua->CheckScriptVersion())
+        return false;
+    game.SetLua(std::move(lua));
+    return true;
+}
+
+bool MapLoader::PlaceHQs(bool randomStartPos)
+{
+    return PlaceHQs(world_, hqPositions_, randomStartPos);
 }
 
 void MapLoader::InitShadows(World& world)
@@ -98,7 +122,7 @@ void MapLoader::SetMapExplored(World& world)
         for(unsigned i = 0; i < MAX_PLAYERS; ++i)
         {
             // If we have FoW here, save it
-            if(world.GetNode(pt).fow[i].visibility == VIS_FOW)
+            if(world.GetNode(pt).fow[i].visibility == Visibility::FogOfWar)
                 world.SaveFOWNode(pt, i, 0);
         }
     }
@@ -116,20 +140,22 @@ DescIdx<TerrainDesc> MapLoader::getTerrainFromS2(uint8_t s2Id) const
     return DescIdx<TerrainDesc>();
 }
 
-bool MapLoader::InitNodes(const glArchivItem_Map& map, Exploration exploration)
+bool MapLoader::InitNodes(const libsiedler2::ArchivItem_Map& map, Exploration exploration)
 {
-    // Init node data (everything except the objects and figures)
+    using libsiedler2::MapLayer;
+    // Init node data (everything except the objects, figures and BQ)
     RTTR_FOREACH_PT(MapPoint, world_.GetSize())
     {
         MapNode& node = world_.GetNodeInt(pt);
 
         std::fill(node.roads.begin(), node.roads.end(), PointRoad::None);
-        node.altitude = map.GetMapDataAt(MAP_ALTITUDE, pt.x, pt.y);
-        unsigned char t1 = map.GetMapDataAt(MAP_TERRAIN1, pt.x, pt.y), t2 = map.GetMapDataAt(MAP_TERRAIN2, pt.x, pt.y);
+        node.altitude = map.getMapDataAt(MapLayer::Altitude, pt.x, pt.y);
+        unsigned char t1 = map.getMapDataAt(MapLayer::Terrain1, pt.x, pt.y),
+                      t2 = map.getMapDataAt(MapLayer::Terrain2, pt.x, pt.y);
 
         // Hafenplatz?
         if((t1 & libsiedler2::HARBOR_MASK) != 0)
-            world_.harbor_pos.push_back(pt);
+            world_.harbor_pos.push_back(HarborPos(pt));
 
         // Will be set later
         node.harborId = 0;
@@ -139,66 +165,61 @@ bool MapLoader::InitNodes(const glArchivItem_Map& map, Exploration exploration)
         if(!node.t1 || !node.t2)
             return false;
 
-        unsigned char mapResource = map.GetMapDataAt(MAP_RESOURCES, pt.x, pt.y);
+        unsigned char mapResource = map.getMapDataAt(MapLayer::Resources, pt.x, pt.y);
         Resource resource;
         // Wasser?
         if(mapResource == 0x20 || mapResource == 0x21)
-            resource = Resource(Resource::Water, 7);
+            resource = Resource(ResourceType::Water, 7);
         else if(mapResource > 0x40 && mapResource < 0x48)
-            resource = Resource(Resource::Coal, mapResource - 0x40);
+            resource = Resource(ResourceType::Coal, mapResource - 0x40);
         else if(mapResource > 0x48 && mapResource < 0x50)
-            resource = Resource(Resource::Iron, mapResource - 0x48);
+            resource = Resource(ResourceType::Iron, mapResource - 0x48);
         else if(mapResource > 0x50 && mapResource < 0x58)
-            resource = Resource(Resource::Gold, mapResource - 0x50);
+            resource = Resource(ResourceType::Gold, mapResource - 0x50);
         else if(mapResource > 0x58 && mapResource < 0x60)
-            resource = Resource(Resource::Granite, mapResource - 0x58);
+            resource = Resource(ResourceType::Granite, mapResource - 0x58);
         else if(mapResource > 0x80 && mapResource < 0x90) // fish
-            resource = Resource(Resource::Fish, 4);       // Use 4 fish
+            resource = Resource(ResourceType::Fish, 4);   // Use 4 fish
         node.resources = resource;
 
         node.reserved = false;
         node.owner = 0;
         std::fill(node.boundary_stones.begin(), node.boundary_stones.end(), 0);
-        node.bq = BQ_NOTHING;
         node.seaId = 0;
 
         Visibility fowVisibility;
         switch(exploration)
         {
-            case EXP_DISABLED: fowVisibility = VIS_VISIBLE; break;
-            case EXP_CLASSIC:
-            case EXP_FOGOFWAR: fowVisibility = VIS_INVISIBLE; break;
-            case EXP_FOGOFWARE_EXPLORED: fowVisibility = VIS_FOW; break;
+            case Exploration::Disabled: fowVisibility = Visibility::Visible; break;
+            case Exploration::Classic:
+            case Exploration::FogOfWar: fowVisibility = Visibility::Invisible; break;
+            case Exploration::FogOfWarExplored: fowVisibility = Visibility::FogOfWar; break;
             default: throw std::invalid_argument("Visibility for FoW");
         }
 
         // FOW-Zeug initialisieren
         for(auto& fow : node.fow)
         {
-            fow.last_update_time = 0;
+            fow = FoWNode();
             fow.visibility = fowVisibility;
-            fow.object = nullptr;
-            std::fill(fow.roads.begin(), fow.roads.end(), PointRoad::None);
-            fow.owner = 0;
-            std::fill(fow.boundary_stones.begin(), fow.boundary_stones.end(), 0);
         }
 
-        node.obj = nullptr; // Will be overwritten later...
         RTTR_Assert(node.figures.empty());
     }
     return true;
 }
 
-void MapLoader::PlaceObjects(const glArchivItem_Map& map)
+void MapLoader::PlaceObjects(const libsiedler2::ArchivItem_Map& map)
 {
     hqPositions_.clear();
 
     RTTR_FOREACH_PT(MapPoint, world_.GetSize())
     {
-        unsigned char lc = map.GetMapDataAt(MAP_LANDSCAPE, pt.x, pt.y);
+        using libsiedler2::MapLayer;
+        unsigned char lc = map.getMapDataAt(MapLayer::ObjectIndex, pt.x, pt.y);
         noBase* obj = nullptr;
 
-        switch(map.GetMapDataAt(MAP_TYPE, pt.x, pt.y))
+        switch(map.getMapDataAt(MapLayer::ObjectType, pt.x, pt.y))
         {
             // Player Startpos (provisorisch)
             case 0x80:
@@ -319,7 +340,7 @@ void MapLoader::PlaceObjects(const glArchivItem_Map& map)
             case 0xCC:
             {
                 if(lc >= 0x01 && lc <= 0x06)
-                    obj = new noGranite(GT_1, lc - 1);
+                    obj = new noGranite(GraniteType::One, lc - 1);
                 else
                     LOG.write(_("Unknown granite type2 at %1%: (0x%2$x)\n")) % pt % unsigned(lc);
             }
@@ -329,7 +350,7 @@ void MapLoader::PlaceObjects(const glArchivItem_Map& map)
             case 0xCD:
             {
                 if(lc >= 0x01 && lc <= 0x06)
-                    obj = new noGranite(GT_2, lc - 1);
+                    obj = new noGranite(GraniteType::Two, lc - 1);
                 else
                     LOG.write(_("Unknown granite type2 at %1%: (0x%2$x)\n")) % pt % unsigned(lc);
             }
@@ -340,7 +361,7 @@ void MapLoader::PlaceObjects(const glArchivItem_Map& map)
 
             default:
 #ifndef NDEBUG
-                unsigned unknownObj = map.GetMapDataAt(MAP_TYPE, pt.x, pt.y);
+                unsigned unknownObj = map.getMapDataAt(MapLayer::ObjectType, pt.x, pt.y);
                 LOG.write(_("Unknown object at %1%: (0x%2$x: 0x%3$x)\n")) % pt % unknownObj % unsigned(lc);
 #endif // !NDEBUG
                 break;
@@ -350,38 +371,36 @@ void MapLoader::PlaceObjects(const glArchivItem_Map& map)
     }
 }
 
-void MapLoader::PlaceAnimals(const glArchivItem_Map& map)
+void MapLoader::PlaceAnimals(const libsiedler2::ArchivItem_Map& map)
 {
     // Tiere auslesen
     RTTR_FOREACH_PT(MapPoint, world_.GetSize())
     {
         Species species;
-        switch(map.GetMapDataAt(MAP_ANIMALS, pt.x, pt.y))
+        using libsiedler2::MapLayer;
+        switch(map.getMapDataAt(MapLayer::Animals, pt.x, pt.y))
         {
-            // TODO: Welche ID ist Polarb�r?
+            // TODO: Which id is the polar bear?
             case 1:
-                species = Species(SPEC_RABBITWHITE + RANDOM.Rand(__FILE__, __LINE__, 0, 2));
-                break; // zuf�llige Hasenart nehmen
-            case 2: species = SPEC_FOX; break;
-            case 3: species = SPEC_STAG; break;
-            case 4: species = SPEC_DEER; break;
-            case 5: species = SPEC_DUCK; break;
-            case 6: species = SPEC_SHEEP; break;
+                species = (RANDOM.Rand(RANDOM_CONTEXT2(0), 2) == 0) ? Species::RabbitWhite : Species::RabbitGrey;
+                break; // Random rabbit
+            case 2: species = Species::Fox; break;
+            case 3: species = Species::Stag; break;
+            case 4: species = Species::Deer; break;
+            case 5: species = Species::Duck; break;
+            case 6: species = Species::Sheep; break;
             case 0:
             case 0xFF: // 0xFF is for (really) old S2 maps
                 continue;
             default:
 #ifndef NDEBUG
-                unsigned unknownAnimal = map.GetMapDataAt(MAP_ANIMALS, pt.x, pt.y);
+                unsigned unknownAnimal = map.getMapDataAt(MapLayer::Animals, pt.x, pt.y);
                 LOG.write(_("Unknown animal species at %1%: (0x%2$x)\n")) % pt % unknownAnimal;
 #endif // !NDEBUG
                 continue;
         }
 
-        auto* animal = new noAnimal(species, pt);
-        world_.AddFigure(pt, animal);
-        // Loslaufen
-        animal->StartLiving();
+        world_.AddFigure(pt, std::make_unique<noAnimal>(species, pt)).StartLiving();
     }
 }
 
@@ -390,7 +409,7 @@ bool MapLoader::PlaceHQs(GameWorldBase& world, std::vector<MapPoint> hqPositions
     // random locations? -> randomize them :)
     if(randomStartPos)
     {
-        RANDOM_SHUFFLE(hqPositions);
+        RANDOM_SHUFFLE2(hqPositions, 0);
     }
 
     for(unsigned i = 0; i < world.GetNumPlayers(); ++i)
@@ -406,14 +425,16 @@ bool MapLoader::PlaceHQs(GameWorldBase& world, std::vector<MapPoint> hqPositions
             return false;
         }
 
-        BuildingFactory::CreateBuilding(world, BLD_HEADQUARTERS, hqPositions[i], i, world.GetPlayer(i).nation);
+        BuildingFactory::CreateBuilding(world, BuildingType::Headquarters, hqPositions[i], i,
+                                        world.GetPlayer(i).nation);
     }
     return true;
 }
 
 bool MapLoader::InitSeasAndHarbors(World& world, const std::vector<MapPoint>& additionalHarbors)
 {
-    world.harbor_pos.insert(world.harbor_pos.end(), additionalHarbors.begin(), additionalHarbors.end());
+    for(MapPoint pt : additionalHarbors)
+        world.harbor_pos.push_back(HarborPos(pt));
     // Clear current harbors and seas
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) //-V807
     {
@@ -444,14 +465,14 @@ bool MapLoader::InitSeasAndHarbors(World& world, const std::vector<MapPoint>& ad
         {
             // Skip point at NW as often there is no path from it if the harbor is north of an island
             unsigned short seaId =
-              (dir == Direction::NORTHWEST) ? 0 : world.GetSeaFromCoastalPoint(world.GetNeighbour(it->pos, dir));
+              (dir == Direction::NorthWest) ? 0 : world.GetSeaFromCoastalPoint(world.GetNeighbour(it->pos, dir));
             // Only 1 coastal point per sea
             if(hasCoastAtSea[seaId])
                 seaId = 0;
             else
                 hasCoastAtSea[seaId] = true;
 
-            it->cps[dir].seaId = seaId;
+            it->seaIds[dir] = seaId;
             if(seaId)
                 foundCoast = true;
         }
@@ -613,8 +634,8 @@ void MapLoader::CalcHarborPosNeighbors(World& world)
                         RTTR_Assert(seaId);
                         for(const auto hbDir : helpers::EnumRange<Direction>{})
                         {
-                            if(otherHb.cps[hbDir].seaId == seaId && world.GetNeighbour(otherHb.pos, hbDir) != curPt)
-                                otherHb.cps[hbDir].seaId = 0;
+                            if(otherHb.seaIds[hbDir] == seaId && world.GetNeighbour(otherHb.pos, hbDir) != curPt)
+                                otherHb.seaIds[hbDir] = 0;
                         }
                     }
                 }
@@ -647,9 +668,8 @@ unsigned MapLoader::MeasureSea(World& world, const MapPoint start, unsigned shor
         RTTR_Assert(visited[world.GetIdx(p)]);
         world.GetNodeInt(p).seaId = seaId;
 
-        for(const auto dir : helpers::EnumRange<Direction>{})
+        for(const MapPoint neighbourPt : world.GetNeighbours(p))
         {
-            MapPoint neighbourPt = world.GetNeighbour(p, dir);
             if(visited[world.GetIdx(neighbourPt)])
                 continue;
             visited[world.GetIdx(neighbourPt)] = true;

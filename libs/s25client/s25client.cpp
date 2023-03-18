@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Debug.h"
 #include "GameManager.h"
@@ -47,7 +34,9 @@
 #include <iostream>
 #include <limits>
 #include <vector>
-//#include <vld.h>
+#if RTTR_HAS_VLD
+#    include <vld.h>
+#endif
 
 #ifdef _WIN32
 #    include <boost/nowide/convert.hpp>
@@ -105,8 +94,7 @@ void WaitForEnter()
 std::string GetProgramDescription()
 {
     std::stringstream s;
-    s << RTTR_Version::GetTitle() << " v" << RTTR_Version::GetVersionDate() << "-" << RTTR_Version::GetRevision()
-      << "\n"
+    s << rttr::version::GetTitle() << " v" << rttr::version::GetVersion() << "-" << rttr::version::GetRevision() << "\n"
       << "Compiled with " << System::getCompilerName() << " for " << System::getOSName();
     return s.str();
 }
@@ -130,9 +118,17 @@ void CExceptionHandler(unsigned exception_type, _EXCEPTION_POINTERS* exception_p
 bool askForDebugData()
 {
 #ifdef _WIN32
-    std::wstring title = boost::nowide::widen(_("Error"));
-    std::wstring text = boost::nowide::widen(_("RttR crashed. Would you like to send debug information to RttR to help "
-                                               "us avoiding this crash in the future? Thank you very much!"));
+    std::string msg = gettext_noop("RttR crashed. Would you like to send debug information to RttR to help "
+                                   "us avoiding this crash in the future? Thank you very much!");
+    std::string errorTxt = gettext_noop("Error");
+    try
+    {
+        msg = _(msg);
+        errorTxt = _(errorTxt);
+    } catch(...)
+    {}
+    std::wstring title = boost::nowide::widen(_(errorTxt));
+    std::wstring text = boost::nowide::widen(_(msg));
     return (MessageBoxW(nullptr, text.c_str(), title.c_str(), MB_YESNO | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND)
             == IDYES);
 #else
@@ -146,11 +142,19 @@ bool shouldSendDebugData()
 
 void showCrashMessage()
 {
-    std::string text = _("RttR crashed. Please restart the application!");
+    std::string text = gettext_noop("RttR crashed. Please restart the application!");
+    std::string errorTxt = gettext_noop("Error");
+    try
+    {
+        text = _(text);
+        errorTxt = _(errorTxt);
+    } catch(...)
+    {}
 #ifdef _WIN32
-    MessageBoxW(nullptr, boost::nowide::widen(text).c_str(), boost::nowide::widen(_("Error")).c_str(),
+    MessageBoxW(nullptr, boost::nowide::widen(text).c_str(), boost::nowide::widen(errorTxt).c_str(),
                 MB_OK | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND);
 #else
+    RTTR_UNUSED(errorTxt);
     bnw::cerr << text << std::endl;
 #endif
 }
@@ -164,7 +168,7 @@ void showCrashMessage()
 #endif
 }
 
-[[noreturn]] void handleException(void* pCtx = nullptr)
+void handleException(void* pCtx = nullptr) noexcept
 {
     std::vector<void*> stacktrace = DebugInfo::GetStackTrace(pCtx);
     try
@@ -176,34 +180,32 @@ void showCrashMessage()
         for(void* p : stacktrace)
             ss << p << "\n";
         LOG.write("%1%", target) % ss.str();
+        if(shouldSendDebugData())
+        {
+            DebugInfo di;
+            di.SendReplay();
+            di.SendStackTrace(stacktrace);
+        }
     } catch(...)
     { //-V565
-      // Could not write stacktrace. Ignore errors
-    }
-    if(shouldSendDebugData())
-    {
-        DebugInfo di;
-
-        di.SendReplay();
-        di.SendStackTrace(stacktrace);
+      // Could not write stacktrace or send debug data. Ignore errors
     }
 
-    if(SETTINGS.global.submit_debug_data == 0)
-        showCrashMessage();
-
-    terminateProgramm();
+    showCrashMessage();
 }
 
 #ifdef _MSC_VER
 LONG WINAPI ExceptionHandler(LPEXCEPTION_POINTERS info)
 {
     handleException(info->ContextRecord);
+    terminateProgramm();
     return EXCEPTION_EXECUTE_HANDLER;
 }
 #else
 [[noreturn]] void ExceptionHandler(int /*sig*/)
 {
     handleException();
+    terminateProgramm();
 }
 #endif
 
@@ -310,7 +312,7 @@ bool MigrateFilesAndDirectories()
 #elif defined(__APPLE__)
       {"~/.s25rttr", s25::folders::config, true},
 #endif
-      {std::string(s25::folders::lstsUser).append("/SOUND.LST"), "", false},
+      {std::string(s25::folders::assetsUserOverrides).append("/SOUND.LST"), "", false},
       {std::string(s25::folders::driver).append("/video/libvideoSDL.").append(sharedLibext), "", false},
     };
 
@@ -363,16 +365,15 @@ bool InitDirectories()
 {
     // Note: Do not use logger yet. Filepath may not exist
     const auto curPath = bfs::current_path();
-    LOG.write("Starting in %s\n", LogTarget::Stdout) % curPath;
-
-    // diverse dirs anlegen
-    const std::array<std::string, 10> dirs = {{s25::folders::config, s25::folders::mapsOwn, s25::folders::logs,
-                                               s25::folders::mapsPlayed, s25::folders::replays, s25::folders::save,
-                                               s25::folders::lstsUser, s25::folders::gameLstsUser,
-                                               s25::folders::screenshots, s25::folders::playlists}};
+    LOG.write("Starting in %1%\n", LogTarget::Stdout) % curPath;
 
     if(!MigrateFilesAndDirectories())
         return false;
+
+    // Create all required/useful folders
+    const std::array<std::string, 10> dirs = {
+      {s25::folders::config, s25::folders::logs, s25::folders::mapsOwn, s25::folders::mapsPlayed, s25::folders::replays,
+       s25::folders::save, s25::folders::assetsUserOverrides, s25::folders::screenshots, s25::folders::playlists}};
 
     for(const std::string& rawDir : dirs)
     {
@@ -394,13 +395,16 @@ bool InitDirectories()
             return false;
         }
     }
+    LOG.write("Directory for user data (config etc.): %1%\n", LogTarget::Stdout)
+      % RTTRCONFIG.ExpandPath(s25::folders::config);
+
     // Write this to file too, after folders are created
     LOG.setLogFilepath(RTTRCONFIG.ExpandPath(s25::folders::logs));
     try
     {
         LOG.open();
         LOG.write("%1%\n\n", LogTarget::File) % GetProgramDescription();
-        LOG.write("Starting in %s\n", LogTarget::File) % curPath;
+        LOG.write("Starting in %1%\n", LogTarget::File) % curPath;
     } catch(const std::exception& e)
     {
         LOG.write("Error initializing log: %1%\nSystem reports: %2%\n", LogTarget::Stderr) % e.what()
@@ -529,7 +533,8 @@ int main(int argc, char** argv)
     try
     {
         po::store(po::command_line_parser(argc, argv).options(desc).positional(positionalOptions).run(), options);
-    } catch(const po::error& e)
+        // Catch the generic stdlib exception as hidden visibility messes up boost typeinfo on OSX
+    } catch(const std::exception& e)
     {
         bnw::cerr << "Error: " << e.what() << "\n\n";
         bnw::cerr << desc << "\n";
@@ -552,9 +557,19 @@ int main(int argc, char** argv)
     try
     {
         result = RunProgram(options);
-    } catch(RttrExitException& e)
+    } catch(const RttrExitException& e)
     {
         result = e.code;
+    } catch(const std::exception& e)
+    {
+        bnw::cerr << "An exception occurred: " << e.what() << "\n\n";
+        handleException(nullptr);
+        result = 1;
+    } catch(...)
+    {
+        bnw::cerr << "An unknown exception occurred\n";
+        handleException(nullptr);
+        result = 1;
     }
     if(result)
         WaitForEnter();

@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "glAllocator.h"
 #include "glArchivItem_Bitmap_Player.h"
@@ -21,7 +8,6 @@
 #include "glArchivItem_Bitmap_Raw.h"
 #include "glArchivItem_Bitmap_Shadow.h"
 #include "glArchivItem_Bob.h"
-#include "glArchivItem_Map.h"
 #include "glArchivItem_Sound_Midi.h"
 #include "glArchivItem_Sound_Other.h"
 #include "glArchivItem_Sound_Wave.h"
@@ -60,8 +46,6 @@ std::unique_ptr<libsiedler2::ArchivItem> GlAllocator::create(libsiedler2::BobTyp
             return std::make_unique<glArchivItem_Bitmap_Player>();
         case libsiedler2::BobType::BitmapShadow: // Schatten
             return std::make_unique<glArchivItem_Bitmap_Shadow>();
-        case libsiedler2::BobType::Map: // Map
-            return std::make_unique<glArchivItem_Map>();
         case libsiedler2::BobType::Bitmap: // unkomprimiertes Bitmap
             return std::make_unique<glArchivItem_Bitmap_Raw>();
         default: break;

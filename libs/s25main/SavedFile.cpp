@@ -1,23 +1,11 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "SavedFile.h"
 #include "BasePlayerInfo.h"
 #include "RTTR_Version.h"
+#include "enum_cast.hpp"
 #include "libendian/ConvertEndianess.h"
 #include "s25util/BinaryFile.h"
 #include "s25util/Serializer.h"
@@ -28,7 +16,7 @@
 
 SavedFile::SavedFile() : saveTime_(0)
 {
-    const std::string rev = RTTR_Version::GetRevision();
+    const std::string rev = rttr::version::GetRevision();
     std::copy(rev.begin(), rev.begin() + revision.size(), revision.begin());
 }
 
@@ -144,7 +132,15 @@ void SavedFile::ReadPlayerData(BinaryFile& file)
     const unsigned playerCt = ser.PopUnsignedChar();
     players.reserve(playerCt);
     for(unsigned i = 0; i < playerCt; i++)
-        AddPlayer(BasePlayerInfo(ser, true));
+    {
+        BasePlayerInfo player(ser, true);
+        // Temporary workaround: The random team was stored in the file but should not anymore, see PR #1331
+        if(player.team > Team::Team4)
+            player.team = Team(rttr::enum_cast(player.team) - 3); // Was random team 2-4
+        else if(player.team == Team::Random)
+            player.team = Team::Team1; // Was random team 1
+        AddPlayer(player);
+    }
 }
 
 /**

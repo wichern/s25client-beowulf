@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noBuilding.h"
 #include "GamePlayer.h"
@@ -21,29 +8,29 @@
 #include "SerializedGameData.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "ogl/glSmartBitmap.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "nodeObjs/noFire.h"
 #include "s25util/Log.h"
 
 noBuilding::noBuilding(const BuildingType type, const MapPoint pos, const unsigned char player, const Nation /*nation*/)
-    : noBaseBuilding(NOP_BUILDING, type, pos, player), opendoor(0)
+    : noBaseBuilding(NodalObjectType::Building, type, pos, player), opendoor(0)
 {}
 
 void noBuilding::Destroy()
 {
     // First we have to remove the building from the map and the player
     // Replace by fire (huts and mines become small fire, rest big)
-    gwg->SetNO(pos, new noFire(pos, GetSize() != BQ_HUT && GetSize() != BQ_MINE), true);
-    gwg->GetPlayer(player).RemoveBuilding(this, bldType_);
+    world->SetNO(pos, new noFire(pos, GetSize() != BuildingQuality::Hut && GetSize() != BuildingQuality::Mine), true);
+    world->GetPlayer(player).RemoveBuilding(this, bldType_);
     // Destroy derived buildings
     DestroyBuilding();
     // Then go further down the chain
-    Destroy_noBaseBuilding();
+    noBaseBuilding::Destroy();
 }
 
-void noBuilding::Serialize_noBuilding(SerializedGameData& sgd) const
+void noBuilding::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noBaseBuilding(sgd);
+    noBaseBuilding::Serialize(sgd);
 
     sgd.PushSignedChar(opendoor);
 }
@@ -58,19 +45,17 @@ noBuilding::noBuilding(SerializedGameData& sgd, const unsigned obj_id)
     }
 }
 
-void noBuilding::DrawBaseBuilding(DrawPoint drawPt)
+void noBuilding::DrawBaseBuilding(DrawPoint drawPt) const
 {
-    LOADER.building_cache[nation][bldType_][0].draw(drawPt);
+    GetBuildingImage().DrawFull(drawPt);
     DrawDoor(drawPt);
 }
 
-void noBuilding::DrawDoor(DrawPoint drawPt)
+void noBuilding::DrawDoor(DrawPoint drawPt) const
 {
     if(!IsDoorOpen())
         return;
-    glArchivItem_Bitmap* doorImg = GetDoorImage();
-    if(doorImg)
-        doorImg->DrawFull(drawPt);
+    GetDoorImage().DrawFull(drawPt);
 }
 
 void noBuilding::OpenDoor()
@@ -84,7 +69,7 @@ void noBuilding::CloseDoor()
     --opendoor;
 }
 
-FOWObject* noBuilding::CreateFOWObject() const
+std::unique_ptr<FOWObject> noBuilding::CreateFOWObject() const
 {
-    return new fowBuilding(bldType_, nation);
+    return std::make_unique<fowBuilding>(bldType_, nation);
 }

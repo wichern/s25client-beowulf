@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "dskGameLoader.h"
 #include "Game.h"
@@ -38,12 +25,13 @@
  *  Startet das Spiel und lädt alles Notwendige.
  */
 dskGameLoader::dskGameLoader(std::shared_ptr<Game> game)
-    : Desktop(LOADER.GetImageN(LOAD_SCREENS[rand() % LOAD_SCREENS.size()], 0)), position(0),
+    : Desktop(LOADER.GetImageN(ResourceId(LOAD_SCREENS[rand() % LOAD_SCREENS.size()]), 0)), position(0),
       loader_(LOADER, std::move(game))
 {
     WINDOWMANAGER.SetCursor(Cursor::None);
 
-    AddTimer(1, 50);
+    using namespace std::chrono_literals;
+    AddTimer(1, 50ms);
 
     AddText(10, DrawPoint(800 / 2, 600 - 50), "", COLOR_YELLOW, FontStyle::CENTER, LargeFont);
 
@@ -80,7 +68,8 @@ void dskGameLoader::Msg_Timer(const unsigned /*ctrl_id*/)
 {
     auto* timer = GetCtrl<ctrlTimer>(1);
     auto* text = GetCtrl<ctrlText>(10 + position);
-    int interval = 50;
+    using namespace std::chrono_literals;
+    const auto interval = 50ms;
 
     timer->Stop();
 
@@ -143,7 +132,8 @@ void dskGameLoader::Msg_Timer(const unsigned /*ctrl_id*/)
 
 void dskGameLoader::ShowErrorMsg(const std::string& error)
 {
-    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Error"), error, this, MSB_OK, MSB_EXCLAMATIONRED, 0));
+    WINDOWMANAGER.Show(
+      std::make_unique<iwMsgbox>(_("Error"), error, this, MsgboxButton::Ok, MsgboxIcon::ExclamationRed, 0));
     GetCtrl<ctrlTimer>(1)->Stop();
 }
 
@@ -155,7 +145,7 @@ void dskGameLoader::LC_Status_Error(const std::string& error)
     ShowErrorMsg(error);
 }
 
-void dskGameLoader::CI_GameStarted(const std::shared_ptr<Game>&)
+void dskGameLoader::CI_GameStarted()
 {
     RTTR_Assert(gameInterface);
     WINDOWMANAGER.Switch(std::move(gameInterface));

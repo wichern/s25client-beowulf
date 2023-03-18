@@ -1,20 +1,7 @@
 //
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "iwMilitaryBuilding.h"
 #include "GamePlayer.h"
@@ -46,41 +33,39 @@ iwMilitaryBuilding::iwMilitaryBuilding(GameWorldView& gwv, GameCommandFactory& g
       gwv(gwv), gcFactory(gcFactory), building(building)
 {
     // Schwert
-    AddImage(0, DrawPoint(28, 39), LOADER.GetMapImageN(2298));
-    AddImage(1, DrawPoint(28, 39), LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_SWORD));
+    AddImage(0, DrawPoint(28, 39), LOADER.GetMapTexture(2298));
+    AddImage(1, DrawPoint(28, 39), LOADER.GetWareTex(GoodType::Sword));
 
     // Schild
-    AddImage(2, DrawPoint(196, 39), LOADER.GetMapImageN(2298));
-    AddImage(3, DrawPoint(196, 39), LOADER.GetMapImageN(WARES_TEX_MAP_OFFSET + GD_SHIELDROMANS));
+    AddImage(2, DrawPoint(196, 39), LOADER.GetMapTexture(2298));
+    AddImage(3, DrawPoint(196, 39), LOADER.GetWareTex(GoodType::ShieldRomans));
 
     // Hilfe
-    AddImageButton(4, DrawPoint(16, 147), Extent(30, 32), TC_GREY, LOADER.GetImageN("io", 225), _("Help"));
+    AddImageButton(4, DrawPoint(16, 147), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io", 225), _("Help"));
     // Abreißen
-    AddImageButton(5, DrawPoint(50, 147), Extent(34, 32), TC_GREY, LOADER.GetImageN("io", 23), _("Demolish house"));
+    AddImageButton(5, DrawPoint(50, 147), Extent(34, 32), TextureColor::Grey, LOADER.GetImageN("io", 23),
+                   _("Demolish house"));
     // Gold an/aus (227,226)
-    AddImageButton(6, DrawPoint(90, 147), Extent(32, 32), TC_GREY,
+    AddImageButton(6, DrawPoint(90, 147), Extent(32, 32), TextureColor::Grey,
                    LOADER.GetImageN("io", ((building->IsGoldDisabledVirtual()) ? 226 : 227)), _("Gold delivery"));
     // "Gehe Zu Ort"
-    AddImageButton(7, DrawPoint(179, 147), Extent(30, 32), TC_GREY, LOADER.GetImageN("io", 107), _("Go to place"));
+    AddImageButton(7, DrawPoint(179, 147), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io", 107),
+                   _("Go to place"));
 
     // Gebäudebild
-    AddImage(8, DrawPoint(117, 114),
-             LOADER.GetNationImage(building->GetNation(), 250 + 5 * building->GetBuildingType()));
+    AddImage(8, DrawPoint(117, 114), &building->GetBuildingImage());
     // "Go to next" (building of same type)
-    AddImageButton(9, DrawPoint(179, 115), Extent(30, 32), TC_GREY, LOADER.GetImageN("io_new", 11),
+    AddImageButton(9, DrawPoint(179, 115), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io_new", 11),
                    _("Go to next military building"));
     // addon military control active? -> show button
     if(gwv.GetWorld().GetGGS().isEnabled(AddonId::MILITARY_CONTROL))
-        AddImageButton(10, DrawPoint(124, 147), Extent(30, 32), TC_GREY, LOADER.GetImageN("io_new", 12),
+        AddImageButton(10, DrawPoint(124, 147), Extent(30, 32), TextureColor::Grey, LOADER.GetImageN("io_new", 12),
                        _("Send max rank soldiers to a warehouse"));
 }
 
 void iwMilitaryBuilding::Draw_()
 {
     IngameWindow::Draw_();
-    // Schatten des Gebäudes (muss hier gezeichnet werden wegen schwarz und halbdurchsichtig)
-    LOADER.GetNationImage(building->GetNation(), 250 + 5 * building->GetBuildingType() + 1)
-      ->DrawFull(GetDrawPos() + DrawPoint(117, 114), COLOR_SHADOW);
 
     // Schwarzer Untergrund für Goldanzeige
     const unsigned maxCoinCt = building->GetMaxCoinCt();
@@ -90,20 +75,21 @@ void iwMilitaryBuilding::Draw_()
     goldPos += DrawPoint(12, 12);
     for(unsigned short i = 0; i < maxCoinCt; ++i)
     {
-        LOADER.GetMapImageN(2278)->DrawFull(goldPos, (i >= building->GetNumCoins() ? 0xFFA0A0A0 : 0xFFFFFFFF));
+        LOADER.GetMapTexture(2278)->DrawFull(goldPos, (i >= building->GetNumCoins() ? 0xFFA0A0A0 : 0xFFFFFFFF));
         goldPos.x += 22;
     }
 
     // Sammeln aus der Rausgeh-Liste und denen, die wirklich noch drinne sind
-    std::multiset<const nofSoldier*, ComparatorSoldiersByRank<true>> soldiers(building->GetTroops().begin(),
-                                                                              building->GetTroops().end());
-    for(const noFigure* fig : building->GetLeavingFigures())
+    boost::container::flat_set<const nofSoldier*, ComparatorSoldiersByRank> soldiers;
+    for(const auto& soldier : building->GetTroops())
+        soldiers.insert(&soldier);
+    for(const noFigure& fig : building->GetLeavingFigures())
     {
-        const GO_Type figType = fig->GetGOT();
-        if(figType == GOT_NOF_ATTACKER || figType == GOT_NOF_AGGRESSIVEDEFENDER || figType == GOT_NOF_DEFENDER
-           || figType == GOT_NOF_PASSIVESOLDIER)
+        const GO_Type figType = fig.GetGOT();
+        if(figType == GO_Type::NofAttacker || figType == GO_Type::NofAggressivedefender
+           || figType == GO_Type::NofDefender || figType == GO_Type::NofPassivesoldier)
         {
-            soldiers.insert(static_cast<const nofSoldier*>(fig));
+            soldiers.insert(static_cast<const nofSoldier*>(&fig));
         }
     }
 
@@ -116,7 +102,7 @@ void iwMilitaryBuilding::Draw_()
     DrawPoint curTroopsPos = troopsPos + DrawPoint(12, 12);
     for(const auto* soldier : soldiers)
     {
-        LOADER.GetMapImageN(2321 + soldier->GetRank())->DrawFull(curTroopsPos);
+        LOADER.GetMapTexture(2321 + soldier->GetRank())->DrawFull(curTroopsPos);
         curTroopsPos.x += 22;
     }
 
@@ -132,7 +118,7 @@ void iwMilitaryBuilding::Draw_()
         for(const auto* soldier : soldiers)
         {
             auto hitpoints = static_cast<int>(soldier->GetHitpoints());
-            auto maxHitpoints = static_cast<int>(HITPOINTS[building->GetNation()][soldier->GetRank()]);
+            auto maxHitpoints = static_cast<int>(HITPOINTS[soldier->GetRank()]);
             unsigned hitpointsColour;
             if(hitpoints <= maxHitpoints / 2)
                 hitpointsColour = COLOR_RED;
@@ -237,6 +223,6 @@ void iwMilitaryBuilding::DemolitionNotAllowed(const GlobalGameSettings& ggs)
         case 2: msg = _("Demolition ist not allowed because the building is located in border area!"); break;
     }
 
-    WINDOWMANAGER.Show(
-      std::make_unique<iwMsgbox>(_("Demolition not possible"), msg, nullptr, MSB_OK, MSB_EXCLAMATIONRED));
+    WINDOWMANAGER.Show(std::make_unique<iwMsgbox>(_("Demolition not possible"), msg, nullptr, MsgboxButton::Ok,
+                                                  MsgboxIcon::ExclamationRed));
 }

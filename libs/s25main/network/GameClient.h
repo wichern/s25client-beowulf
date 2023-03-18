@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -40,17 +27,28 @@ struct Info;
 
 class AIPlayer;
 class ClientInterface;
-class SavedFile;
-class GamePlayer;
+class Game;
 class GameEvent;
 class GameLobby;
+class GamePlayer;
 class GameWorldView;
-class Game;
-class Replay;
-struct PlayerGameCommands;
 class NWFInfo;
+class Replay;
+class SavedFile;
+enum class ConnectState;
 struct CreateServerInfo;
+struct PlayerGameCommands;
 struct ReplayInfo;
+
+enum class ClientState
+{
+    Stopped,
+    Connect,
+    Config,
+    Loading,
+    Loaded,
+    Game
+};
 
 class GameClient final :
     public Singleton<GameClient, SingletonPolicies::WithLongevity>,
@@ -60,16 +58,6 @@ class GameClient final :
 {
 public:
     static constexpr unsigned Longevity = 5;
-
-    enum ClientState
-    {
-        CS_STOPPED = 0,
-        CS_CONNECT,
-        CS_CONFIG,
-        CS_LOADING,
-        CS_LOADED,
-        CS_GAME
-    };
 
     GameClient();
     ~GameClient();
@@ -249,6 +237,12 @@ private:
 
     /// Report the error and stop
     void OnError(ClientError error);
+    /// Advance to new connect state
+    void AdvanceState(ConnectState newState);
+    /// Verifies that the current connect state matches the expected one
+    /// On error the error is reported and the connection terminated as likely the server is faulty
+    bool VerifyState(ConnectState expectedState);
+
     bool CreateLobby();
 
     /// Wird aufgerufen, wenn der Server gegangen ist (Verbindung verloren, ungültige Nachricht etc.)
@@ -272,6 +266,7 @@ private:
     NetworkPlayer mainPlayer;
 
     ClientState state;
+    ConnectState connectState;
 
     /// Game state itself (valid during LOADING and GAME state)
     std::shared_ptr<Game> game;

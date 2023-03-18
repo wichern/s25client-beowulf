@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "noFighting.h"
 #include "EventManager.h"
@@ -29,51 +16,44 @@
 #include "ogl/glArchivItem_Bitmap_Player.h"
 #include "ogl/glSmartBitmap.h"
 #include "random/Random.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "gameData/MilitaryConsts.h"
 
-noFighting::noFighting(nofActiveSoldier* soldier1, nofActiveSoldier* soldier2) : noBase(NOP_FIGHTING)
+noFighting::noFighting(nofActiveSoldier& soldier1, nofActiveSoldier& soldier2) : noBase(NodalObjectType::Fighting)
 {
-    RTTR_Assert(soldier1->GetPlayer() != soldier2->GetPlayer());
+    RTTR_Assert(soldier1.GetPlayer() != soldier2.GetPlayer());
+    const MapPoint pos = soldier1.GetPos();
 
-    soldiers[0] = soldier1;
-    soldiers[1] = soldier2;
+    soldiers[0] = world->RemoveFigure(pos, soldier1);
+    soldiers[1] = world->RemoveFigure(pos, soldier2);
     turn = 2;
     defending_animation = 0;
     player_won = 0xFF;
-
-    // Die beiden Soldaten erstmal aus der Liste hauen
-    gwg->RemoveFigure(soldier1->GetPos(), soldier1);
-    gwg->RemoveFigure(soldier1->GetPos(), soldier2);
 
     // Beginn-Event Anmelden (Soldaten gehen auf ihre Seiten)
     current_ev = GetEvMgr().AddEvent(this, 15);
 
     // anderen Leute, die auf diesem Punkt zulaufen, stoppen
-    gwg->StopOnRoads(soldier1->GetPos());
+    world->StopOnRoads(pos);
 
     // Sichtradius behalten
-    gwg->MakeVisibleAroundPoint(soldier1->GetPos(), VISUALRANGE_SOLDIER, soldier1->GetPlayer());
-    gwg->MakeVisibleAroundPoint(soldier1->GetPos(), VISUALRANGE_SOLDIER, soldier2->GetPlayer());
+    world->MakeVisibleAroundPoint(pos, VISUALRANGE_SOLDIER, soldier1.GetPlayer());
+    world->MakeVisibleAroundPoint(pos, VISUALRANGE_SOLDIER, soldier2.GetPlayer());
 }
 
-noFighting::~noFighting()
-{
-    deletePtr(soldiers[0]);
-    deletePtr(soldiers[1]);
-}
+noFighting::~noFighting() = default;
 
-void noFighting::Serialize_noFighting(SerializedGameData& sgd) const
+void noFighting::Serialize(SerializedGameData& sgd) const
 {
-    Serialize_noBase(sgd);
+    noBase::Serialize(sgd);
 
     sgd.PushUnsignedChar(turn);
     sgd.PushUnsignedChar(defending_animation);
     sgd.PushEvent(current_ev);
     sgd.PushUnsignedChar(player_won);
 
-    for(auto* soldier : soldiers)
-        sgd.PushObject(soldier, false);
+    for(const auto& soldier : soldiers)
+        sgd.PushObject(soldier);
 }
 
 noFighting::noFighting(SerializedGameData& sgd, const unsigned obj_id)
@@ -82,14 +62,14 @@ noFighting::noFighting(SerializedGameData& sgd, const unsigned obj_id)
 
 {
     for(auto& soldier : soldiers)
-        soldier = sgd.PopObject<nofActiveSoldier>(GOT_UNKNOWN);
+        soldier.reset(sgd.PopObject<nofActiveSoldier>());
 }
 
-void noFighting::Destroy_noFighting()
+void noFighting::Destroy()
 {
     RTTR_Assert(!soldiers[0]);
     RTTR_Assert(!soldiers[1]);
-    Destroy_noBase();
+    noBase::Destroy();
 }
 
 void noFighting::Draw(DrawPoint drawPt)
@@ -101,7 +81,7 @@ void noFighting::Draw(DrawPoint drawPt)
         {
             const unsigned curAnimFrame = GAMECLIENT.Interpolate(16, current_ev);
             const auto& soldier = *soldiers[turn - 3];
-            const GamePlayer& owner = gwg->GetPlayer(soldier.GetPlayer());
+            const GamePlayer& owner = world->GetPlayer(soldier.GetPlayer());
 
             // Sterben des einen Soldatens (letzte Phase)
 
@@ -122,7 +102,7 @@ void noFighting::Draw(DrawPoint drawPt)
 
             // Sterbesound abspielen
             if(curAnimFrame == 6)
-                SOUNDMANAGER.PlayNOSound(104, this, 2);
+                world->GetSoundMgr().playNOSound(104, *this, 2);
         }
         break;
         case 2:
@@ -132,9 +112,10 @@ void noFighting::Draw(DrawPoint drawPt)
             drawPt.x -= x_diff;
             for(unsigned i : {0, 1})
             {
-                const GamePlayer& owner = gwg->GetPlayer(soldiers[i]->GetPlayer());
-                glSmartBitmap& bmp = LOADER.bob_jobs_cache[owner.nation][soldiers[i]->GetJobType()][(i == 0) ? 0 : 3]
-                                                          [GAMECLIENT.Interpolate(8, current_ev)];
+                const GamePlayer& owner = world->GetPlayer(soldiers[i]->GetPlayer());
+                glSmartBitmap& bmp = LOADER.getBobSprite(owner.nation, soldiers[i]->GetJobType(),
+                                                         (i == 0) ? Direction::West : Direction::East,
+                                                         GAMECLIENT.Interpolate(8, current_ev));
                 bmp.draw(drawPt, COLOR_WHITE, owner.color);
                 drawPt.x += 2 * x_diff;
             }
@@ -149,7 +130,7 @@ void noFighting::Draw(DrawPoint drawPt)
             for(unsigned i : {0, 1})
             {
                 const auto& soldier = *soldiers[i];
-                const GamePlayer& owner = gwg->GetPlayer(soldier.GetPlayer());
+                const GamePlayer& owner = world->GetPlayer(soldier.GetPlayer());
                 auto& fightAnim = LOADER.fight_cache[owner.nation][soldier.GetRank()][i];
 
                 // Ist der Soldat mit Angreifen dran?
@@ -170,7 +151,7 @@ void noFighting::Draw(DrawPoint drawPt)
                         if(curAnimFrame == 5
                            && ((soldier.GetRank() < 2 && defending_animation < 2)
                                || (soldier.GetRank() > 1 && defending_animation == 0)))
-                            SOUNDMANAGER.PlayNOSound(101, this, 1);
+                            world->GetSoundMgr().playNOSound(101, *this, 1);
 
                     } else
                     {
@@ -181,7 +162,7 @@ void noFighting::Draw(DrawPoint drawPt)
                             fightAnim.hit.drawForPlayer(drawPt, owner.color);
 
                             // Treffersound
-                            SOUNDMANAGER.PlayNOSound(105, this, 1);
+                            world->GetSoundMgr().playNOSound(105, *this, 1);
                         } else
                             // normal dastehen
                             fightAnim.defending[0][0].drawForPlayer(drawPt, owner.color);
@@ -191,7 +172,7 @@ void noFighting::Draw(DrawPoint drawPt)
 
             // Angriffssound
             if(curAnimFrame == 3)
-                SOUNDMANAGER.PlayNOSound(103, this, 0);
+                world->GetSoundMgr().playNOSound(103, *this, 0);
         }
         break;
     }
@@ -209,7 +190,7 @@ void noFighting::HandleEvent(const unsigned id)
                 // Der Kampf hat gerade begonnen
 
                 // "Auslosen", wer als erstes dran ist mit Angreifen
-                turn = static_cast<unsigned char>(RANDOM.Rand(__FILE__, __LINE__, GetObjId(), 2));
+                turn = static_cast<unsigned char>(RANDOM_RAND(2));
                 // anfangen anzugreifen
                 StartAttack();
             }
@@ -218,7 +199,7 @@ void noFighting::HandleEvent(const unsigned id)
             case 1:
             {
                 // Sounds löschen von der letzten Kampfphase
-                SOUNDMANAGER.WorkingFinished(this);
+                world->GetSoundMgr().stopSounds(*this);
 
                 // Wurde der eine getroffen?
                 if(defending_animation == 3)
@@ -231,18 +212,20 @@ void noFighting::HandleEvent(const unsigned id)
                         // Soldat Bescheid sagen, dass er stirbt
                         soldiers[1 - turn]->LostFighting();
                         // Anderen Soldaten auf die Karte wieder setzen, Bescheid sagen, er kann wieder loslaufen
-                        gwg->AddFigure(soldiers[turn]->GetPos(), soldiers[turn]);
-                        soldiers[turn]->WonFighting();
-                        soldiers[turn] = nullptr;
+                        const MapPoint pos = soldiers[turn]->GetPos();
+                        auto& winningSoldier = world->AddFigure(pos, std::move(soldiers[turn]));
                         // Hitpoints sind 0 --> Soldat ist tot, Kampf beendet, turn = 3+welche Soldat stirbt
+                        // Do this before calling WonFighting so this fight doesn't block the soldier looking for a new
+                        // fight spot
                         turn = 3 + (1 - turn);
+                        winningSoldier.WonFighting();
                         // Event zum Sterben des einen Soldaten anmelden
                         current_ev = GetEvMgr().AddEvent(this, 30);
                         // Umstehenden Figuren Bescheid Bescheid sagen
-                        gwg->RoadNodeAvailable(soldiers[turn - 3]->GetPos());
+                        world->RoadNodeAvailable(pos);
 
                         // In die Statistik eintragen
-                        gwg->GetPlayer(player_won).ChangeStatisticValue(STAT_VANQUISHED, 1);
+                        world->GetPlayer(player_won).ChangeStatisticValue(StatisticType::Vanquished, 1);
                         return;
                     }
                 }
@@ -258,31 +241,30 @@ void noFighting::HandleEvent(const unsigned id)
                 MapPoint pt = soldiers[player_lost]->GetPos();
 
                 // Sounds löschen vom Sterben
-                SOUNDMANAGER.WorkingFinished(this);
+                world->GetSoundMgr().stopSounds(*this);
 
                 // Kampf ist endgültig beendet
-                GetEvMgr().AddToKillList(this);
-                gwg->RemoveFigure(pt, this);
+                GetEvMgr().AddToKillList(world->RemoveFigure(pt, *this));
 
                 // Wenn da nix war bzw. nur ein Verzierungsobjekt, kommt nun ein Skelett hin
-                NodalObjectType noType = gwg->GetNO(pt)->GetType();
-                if(noType == NOP_NOTHING || noType == NOP_ENVIRONMENT)
+                NodalObjectType noType = world->GetNO(pt)->GetType();
+                if(noType == NodalObjectType::Nothing || noType == NodalObjectType::Environment)
                 {
-                    gwg->DestroyNO(pt, false);
-                    gwg->SetNO(pt, new noSkeleton(pt));
+                    world->DestroyNO(pt, false);
+                    world->SetNO(pt, new noSkeleton(pt));
                 }
 
                 // Sichtradius ausblenden am Ende des Kampfes, an jeweiligen Soldaten dann übergeben, welcher überlebt
                 // hat
-                gwg->RecalcVisibilitiesAroundPoint(pt, VISUALRANGE_SOLDIER, soldiers[player_lost]->GetPlayer(),
-                                                   nullptr);
-                gwg->RecalcVisibilitiesAroundPoint(pt, VISUALRANGE_SOLDIER, player_won, nullptr);
+                world->RecalcVisibilitiesAroundPoint(pt, VISUALRANGE_SOLDIER, soldiers[player_lost]->GetPlayer(),
+                                                     nullptr);
+                world->RecalcVisibilitiesAroundPoint(pt, VISUALRANGE_SOLDIER, player_won, nullptr);
 
                 // Soldaten endgültig umbringen
-                gwg->GetPlayer(soldiers[player_lost]->GetPlayer())
+                world->GetPlayer(soldiers[player_lost]->GetPlayer())
                   .DecreaseInventoryJob(soldiers[player_lost]->GetJobType(), 1);
                 soldiers[player_lost]->Destroy();
-                deletePtr(soldiers[player_lost]);
+                soldiers[player_lost].reset();
             }
             break;
         }
@@ -298,15 +280,15 @@ void noFighting::StartAttack()
     std::array<unsigned char, 2> results;
     for(unsigned i = 0; i < 2; ++i)
     {
-        switch(gwg->GetGGS().getSelection(AddonId::ADJUST_MILITARY_STRENGTH))
+        switch(world->GetGGS().getSelection(AddonId::ADJUST_MILITARY_STRENGTH))
         {
             case 0: // Maximale Stärke
-                results[i] = RANDOM.Rand(__FILE__, __LINE__, GetObjId(), soldiers[i]->GetRank() + 6);
+                results[i] = RANDOM_RAND(soldiers[i]->GetRank() + 6);
                 break;
             case 1: // Mittlere Stärke
-            default: results[i] = RANDOM.Rand(__FILE__, __LINE__, GetObjId(), soldiers[i]->GetRank() + 10); break;
+            default: results[i] = RANDOM_RAND(soldiers[i]->GetRank() + 10); break;
             case 2: // Minimale Stärke
-                results[i] = RANDOM.Rand(__FILE__, __LINE__, GetObjId(), 10);
+                results[i] = RANDOM_RAND(10);
                 break;
         }
     }
@@ -316,7 +298,7 @@ void noFighting::StartAttack()
         defending_animation = 3;
     else
         // Der Verteidiger hat diesen Zug gewonnen, zufällige Verteidigungsanimation
-        defending_animation = static_cast<unsigned char>(RANDOM.Rand(__FILE__, __LINE__, GetObjId(), 3));
+        defending_animation = static_cast<unsigned char>(RANDOM_RAND(3));
 
     // Entsprechendes Event anmelden
     current_ev = GetEvMgr().AddEvent(this, 15);
@@ -329,7 +311,7 @@ bool noFighting::IsActive() const
 
 bool noFighting::IsSoldierOfPlayer(const unsigned char player) const
 {
-    for(const nofSoldier* soldier : soldiers)
+    for(const std::unique_ptr<nofActiveSoldier>& soldier : soldiers)
     {
         if(soldier && soldier->GetPlayer() == player)
             return true;

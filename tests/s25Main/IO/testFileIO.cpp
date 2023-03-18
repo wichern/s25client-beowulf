@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ListDir.h"
 #include <s25util/utf8.h>
@@ -68,19 +55,19 @@ BOOST_FIXTURE_TEST_CASE(TestListDir, FileOpenFixture)
     BOOST_TEST_REQUIRE(files.size() == 3u);
     for(const bfs::path& file : files)
     {
-        BOOST_REQUIRE(bfs::exists(file));
-        BOOST_REQUIRE(file.is_absolute());
+        BOOST_TEST_REQUIRE(bfs::exists(file));
+        BOOST_TEST_REQUIRE(file.is_absolute());
 
         // String result must still be utf8
-        BOOST_REQUIRE(s25util::isValidUTF8(file.string()));
+        BOOST_TEST_REQUIRE(s25util::isValidUTF8(file.string()));
 
         // Scopes for auto-close
         {
             // path input
             bnw::ifstream sFile(file);
-            BOOST_REQUIRE(sFile);
+            BOOST_TEST_REQUIRE(!!sFile);
             std::string content;
-            BOOST_REQUIRE(sFile >> content);
+            BOOST_TEST_REQUIRE(!!(sFile >> content));
             BOOST_TEST_REQUIRE(content == "OK");
         }
 
@@ -92,7 +79,7 @@ BOOST_FIXTURE_TEST_CASE(TestListDir, FileOpenFixture)
             using MMStream = boost::iostreams::stream<boost::iostreams::mapped_file_source>;
             MMStream map(mmapFile);
             std::string content;
-            BOOST_REQUIRE(map >> content);
+            BOOST_TEST_REQUIRE(!!(map >> content));
             BOOST_TEST_REQUIRE(content == "OK");
         }
     }

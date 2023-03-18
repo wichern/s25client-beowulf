@@ -1,19 +1,6 @@
-// Copyright (c) 2016 - 2019 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Loader.h"
 #include "controls/ctrlComboBox.h"
@@ -32,15 +19,13 @@
 using namespace rttr::test;
 
 namespace {
-/* clang-format off */
-    MOCK_BASE_CLASS(TestWindow, Window)
-    {
-    public:
-        TestWindow() : Window(nullptr, randomValue<unsigned>(), DrawPoint(0,0)) {}
-        MOCK_METHOD(Msg_ComboSelectItem, 2)
-        MOCK_METHOD(Msg_ListSelectItem, 2)
-    };
-/* clang-format on */
+MOCK_BASE_CLASS(TestWindow, Window)
+{
+public:
+    TestWindow() : Window(nullptr, randomValue<unsigned>(), DrawPoint(0, 0)) {}
+    MOCK_METHOD(Msg_ComboSelectItem, 2)
+    MOCK_METHOD(Msg_ListSelectItem, 2)
+};
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(ComboBox, uiHelper::Fixture)
@@ -49,7 +34,7 @@ BOOST_AUTO_TEST_CASE(ItemHandling)
 {
     TestWindow wnd;
     auto cb = std::make_unique<ctrlComboBox>(&wnd, randomValue<unsigned>(), DrawPoint(0, 0), Extent(40, 20),
-                                             TextureColor::TC_GREEN1, NormalFont, 20, false);
+                                             TextureColor::Green1, NormalFont, 20, false);
     REQUIRE(cb->GetNumItems() == 0);
     REQUIRE(!cb->GetSelection());
 
@@ -91,7 +76,7 @@ BOOST_AUTO_TEST_CASE(ControlWithScrollWheel)
 {
     TestWindow wnd;
     auto cb = std::make_unique<ctrlComboBox>(&wnd, randomValue<unsigned>(), randomPoint<DrawPoint>(0, 100),
-                                             randomPoint<Extent>(20, 200), TextureColor::TC_GREEN1, NormalFont,
+                                             randomPoint<Extent>(20, 200), TextureColor::Green1, NormalFont,
                                              randomValue(20, 200), false);
 
     for(int i = 0; i < 3; i++)
@@ -128,7 +113,7 @@ BOOST_AUTO_TEST_CASE(ListRemove)
 {
     TestWindow wnd;
     auto list = std::make_unique<ctrlList>(&wnd, randomValue<unsigned>(), randomPoint<DrawPoint>(0, 100),
-                                           randomPoint<Extent>(20, 200), TextureColor::TC_GREEN1, NormalFont);
+                                           randomPoint<Extent>(20, 200), TextureColor::Green1, NormalFont);
     std::vector<std::string> lines;
     for(int i = 0; i < 10; i++)
     {

@@ -1,23 +1,11 @@
-// Copyright (c) 2020 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "helpers/OptionalEnum.h"
-#include <boost/mpl/list.hpp>
+#include "helpers/OptionalIO.h"
 #include <boost/test/unit_test.hpp>
+#include <utility>
 
 namespace testEnums {
 enum class DefaultEnum
@@ -35,58 +23,33 @@ enum class UnsignedEnum : unsigned char
     Value1,
     Value2
 };
-struct FakeEnum
-{
-    enum Type : unsigned
-    {
-        Value1,
-        Value2
-    };
-    Type t_;
-    FakeEnum(Type t) : t_(t) {}
-    explicit operator unsigned() const { return t_; }
-};
-// Only variant required
-static bool operator==(const FakeEnum& lhs, const FakeEnum::Type& rhs)
-{
-    return lhs.t_ == rhs;
-}
 
+// LCOV_EXCL_START
 template<typename T>
 static std::enable_if_t<std::is_enum<T>::value, std::ostream&> operator<<(std::ostream& os, T enumVal)
 {
     return os << static_cast<int>(enumVal);
 }
+// LCOV_EXCL_STOP
 
-static std::ostream& operator<<(std::ostream& os, FakeEnum enumVal)
+constexpr auto maxEnumValue(DefaultEnum)
 {
-    return os << enumVal.t_;
+    return DefaultEnum::Value2;
+}
+constexpr auto maxEnumValue(SignedEnum)
+{
+    return SignedEnum::Value2;
+}
+constexpr auto maxEnumValue(UnsignedEnum)
+{
+    return UnsignedEnum::Value2;
 }
 
 } // namespace testEnums
 
-namespace helpers {
-template<>
-struct is_enum<testEnums::FakeEnum> : std::true_type
-{};
-template<typename T>
-static std::ostream& operator<<(std::ostream& os, OptionalEnum<T> enumVal)
-{
-    if(enumVal)
-        return os << *enumVal;
-    else
-        return os << "empty_opt";
-}
-} // namespace helpers
-
 using namespace testEnums;
 
-DEFINE_MAX_ENUM_VALUE(DefaultEnum, DefaultEnum::Value2)
-DEFINE_MAX_ENUM_VALUE(SignedEnum, SignedEnum::Value2)
-DEFINE_MAX_ENUM_VALUE(UnsignedEnum, UnsignedEnum::Value2)
-DEFINE_MAX_ENUM_VALUE(FakeEnum, FakeEnum::Value2)
-
-using EnumsToTest = boost::mpl::list<DefaultEnum, SignedEnum, UnsignedEnum, FakeEnum>;
+using EnumsToTest = std::tuple<DefaultEnum, SignedEnum, UnsignedEnum>;
 
 BOOST_AUTO_TEST_SUITE(OptionalEnum)
 
@@ -176,14 +139,6 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(CopyAndMove, T, EnumsToTest)
     BOOST_TEST(optVal1_3 == T::Value1);
     optVal1 = std::move(optVal1_3);
     BOOST_TEST(optVal1 == T::Value1);
-}
-
-BOOST_AUTO_TEST_CASE(AssignFakeEnum)
-{
-    helpers::OptionalEnum<FakeEnum> optVal(FakeEnum::Value1);
-    BOOST_TEST(optVal == FakeEnum::Value1);
-    optVal = FakeEnum::Value2;
-    BOOST_TEST(optVal == FakeEnum::Value2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

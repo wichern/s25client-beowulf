@@ -1,19 +1,6 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
@@ -30,7 +17,7 @@
 #include "worldFixtures/GCExecutor.h"
 #include "worldFixtures/MockLocalGameState.h"
 #include "worldFixtures/initGameRNG.hpp"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include "world/MapLoader.h"
 #include "s25util/AvoidDuplicatesWriter.h"
 #include "s25util/Log.h"
@@ -44,15 +31,7 @@
 class GameWithLuaAccess : public Game
 {
 public:
-    GameWithLuaAccess() : Game(GlobalGameSettings(), 0u, CreatePlayers())
-    {
-        for(unsigned id = 0; id < world_.GetNumPlayers(); id++)
-        {
-            GamePlayer& player = world_.GetPlayer(id);
-            if(!player.isHuman() && player.isUsed())
-                AddAIPlayer(AIFactory::Create(world_.GetPlayer(id).aiInfo, id, world_));
-        }
-    }
+    GameWithLuaAccess() : Game(GlobalGameSettings(), 0u, CreatePlayers()) {}
 
     void executeAICommands()
     {
@@ -72,21 +51,21 @@ public:
     static std::vector<PlayerInfo> CreatePlayers()
     {
         std::vector<PlayerInfo> players(3);
-        players[0].ps = PS_OCCUPIED;
+        players[0].ps = PlayerState::Occupied;
         players[0].name = "Player1";
-        players[0].nation = NAT_VIKINGS;
+        players[0].nation = Nation::Vikings;
         players[0].color = PLAYER_COLORS[5];
-        players[0].team = TM_TEAM1;
+        players[0].team = Team::Team1;
         players[0].isHost = true;
 
-        players[1].ps = PS_AI;
+        players[1].ps = PlayerState::AI;
         players[1].name = "PlayerAI";
-        players[1].nation = NAT_ROMANS;
+        players[1].nation = Nation::Romans;
         players[1].color = 0xFFFF0000;
-        players[1].team = TM_TEAM2;
+        players[1].team = Team::Team2;
         players[1].isHost = false;
 
-        players[2].ps = PS_LOCKED;
+        players[2].ps = PlayerState::Locked;
         return players;
     }
 };
@@ -94,15 +73,15 @@ public:
 struct LuaTestsFixture : public rttr::test::LogAccessor, public LuaBaseFixture, GCExecutor
 {
 public:
-    std::shared_ptr<GameWithLuaAccess> game;
+    GameWithLuaAccess game;
     GameWorld& world;
     MockLocalGameState localGameState;
     std::vector<MapPoint> hqPositions;
 
-    LuaTestsFixture() : game(std::make_shared<GameWithLuaAccess>()), world(game->world_)
+    LuaTestsFixture() : world(game.world_)
     {
-        game->world_.SetLua(std::make_unique<LuaInterfaceGame>(game, localGameState));
-        setLua(&game->world_.GetLua());
+        game.SetLua(std::make_unique<LuaInterfaceGame>(game, localGameState));
+        setLua(&world.GetLua());
     }
 
     void initWorld()
@@ -117,8 +96,15 @@ public:
         std::vector<Nation> playerNations;
         playerNations.push_back(world.GetPlayer(0).nation);
         playerNations.push_back(world.GetPlayer(1).nation);
-        BOOST_REQUIRE(MapLoader::PlaceHQs(world, hqPositions, false));
+        BOOST_TEST_REQUIRE(MapLoader::PlaceHQs(world, hqPositions, false));
+
+        for(unsigned id = 0; id < world.GetNumPlayers(); id++)
+        {
+            GamePlayer& player = world.GetPlayer(id);
+            if(!player.isHuman() && player.isUsed())
+                game.AddAIPlayer(AIFactory::Create(world.GetPlayer(id).aiInfo, id, world));
+        }
     }
 
-    virtual GameWorldGame& GetWorld() override { return world; }
+    GameWorld& GetWorld() override { return world; }
 };

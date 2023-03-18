@@ -1,29 +1,20 @@
+# Copyright (C) 2005 - 2021 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 cmake_minimum_required(VERSION 3.9)
 if(POLICY CMP0093)
   cmake_policy(SET CMP0093 NEW) # Use Boost_VERSION x.y.z in CMake >= 3.15 or BoostConfig
 endif()
-
-project(s25client)
-
-if(NOT MSVC)
-    #Check for ccache
-    if(APPLE)
-        find_program(CCACHE_PROGRAM NAMES ccache-lipo ccache)
-    else()
-        find_program(CCACHE_PROGRAM ccache)
-    endif()
-    mark_as_advanced(CCACHE_PROGRAM)
-    if(CCACHE_PROGRAM)
-        foreach(lang C CXX)
-            # Do only set ccache compiler if we don't already use a ccache wrapper
-            # Example: /usr/lib/ccache/g++
-            if(NOT CMAKE_${lang}_COMPILER MATCHES "ccache")
-                message(STATUS "Using ccache(${CCACHE_PROGRAM}) for ${lang} to speed up builds")
-                set(CMAKE_${lang}_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
-            endif()
-        endforeach()
-    endif()
+if (POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW) # find_package uses <PackageName>_ROOT variables
 endif()
+
+if(NOT RTTR_VERSION)
+    string(TIMESTAMP RTTR_VERSION "%Y%m%d")
+endif()
+
+project(RTTR VERSION ${RTTR_VERSION})
 
 message(STATUS "Using CMake ${CMAKE_VERSION}")
 
@@ -32,12 +23,11 @@ if(DEFINED CMAKE_TOOLCHAIN_FILE)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules" "${CMAKE_SOURCE_DIR}/external/libutil/cmake")
-if(CMAKE_VERSION VERSION_LESS 3.11)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/cmake_3.11.0")
-endif()
 if(CMAKE_VERSION VERSION_LESS 3.14)
     list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/external/libutil/cmake/cmake_3.14")
 endif()
+
+include(EnableCCache)
 
 set(checkSubmodules FALSE)
 # Figure out RTTR_REVISION (git hash) and RTTR_VERSION (date)
@@ -48,6 +38,10 @@ if(NOT RTTR_REVISION)
     # Get git commit hash. Note: CMake will reconfigure if the git hash changes
     get_git_head_revision(RTTR_GIT_REF RTTR_REVISION)
     if(RTTR_REVISION)
+        string(LENGTH "${RTTR_REVISION}" revisionLen)
+        if(NOT revisionLen EQUAL "40")
+            message(FATAL_ERROR "get_git_head_revision returned a wrong revision: '${RTTR_REVISION}'")
+        endif()
         set(checkSubmodules TRUE)
     else()
         set(revisionFile "${CMAKE_CURRENT_LIST_DIR}/revision.txt")
@@ -56,7 +50,7 @@ if(NOT RTTR_REVISION)
             string(STRIP "${revision}" revision)
             string(LENGTH "${revision}" revisionLen)
             if(NOT revision MATCHES "^[0-9a-f]+$" OR NOT revisionLen EQUAL "40")
-                message(FATAL_ERROR "Contents of ${revisionFile} do not contain a valid revision")
+                message(FATAL_ERROR "Contents of ${revisionFile} do not contain a valid revision: '${RTTR_REVISION}'")
             endif()
             set(RTTR_REVISION ${revision})
             # Reconfigure if the file changes
@@ -66,8 +60,13 @@ if(NOT RTTR_REVISION)
         endif()
     endif()
 endif()
-if(NOT RTTR_VERSION)
-    string(TIMESTAMP RTTR_VERSION "%Y%m%d")
+
+
+# stable build? then set rttr.bat/rttr.sh parameter
+set(STABLE_PARAM "")
+if(RTTR_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
+    message(STATUS "Creating a stable version ${RTTR_VERSION}")
+    set(STABLE_PARAM "--stable")
 endif()
 
 if(checkSubmodules)
@@ -121,11 +120,15 @@ endif()
 # Better portability
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Hidden visibility by default to reduce binary size and possibly increase performance
+set(CMAKE_CXX_VISIBILITY_PRESET hidden CACHE STRING "Default symbol visibility")
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON CACHE BOOL "Inline symbol visibility")
+
 ################################################################################
 # ClangFormat
 ################################################################################
 
-find_package(ClangFormat 10)
+find_package(ClangFormat 10 EXACT)
 
 ################################################################################
 # Set paths.
@@ -252,7 +255,6 @@ if(NOT WIN32)
     configure_executable("${CMAKE_CURRENT_SOURCE_DIR}/start.sh.cmake" . start.sh)
 endif()
 
-file(COPY "bugle" DESTINATION ".")
 file(WRITE "${RTTR_S2_PLACEHOLDER_PATH}" "put your S2-Installation in here")
 
 ################################################################################
@@ -291,15 +293,22 @@ endif()
 ################################################################################
 
 include(RttrBoostCfg)
+include(RttrTestingCfg)
 
 set(rttrContribBoostDir ${CMAKE_CURRENT_SOURCE_DIR}/contrib/boost)
 if(EXISTS ${rttrContribBoostDir} AND IS_DIRECTORY ${rttrContribBoostDir})
     set(BOOST_ROOT ${rttrContribBoostDir} CACHE PATH "Path to find boost at")
 endif()
 
-find_package(Boost 1.65.1 COMPONENTS filesystem program_options)
+set(BoostPackages filesystem iostreams locale program_options)
+if(BUILD_TESTING)
+    # Avoid having to search for this in all tests speeding up configure
+    list(APPEND BoostPackages unit_test_framework)
+endif()
+
+find_package(Boost 1.69 COMPONENTS ${BoostPackages})
 if(NOT Boost_FOUND)
-    message(FATAL_ERROR "You have to install boost (>=1.64) into contrib/boost or set (as CMake or environment variable) "
+    message(FATAL_ERROR "You have to install boost (>=1.69) into contrib/boost or set (as CMake or environment variable) "
     "BOOST_ROOT (currently: '${BOOST_ROOT}', Environment: '$ENV{BOOST_ROOT}'), "
     "BOOST_INCLUDEDIR (currently: '${BOOST_INCLUDEDIR}', Environment: '$ENV{BOOST_INCLUDEDIR}') "
     "since cmake was unable to find boost!")
@@ -315,8 +324,8 @@ endif()
 
 option(RTTR_USE_SYSTEM_BOOST_NOWIDE "Use system installed Boost.Nowide. Fails if not found!" "${RTTR_USE_SYSTEM_LIBS}")
 
-if(Boost_VERSION_MINOR GREATER_EQUAL "73" OR RTTR_USE_SYSTEM_BOOST_NOWIDE)
-  # Boost 1.73 contains Boost.Nowide.
+if(Boost_VERSION_MINOR GREATER_EQUAL "74" OR RTTR_USE_SYSTEM_BOOST_NOWIDE)
+  # Boost 1.73 contains Boost.Nowide, 1.74 a required fix
   find_package(Boost COMPONENTS nowide)
 endif()
 # Prefer system version, either as part of Boost or preinstalled
@@ -344,7 +353,6 @@ gettext_create_translations(external/languages/rttr.pot ALL
 )
 
 # include Test
-include(RttrTestingCfg)
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
@@ -376,7 +384,11 @@ if(NOT WIN32)
 endif()
 
 # Placeholder for S2 installation
-install(FILES "${RTTR_S2_PLACEHOLDER_PATH}" DESTINATION "${RTTR_GAMEDIR}")
+option(RTTR_INSTALL_PLACEHOLDER "Install a placeholder file to the location the S2 game files should be copied to." ON)
+mark_as_advanced(RTTR_INSTALL_PLACEHOLDER)
+if(RTTR_INSTALL_PLACEHOLDER)
+    install(FILES "${RTTR_S2_PLACEHOLDER_PATH}" DESTINATION "${RTTR_GAMEDIR}")
+endif()
 
 ################################################################################
 # Postbuild
@@ -395,13 +407,6 @@ MESSAGE(STATUS "RTTR Version will be: ${RTTR_VERSION}-${RTTR_REVISION}")
 set(CPACK_GENERATOR "TBZ2")
 if(WIN32)
     set(CPACK_GENERATOR "ZIP")
-endif()
-
-# stable build?
-if(${RTTR_VERSION} MATCHES "([0-9]+)\.([0-9]+)\.([0-9]+)")
-    set(CPACK_PACKAGE_VERSION_MAJOR "${CMAKE_MATCH_1}")
-    set(CPACK_PACKAGE_VERSION_MINOR "${CMAKE_MATCH_2}")
-    set(CPACK_PACKAGE_VERSION_PATCH "${CMAKE_MATCH_3}")
 endif()
 
 set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)

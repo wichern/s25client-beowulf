@@ -1,25 +1,12 @@
-// Copyright (c) 2005 - 2020 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "GameObject.h"
 #include "EventManager.h"
 #include "SerializedGameData.h"
 #include "postSystem/PostMsg.h"
-#include "world/GameWorldGame.h"
+#include "world/GameWorld.h"
 #include <iostream>
 
 /**
@@ -28,7 +15,7 @@
 unsigned GameObject::objIdCounter_ = 0;
 unsigned GameObject::objCounter_ = 0;
 
-GameWorldGame* GameObject::gwg = nullptr;
+GameWorld* GameObject::world = nullptr;
 
 GameObject::GameObject() : objId(++objIdCounter_)
 {
@@ -51,38 +38,33 @@ GameObject::GameObject(const GameObject& go) : objId(go.objId)
 
 void GameObject::Destroy() {}
 
-void GameObject::Serialize(SerializedGameData& /*sgd*/) const
-{
-    std::cout << "ERROR: GameObject::Serialize called." << std::endl; // qx
-}
-
 GameObject::~GameObject()
 {
-    // RTTR_Assert(!gwg || !GetEvMgr().ObjectHasEvents(*this));
-    RTTR_Assert(!gwg || !GetEvMgr().IsObjectInKillList(*this));
+    // RTTR_Assert(!world || !GetEvMgr().ObjectHasEvents(*this));
+    RTTR_Assert(!world || !GetEvMgr().IsObjectInKillList(*this));
     // ein Objekt weniger
     --objCounter_;
 }
 
 EventManager& GameObject::GetEvMgr()
 {
-    return gwg->GetEvMgr();
+    return world->GetEvMgr();
 }
 
 void GameObject::SendPostMessage(unsigned player, std::unique_ptr<PostMsg> msg)
 {
-    gwg->GetPostMgr().SendMsg(player, std::move(msg));
+    world->GetPostMgr().SendMsg(player, std::move(msg));
 }
 
-void GameObject::DetachWorld(GameWorldGame* gameWorld)
+void GameObject::DetachWorld(GameWorld* gameWorld)
 {
-    if(gwg == gameWorld)
-        gwg = nullptr;
+    if(world == gameWorld)
+        world = nullptr;
 }
 
-void GameObject::AttachWorld(GameWorldGame* gameWorld)
+void GameObject::AttachWorld(GameWorld* gameWorld)
 {
-    gwg = gameWorld;
+    world = gameWorld;
 }
 
 std::string GameObject::ToString() const
