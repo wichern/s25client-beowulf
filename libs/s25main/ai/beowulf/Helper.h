@@ -40,7 +40,7 @@ struct MapPointComp
 };
 
 inline Direction OppositeDirection(Direction dir) {
-    if (dir.native_value() < 3)
+    if (dir < Direction::East)
         return Direction(dir + 3);
     else
         return Direction(dir - 3);
@@ -48,12 +48,12 @@ inline Direction OppositeDirection(Direction dir) {
 
 inline unsigned GetMilitaryRadius(BuildingType type) {
     switch (type) {
-    case BLD_BARRACKS: return MILITARY_RADIUS[0];
-    case BLD_GUARDHOUSE: return MILITARY_RADIUS[1];
-    case BLD_WATCHTOWER: return MILITARY_RADIUS[2];
-    case BLD_FORTRESS: return MILITARY_RADIUS[3];
-    case BLD_HARBORBUILDING: return HARBOR_RADIUS;
-    case BLD_HEADQUARTERS: return HQ_RADIUS;
+    case BuildingType::Barracks: return MILITARY_RADIUS[0];
+    case BuildingType::Guardhouse: return MILITARY_RADIUS[1];
+    case BuildingType::Watchtower: return MILITARY_RADIUS[2];
+    case BuildingType::Fortress: return MILITARY_RADIUS[3];
+    case BuildingType::HarborBuilding: return HARBOR_RADIUS;
+    case BuildingType::Headquarters: return HQ_RADIUS;
     default: return 0;
     }
 }

@@ -93,7 +93,7 @@ void RoadSegment::Destroy()
             }
         }
 
-        gwg->GetNotifications().publish(RoadNote(RoadNote::Destroyed, f1->GetPlayer(), f1->GetPos(), route));
+        world->GetNotifications().publish(RoadNote(RoadNote::Destroyed, f1->GetPlayer(), f1->GetPos(), route));
 
         route.clear();
     }

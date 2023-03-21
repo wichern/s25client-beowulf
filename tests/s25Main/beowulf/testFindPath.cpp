@@ -53,7 +53,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathEmptyMapToHQ, BiggerWorldWithGCExecution)
     // Condition
     [&](const MapPoint& pt, Direction dir)
     {
-        if (pt == start && dir == Direction::NORTHWEST)
+        if (pt == start && dir == Direction::NorthWest)
             return false;
 
         return beowulf_raw->world.IsRoadPossible(pt, dir, false);

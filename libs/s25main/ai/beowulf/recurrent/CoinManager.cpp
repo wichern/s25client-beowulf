@@ -41,7 +41,7 @@ void CoinManager::OnRun()
     if (!academy_) {
         RequestAcademy();
         return;
-    } else if (0 == beowulf_->build.GetRequestCount({ BLD_FORTRESS }, beowulf_->world.GetHQFlag())) {
+    } else if (0 == beowulf_->build.GetRequestCount({ BuildingType::Fortress }, beowulf_->world.GetHQFlag())) {
         // If building failed we have to try again.
         RequestAcademy();
         return;
@@ -127,7 +127,7 @@ void CoinManager::RequestAcademy()
     if (bestLocation.isValid()) {
         if (!academy_) {
             academy_ = beowulf_->world.Create(
-                        BLD_FORTRESS,
+                        BuildingType::Fortress,
                         Building::ConstructionRequested,
                         InvalidProductionGroup,
                         bestLocation);

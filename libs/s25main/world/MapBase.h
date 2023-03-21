@@ -201,15 +201,15 @@ inline void MapBase::VisitPointsInRadius(const MapPoint pt, const unsigned radiu
     for(unsigned r = 1; r <= radius; ++r)
     {
         // Go one level/hull to the left
-        curStartPt = GetNeighbour(curStartPt, Direction::WEST);
+        curStartPt = GetNeighbour(curStartPt, Direction::West);
         // Now iterate over the "circle" of radius r by going r steps in one direction, turn right and repeat
         MapPoint curPt = curStartPt;
-        for(unsigned i = Direction::NORTHEAST; i < Direction::NORTHEAST + Direction::COUNT; ++i)
+        for(auto dir : helpers::EnumRangeWithOffset<Direction>(Direction::NorthEast))
         {
             for(unsigned step = 0; step < r; ++step)
             {
                 visitor(curPt);
-                curPt = GetNeighbour(curPt, Direction(i));
+                curPt = GetNeighbour(curPt, dir);
             }
         }
     }

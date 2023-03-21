@@ -68,13 +68,13 @@ void BuildLocations::Calculate(
     [&](const MapPoint& pt)
     {
         BuildingQuality bq = world_.GetBQ(pt, includeAnticipated_);
-        if (bq > BQ_FLAG)
+        if (bq > BuildingQuality::Flag)
             locations.push_back({ pt, bq });
     });
 
     for (const auto& loc : locations) {
         // Check if we can still connect that connection if we place a building.
-        MapPoint flag = world_.GetNeighbour(loc.first, Direction::SOUTHEAST);
+        MapPoint flag = world_.GetNeighbour(loc.first, Direction::SouthEast);
 
         std::vector<std::pair<MapPoint, BuildingQuality>> tmps = { { loc.first, loc.second } };
 
@@ -97,11 +97,11 @@ void BuildLocations::Update(
         if (node) {
             if (bq != node->bq) {
                 Remove(node);
-                if (bq > BQ_FLAG)
+                if (bq > BuildingQuality::Flag)
                     Add(pt, bq);
             }
         } else {
-            if (bq > BQ_FLAG) {
+            if (bq > BuildingQuality::Flag) {
                 Add(pt, bq);
             }
         }
@@ -109,7 +109,7 @@ void BuildLocations::Update(
 
     // Check all locations whether they can still be connected.
     for (Node* n = first_; n; n = n->next) {
-        MapPoint flagPt = world_.GetNeighbour(n->pos, Direction::SOUTHEAST);
+        MapPoint flagPt = world_.GetNeighbour(n->pos, Direction::SouthEast);
         std::vector<std::pair<MapPoint, BuildingQuality>> tmps = { { n->pos, n->bq } };
         if (!world_.CanConnectBuilding(flagPt, regionPt, includeAnticipated_, tmps)) {
             Node* newPrev = n->prev;
@@ -148,7 +148,7 @@ BuildingQuality BuildLocations::Get(const MapPoint& pt) const
     Node* node = map_[pt];
     if (node)
         return node->bq;
-    return BQ_NOTHING;
+    return BuildingQuality::Nothing;
 }
 
 std::vector<MapPoint> BuildLocations::GetNearest(

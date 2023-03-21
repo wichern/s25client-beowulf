@@ -35,9 +35,9 @@ BuildingPlanner::BuildingPlanner(Beowulf* beowulf)
     // Change build order so that sawmills have highest priority.
 //    BuildOrders order = beowulf_->player.GetStandardBuildOrder();
 //    size_t sawmillPos = 0;
-//    while (order[sawmillPos] != BLD_SAWMILL) sawmillPos++;
+//    while (order[sawmillPos] != BuildingType::Sawmill) sawmillPos++;
 //    BuildingType oldTop = order[0];
-//    order[0] = BLD_SAWMILL;
+//    order[0] = BuildingType::Sawmill;
 //    order[sawmillPos] = oldTop;
 //    beowulf_->GetAII().ChangeBuildOrder(true, order);
 }
@@ -121,48 +121,48 @@ void BuildingPlanner::Search()
      * and then find the best position one by one.
      */
 
-    static const unsigned c_buildingOrder[NUM_BUILDING_TYPES] =
+    static const unsigned c_buildingOrder[helpers::MaxEnumValue_v<BuildingType>] =
     {
-        0,  // BLD_HEADQUARTERS
-        5,  // BLD_BARRACKS
-        4,  // BLD_GUARDHOUSE
+        0,  // BuildingType::Headquarters
+        5,  // BuildingType::Barracks
+        4,  // BuildingType::Guardhouse
         0,  // BLD_NOTHING2
-        3,  // BLD_WATCHTOWER
+        3,  // BuildingType::Watchtower
         0,  // BLD_NOTHING3
         0,  // BLD_NOTHING4
         0,  // BLD_NOTHING5
         0,  // BLD_NOTHING6
-        2,  // BLD_FORTRESS
-        30, // BLD_GRANITEMINE
-        30, // BLD_COALMINE
-        30, // BLD_IRONMINE
-        30, // BLD_GOLDMINE
-        100,// BLD_LOOKOUTTOWER
+        2,  // BuildingType::Fortress
+        30, // BuildingType::GraniteMine
+        30, // BuildingType::CoalMine
+        30, // BuildingType::IronMine
+        30, // BuildingType::GoldMine
+        100,// BuildingType::LookoutTower
         0,  // BLD_NOTHING7
-        50, // BLD_CATAPULT
-        30, // BLD_WOODCUTTER
-        20, // BLD_FISHERY
-        20, // BLD_QUARRY
-        10, // BLD_FORESTER
-        10, // BLD_SLAUGHTERHOUSE
-        20, // BLD_HUNTER
-        10, // BLD_BREWERY
-        10, // BLD_ARMORY
-        10, // BLD_METALWORKS
-        20, // BLD_IRONSMELTER
-        30, // BLD_CHARBURNER
-        20, // BLD_PIGFARM
-        2,  // BLD_STOREHOUSE
+        50, // BuildingType::Catapult
+        30, // BuildingType::Woodcutter
+        20, // BuildingType::Fishery
+        20, // BuildingType::Quarry
+        10, // BuildingType::Forester
+        10, // BuildingType::Slaughterhouse
+        20, // BuildingType::Hunter
+        10, // BuildingType::Brewery
+        10, // BuildingType::Armory
+        10, // BuildingType::Metalworks
+        20, // BuildingType::Ironsmelter
+        30, // BuildingType::Charburner
+        20, // BuildingType::PigFarm
+        2,  // BuildingType::Storehouse
         0,  // BLD_NOTHING9
-        20, // BLD_MILL
-        10, // BLD_BAKERY
-        40, // BLD_SAWMILL
-        10, // BLD_MINT
-        100,// BLD_WELL
-        1,  // BLD_SHIPYARD
-        30, // BLD_FARM
-        15, // BLD_DONKEYBREEDER
-        1,  // BLD_HARBORBUILDING
+        20, // BuildingType::Mill
+        10, // BuildingType::Bakery
+        40, // BuildingType::Sawmill
+        10, // BuildingType::Mint
+        100,// BuildingType::Well
+        1,  // BuildingType::Shipyard
+        30, // BuildingType::Farm
+        15, // BuildingType::DonkeyBreeder
+        1,  // BuildingType::HarborBuilding
     };
     std::stable_sort(current_.requests.begin(), current_.requests.end(),
               [&](const Building* l, const Building* r)
@@ -233,7 +233,7 @@ bool BuildingPlanner::Place(
     }
 
     beowulf_->world.Construct(building, pt);
-    locations.Update(pt, building->GetQuality() >= BQ_CASTLE ? 4 : 3);
+    locations.Update(pt, building->GetQuality() >= BuildingQuality::Castle ? 4 : 3);
     if (!beowulf_->roads.Connect(building, &locations)) {
         RTTR_Assert(false);
         beowulf_->world.Deconstruct(building);

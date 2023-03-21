@@ -47,16 +47,16 @@ BOOST_FIXTURE_TEST_CASE(PlanBuilding, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf_raw->world, true);
     bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-    beowulf::Building* bld = beowulf_raw->world.Create(BLD_CATAPULT, beowulf::Building::PlanningRequest);
+    beowulf::Building* bld = beowulf_raw->world.Create(BuildingType::Catapult, beowulf::Building::PlanningRequest);
     beowulf_raw->world.Plan(bld, MapPoint(16,13));
     bl.Update(MapPoint(16,13), 2);
 
     // Sampling some effects
-    BOOST_REQUIRE(bl.Get(MapPoint(16,13)) == BQ_NOTHING);
-    BOOST_REQUIRE(bl.Get(MapPoint(15,13)) == BQ_NOTHING);
-    BOOST_REQUIRE(bl.Get(MapPoint(14,13)) == BQ_HOUSE);
-    BOOST_REQUIRE(bl.Get(MapPoint(13,13)) == BQ_HOUSE);
-    BOOST_REQUIRE(bl.Get(MapPoint(14,15)) == BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(MapPoint(16,13)) == BuildingQuality::Nothing);
+    BOOST_REQUIRE(bl.Get(MapPoint(15,13)) == BuildingQuality::Nothing);
+    BOOST_REQUIRE(bl.Get(MapPoint(14,13)) == BuildingQuality::House);
+    BOOST_REQUIRE(bl.Get(MapPoint(13,13)) == BuildingQuality::House);
+    BOOST_REQUIRE(bl.Get(MapPoint(14,15)) == BuildingQuality::Castle);
 }
 
 BOOST_FIXTURE_TEST_CASE(PlanRoadSouthEast, BiggerWorldWithGCExecution)
@@ -68,7 +68,7 @@ BOOST_FIXTURE_TEST_CASE(PlanRoadSouthEast, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf_raw->world, true);
     bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST, Direction::SOUTHEAST});
+    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::SouthEast, Direction::SouthEast, Direction::SouthEast, Direction::SouthEast});
     bl.Update(MapPoint(13,12), 4);
 }
 
@@ -81,12 +81,12 @@ BOOST_FIXTURE_TEST_CASE(PlanRoadWest, BiggerWorldWithGCExecution)
     beowulf::BuildLocations bl(beowulf_raw->world, true);
     bl.Calculate(beowulf_raw->world.GetHQFlag());
 
-    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
+    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::West, Direction::West, Direction::West, Direction::West, Direction::West});
     bl.Update(MapPoint(13,12), 5);
 
     // BQ northwest of flag should be buildable.
-    BOOST_REQUIRE(bl.Get(MapPoint(7,11)) == BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(MapPoint(8,12)) == BQ_NOTHING);
+    BOOST_REQUIRE(bl.Get(MapPoint(7,11)) == BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(MapPoint(8,12)) == BuildingQuality::Nothing);
 }
 
 BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
@@ -95,25 +95,25 @@ BOOST_FIXTURE_TEST_CASE(IsRoadPossible, BiggerWorldWithGCExecution)
     Beowulf* beowulf_raw = static_cast<Beowulf*>(beowulf.get());
     beowulf_raw->DisableRecurrents();
 
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::SOUTHEAST, true));
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(world.GetNeighbour(MapPoint(13, 12), Direction::SOUTHEAST), Direction::NORTHWEST, true));
-    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::NORTHWEST, true));
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::WEST, true));
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(15, 15), Direction::WEST, true));
-    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(11, 11), Direction::EAST, true));
-    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(21, 10), Direction::EAST, true));
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::SouthEast, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(world.GetNeighbour(MapPoint(13, 12), Direction::SouthEast), Direction::NorthWest, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::NorthWest, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(13, 12), Direction::West, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(15, 15), Direction::West, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(11, 11), Direction::East, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(21, 10), Direction::East, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(10, 13), Direction::NorthWest, true));
 
-    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST, Direction::WEST});
+    beowulf_raw->world.PlanRoad(MapPoint(13,12), {Direction::West, Direction::West, Direction::West, Direction::West, Direction::West});
 
     // there is currently no flag at 10,12 but we could add one.
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(10, 13), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(10, 13), Direction::NorthWest, true));
 
     // there is currently no flag at 9,12 and we could NOT add one.
-    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(9, 13), Direction::NORTHWEST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(9, 13), Direction::NorthWest, true));
 
-    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(11, 12), Direction::EAST, true));
-    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(9, 11), Direction::EAST, true));
+    BOOST_REQUIRE(!beowulf_raw->world.IsRoadPossible(MapPoint(11, 12), Direction::East, true));
+    BOOST_REQUIRE(beowulf_raw->world.IsRoadPossible(MapPoint(9, 11), Direction::East, true));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

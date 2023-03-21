@@ -71,7 +71,7 @@ private:
 
     // List building types for which no position could be found.
     // Is cleared once the any nodes building quality changed.
-    std::bitset<NUM_BUILDING_TYPES> blacklist_;
+    std::bitset<helpers::MaxEnumValue_v<BuildingType>> blacklist_;
 
     // First field is idx of dest, second is array of buildings to place.
     std::map<MapPoint, std::vector<Building*>, MapPointComp> requests_;

@@ -113,7 +113,7 @@ private:
     NodeMapBase<Node> nodes_;
 
     void AddResource(Node& node, const MapPoint& dst, const MapPoint& pt, unsigned radius, BResourceType type, unsigned amount);
-    unsigned GuessOre(const MapPoint& pt, Resource::Type type) const;
+    unsigned GuessOre(const MapPoint& pt, ResourceType type) const;
 
     std::vector<Subscription> eventSubscriptions_;
     void OnBuildingNote(const BuildingNote& note);

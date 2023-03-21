@@ -54,15 +54,15 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 
         // Check for duplicates
         std::set<unsigned> set;
-        for (const MapPoint& pt : bl.Get(BQ_HUT)) {
+        for (const MapPoint& pt : bl.Get(BuildingQuality::Hut)) {
             unsigned idx = world.GetIdx(pt);
             BOOST_REQUIRE(set.find(idx) == set.end());
             set.insert(idx);
         }
 
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_HUT).size(), bl.GetSize());
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_CASTLE).size(), 181);
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_HOUSE).size(), 190);
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::Hut).size(), bl.GetSize());
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::Castle).size(), 181);
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::House).size(), 190);
         BOOST_REQUIRE_EQUAL(bl.GetSum(), 561);
     }
 
@@ -72,15 +72,15 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 
         // no duplicates:
         std::set<unsigned> set;
-        for (const MapPoint& pt : bl.Get(BQ_HUT)) {
+        for (const MapPoint& pt : bl.Get(BuildingQuality::Hut)) {
             unsigned idx = world.GetIdx(pt);
             BOOST_REQUIRE(set.find(idx) == set.end());
             set.insert(idx);
         }
 
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_HUT).size(), bl.GetSize());
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_CASTLE).size(), 181);
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_HOUSE).size(), 190);
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::Hut).size(), bl.GetSize());
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::Castle).size(), 181);
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::House).size(), 190);
         BOOST_REQUIRE_EQUAL(bl.GetSum(), 561);
     }
 
@@ -107,7 +107,7 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 
         // no duplicates:
         std::set<unsigned> set;
-        for (const MapPoint& pt : bl.Get(BQ_HUT)) {
+        for (const MapPoint& pt : bl.Get(BuildingQuality::Hut)) {
             unsigned idx = world.GetIdx(pt);
             BOOST_REQUIRE(set.find(idx) == set.end());
             set.insert(idx);
@@ -118,9 +118,9 @@ BOOST_FIXTURE_TEST_CASE(EmptyMap, BiggerWorldWithGCExecution)
 //        map.draw(bl);
 //        map.write();
 
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_HUT).size(), bl.GetSize());
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_CASTLE).size(), 151);
-        BOOST_REQUIRE_EQUAL(bl.Get(BQ_HOUSE).size(), 160);
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::Hut).size(), bl.GetSize());
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::Castle).size(), 151);
+        BOOST_REQUIRE_EQUAL(bl.Get(BuildingQuality::House).size(), 160);
         BOOST_REQUIRE_EQUAL(bl.GetSum(), 481);
     }
 }
@@ -135,45 +135,45 @@ BOOST_FIXTURE_TEST_CASE(PlaceFarmsClosely, BiggerWorldWithGCExecution)
     MapPoint farm2Point(7, 11);
     MapPoint farm3Point(6, 11);
 
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) >= BQ_CASTLE);
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) >= BQ_CASTLE);
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) >= BuildingQuality::Castle);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) >= BuildingQuality::Castle);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BuildingQuality::Castle);
 
     beowulf::BuildLocations bl(beowulf_raw->world, false);
     bl.Calculate(beowulf_raw->world.GetHQFlag());
-    BOOST_REQUIRE(bl.Get(farm1Point) >= BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(farm2Point) >= BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm1Point) >= BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(farm2Point) >= BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(farm3Point) >= BuildingQuality::Castle);
 
-    beowulf::Building* farm1 = beowulf_raw->world.Create(BLD_FARM, beowulf::Building::PlanningRequest);
+    beowulf::Building* farm1 = beowulf_raw->world.Create(BuildingType::Farm, beowulf::Building::PlanningRequest);
     beowulf_raw->world.Construct(farm1, farm1Point);
 
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) < BuildingQuality::Castle);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) < BuildingQuality::Castle);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BuildingQuality::Castle);
     bl.Update(farm1Point);
-    BOOST_REQUIRE(bl.Get(farm1Point) < BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(farm2Point) < BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm1Point) < BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(farm2Point) < BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(farm3Point) >= BuildingQuality::Castle);
 
     Proceed({ beowulf.get() }, em, world);
 
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) < BQ_CASTLE);
-    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BQ_CASTLE);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm1Point, false) < BuildingQuality::Castle);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm2Point, false) < BuildingQuality::Castle);
+    BOOST_REQUIRE(beowulf_raw->world.GetBQ(farm3Point, false) >= BuildingQuality::Castle);
     bl.Update(farm1Point);
-    BOOST_REQUIRE(bl.Get(farm1Point) < BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(farm2Point) < BQ_CASTLE);
-    BOOST_REQUIRE(bl.Get(farm3Point) >= BQ_CASTLE);
+    BOOST_REQUIRE(bl.Get(farm1Point) < BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(farm2Point) < BuildingQuality::Castle);
+    BOOST_REQUIRE(bl.Get(farm3Point) >= BuildingQuality::Castle);
 }
 
 void ValidateBuildLocations(
-        const GameWorldGame& world,
+        const GameWorld& world,
         const Beowulf* beowulf,
         const beowulf::BuildLocations& bl,
         bool hasPlanned = false);
 void ValidateBuildLocations(
-        const GameWorldGame& world,
+        const GameWorld& world,
         const Beowulf* beowulf,
         const beowulf::BuildLocations& bl,
         bool hasPlanned)
@@ -192,7 +192,7 @@ void ValidateBuildLocations(
         }
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             if (bq_Beowulf != bq_BuildLocations) {
                 beowulf::AsciiMap map(beowulf->GetAII());
                 map.draw(beowulf->world, true);
@@ -221,11 +221,11 @@ BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
     MapPoint wellPoint(7, 11);
     MapPoint millPoint(11, 13);
 
-    beowulf_raw->world.Construct(beowulf_raw->world.Create(BLD_FARM, beowulf::Building::PlanningRequest), farmPoint);
+    beowulf_raw->world.Construct(beowulf_raw->world.Create(BuildingType::Farm, beowulf::Building::PlanningRequest), farmPoint);
     bl.Update(farmPoint);
-    beowulf_raw->world.Construct(beowulf_raw->world.Create(BLD_WELL, beowulf::Building::PlanningRequest), wellPoint);
+    beowulf_raw->world.Construct(beowulf_raw->world.Create(BuildingType::Well, beowulf::Building::PlanningRequest), wellPoint);
     bl.Update(wellPoint);
-    beowulf_raw->world.Construct(beowulf_raw->world.Create(BLD_MILL, beowulf::Building::PlanningRequest), millPoint);
+    beowulf_raw->world.Construct(beowulf_raw->world.Create(BuildingType::Mill, beowulf::Building::PlanningRequest), millPoint);
     bl.Update(millPoint);
 
     // We proceed until one building is under construction (exists in-game and occupies build locations).
@@ -237,8 +237,8 @@ BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
     ValidateBuildLocations(world, beowulf_raw, bl);
 
     // Place Road
-    std::vector<Direction> route = { Direction::EAST, Direction::EAST, Direction::EAST,
-                                     Direction::NORTHWEST, Direction::NORTHWEST, Direction::WEST };
+    std::vector<Direction> route = { Direction::East, Direction::East, Direction::East,
+                                     Direction::NorthWest, Direction::NorthWest, Direction::West };
     beowulf_raw->world.ConstructRoad(MapPoint(12, 14), route);
 
     bl.Update(MapPoint(12, 14), static_cast<unsigned>(route.size()));
@@ -246,7 +246,7 @@ BOOST_FIXTURE_TEST_CASE(UpdateBuildLocations, BiggerWorldWithGCExecution)
     // Set hasPlanned to true, since we only requested to build, but the engine did not yet execute the command.
     ValidateBuildLocations(world, beowulf_raw, bl, true);
 
-    Proceed([&]() { return beowulf_raw->GetAII().IsRoad({ 12, 14 }, Direction::EAST); }, { beowulf_raw }, em, world);
+    Proceed([&]() { return beowulf_raw->GetAII().IsRoad({ 12, 14 }, Direction::East); }, { beowulf_raw }, em, world);
 
     bl.Update(MapPoint(12, 14), static_cast<unsigned>(route.size()));
     ValidateBuildLocations(world, beowulf_raw, bl);
@@ -301,30 +301,30 @@ BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution
 //    map.write();
 
     beowulf_raw->world.ConstructRoad(beowulf_raw->world.GetHQ()->GetFlag(), {
-                                     Direction::WEST,
-                                     Direction::WEST,
-                                     Direction::WEST,
-                                     Direction::WEST,
-                                     Direction::WEST,
-                                     Direction::WEST,
-                                     Direction::SOUTHWEST,
-                                     Direction::SOUTHWEST,
-                                     Direction::EAST,
-                                     Direction::NORTHEAST
+                                     Direction::West,
+                                     Direction::West,
+                                     Direction::West,
+                                     Direction::West,
+                                     Direction::West,
+                                     Direction::West,
+                                     Direction::SouthWest,
+                                     Direction::SouthWest,
+                                     Direction::East,
+                                     Direction::NorthEast
                                  });
     beowulf_raw->world.ConstructRoad({ 9, 12 }, {
-                                     Direction::NORTHWEST,
-                                     Direction::WEST,
-                                     Direction::WEST,
-                                     Direction::NORTHWEST,
-                                     Direction::WEST,
-                                     Direction::NORTHEAST,
-                                     Direction::SOUTHEAST
+                                     Direction::NorthWest,
+                                     Direction::West,
+                                     Direction::West,
+                                     Direction::NorthWest,
+                                     Direction::West,
+                                     Direction::NorthEast,
+                                     Direction::SouthEast
                                  });
     beowulf_raw->world.ConstructRoad({ 7, 13 }, {
-                                     Direction::SOUTHEAST,
-                                     Direction::SOUTHWEST,
-                                     Direction::WEST
+                                     Direction::SouthEast,
+                                     Direction::SouthWest,
+                                     Direction::West
                                  });
 
     bl.Update({ 13, 12 }, 10);
@@ -344,8 +344,8 @@ BOOST_FIXTURE_TEST_CASE(NotConnectableBuildLocations, BiggerWorldWithGCExecution
 //    map.draw(bl2);
 //    map.write();
 
-    BOOST_REQUIRE(bl.Get({ 5, 11 }) == BQ_NOTHING);
-    BOOST_REQUIRE(bl2.Get({ 5, 11 }) == BQ_NOTHING);
+    BOOST_REQUIRE(bl.Get({ 5, 11 }) == BuildingQuality::Nothing);
+    BOOST_REQUIRE(bl2.Get({ 5, 11 }) == BuildingQuality::Nothing);
 }
 
 #endif

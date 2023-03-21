@@ -51,7 +51,7 @@ bool RoadManager::Connect(const Building* building, BuildLocations* buildLocatio
         // At least connect it to a store house.
         auto nearest = beowulf_->world.GetNearestBuilding(
                     building->GetPt(),
-                    { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING },
+                    { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding },
                     building);
         destBuilding = beowulf_->world.GetBuilding(nearest.first);
         if (!destBuilding)
@@ -66,7 +66,7 @@ bool RoadManager::Connect(const Building* building, BuildLocations* buildLocatio
     // Condition
     [&](const MapPoint& pt, Direction dir)
     {
-        if (pt == start && dir == Direction::NORTHWEST)
+        if (pt == start && dir == Direction::NorthWest)
             return false;
         return beowulf_->world.HasRoad(pt, dir) || beowulf_->world.IsRoadPossible(pt, dir, false);
     },
@@ -189,7 +189,7 @@ void RoadManager::OnBuildingNote(const BuildingNote& note)
          * The one that occurs only once is the correct building.
          * We can even validate that by the building type provided in 'note'.
          */
-        MapPoint flag = nodes_.GetNeighbour(note.pos, Direction::SOUTHEAST);
+        MapPoint flag = nodes_.GetNeighbour(note.pos, Direction::SouthEast);
         std::map<const Building*, unsigned> users_counts;
         for (const auto dir : helpers::EnumRange<Direction>{}) {
             for (const Building* user : GetUsers(flag, dir)) {
@@ -257,7 +257,7 @@ void RoadManager::OnRoadNote(const RoadNote& note)
     case RoadNote::ConstructionFailed:
     {
         // If this road tried to connect a construction site:
-        Building* bld = beowulf_->world.GetBuilding(beowulf_->world.GetNeighbour(note.pos, Direction::NORTHWEST));
+        Building* bld = beowulf_->world.GetBuilding(beowulf_->world.GetNeighbour(note.pos, Direction::NorthWest));
         if (bld) {
             if (bld->GetState() == Building::UnderConstruction)
                 beowulf_->world.Deconstruct(bld);

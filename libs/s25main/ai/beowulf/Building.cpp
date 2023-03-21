@@ -31,93 +31,93 @@ struct ProductionDest {
     std::vector<BuildingType> types;
 };
 
-static const ProductionDest SUPPRESS_UNUSED GOODS_DESTINATIONS[NUM_BUILDING_TYPES] =
-{
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HEADQUARTERS
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_BARRACKS
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_GUARDHOUSE
+static const helpers::EnumArray<ProductionDest, BuildingType> SUPPRESS_UNUSED GOODS_DESTINATIONS =
+{{
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::Headquarters
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::Barracks
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::Guardhouse
     { false, {  } },  // BLD_NOTHING2
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_WATCHTOWER
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::Watchtower
     { false, {  } },  // BLD_NOTHING3
     { false, {  } },  // BLD_NOTHING4
     { false, {  } },  // BLD_NOTHING5
     { false, {  } },  // BLD_NOTHING6
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_FORTRESS
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GRANITEMINE
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_COALMINE
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_IRONMINE
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_GOLDMINE
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_LOOKOUTTOWER
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::Fortress
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::GraniteMine
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::CoalMine
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::IronMine
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::GoldMine
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::LookoutTower
     { false, {  } },  // BLD_NOTHING7
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CATAPULT
-    { true,  { BLD_SAWMILL } },       // BLD_WOODCUTTER
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FISHERY
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_QUARRY
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_FORESTER
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SLAUGHTERHOUSE
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_HUNTER   // the hunter produces very little food
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BREWERY
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_ARMORY
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_METALWORKS
-    { true,  { BLD_ARMORY, BLD_METALWORKS } }, // BLD_IRONSMELTER
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_CHARBURNER
-    { true,  { BLD_SLAUGHTERHOUSE } },// BLD_PIGFARM
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_STOREHOUSE
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Catapult
+    { true,  { BuildingType::Sawmill } },       // BuildingType::Woodcutter
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Fishery
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Quarry
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Forester
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Slaughterhouse
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Hunter   // the hunter produces very little food
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Brewery
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Armory
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Metalworks
+    { true,  { BuildingType::Armory, BuildingType::Metalworks } }, // BuildingType::Ironsmelter
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Charburner
+    { true,  { BuildingType::Slaughterhouse } },// BuildingType::PigFarm
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::Storehouse
     { false, {  } },  // BLD_NOTHING9
-    { true,  { BLD_BAKERY } },        // BLD_MILL
-    { true,  { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_BAKERY
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SAWMILL
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_MINT
-    { true,  { BLD_BAKERY, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_WELL
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_SHIPYARD
-    { true,  { BLD_MILL, BLD_BREWERY, BLD_DONKEYBREEDER, BLD_SLAUGHTERHOUSE } }, // BLD_FARM
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },    // BLD_DONKEYBREEDER
-    { false, { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING } },  // BLD_HARBORBUILDING
-};
+    { true,  { BuildingType::Bakery } },        // BuildingType::Mill
+    { true,  { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Bakery
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Sawmill
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Mint
+    { true,  { BuildingType::Bakery, BuildingType::Brewery, BuildingType::DonkeyBreeder, BuildingType::Slaughterhouse } }, // BuildingType::Well
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::Shipyard
+    { true,  { BuildingType::Mill, BuildingType::Brewery, BuildingType::DonkeyBreeder, BuildingType::Slaughterhouse } }, // BuildingType::Farm
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },    // BuildingType::DonkeyBreeder
+    { false, { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding } },  // BuildingType::HarborBuilding
+}};
 
-static const Building::TrafficExpected SUPPRESS_UNUSED GOODS_TRAFFIC[NUM_BUILDING_TYPES] =
-{
-    { 0, 0 },  // BLD_HEADQUARTERS
-    { 0, 0 },  // BLD_BARRACKS
-    { 0, 0 },  // BLD_GUARDHOUSE
+static const SUPPRESS_UNUSED helpers::EnumArray<Building::TrafficExpected, BuildingType> SUPPRESS_UNUSED GOODS_TRAFFIC =
+{{
+    { 0, 0 },  // BuildingType::Headquarters
+    { 0, 0 },  // BuildingType::Barracks
+    { 0, 0 },  // BuildingType::Guardhouse
     { 0, 0 },  // BLD_NOTHING2
-    { 0, 0 },  // BLD_WATCHTOWER
+    { 0, 0 },  // BuildingType::Watchtower
     { 0, 0 },  // BLD_NOTHING3
     { 0, 0 },  // BLD_NOTHING4
     { 0, 0 },  // BLD_NOTHING5
     { 0, 0 },  // BLD_NOTHING6
-    { 0, 0 },  // BLD_FORTRESS
-    { 1, 1 },  // BLD_GRANITEMINE
-    { 1, 1 },  // BLD_COALMINE
-    { 1, 1 },  // BLD_IRONMINE
-    { 1, 1 },  // BLD_GOLDMINE
-    { 0, 0 },  // BLD_LOOKOUTTOWER
+    { 0, 0 },  // BuildingType::Fortress
+    { 1, 1 },  // BuildingType::GraniteMine
+    { 1, 1 },  // BuildingType::CoalMine
+    { 1, 1 },  // BuildingType::IronMine
+    { 1, 1 },  // BuildingType::GoldMine
+    { 0, 0 },  // BuildingType::LookoutTower
     { 0, 0 },  // BLD_NOTHING7
-    { 0, 0 },  // BLD_CATAPULT
-    { 0, 0 },  // BLD_WOODCUTTER
-    { 1, 0 },  // BLD_FISHERY
-    { 2, 0 },  // BLD_QUARRY
-    { 0, 0 },  // BLD_FORESTER
-    { 1, 1 },  // BLD_SLAUGHTERHOUSE
-    { 1, 0 },  // BLD_HUNTER   // the hunter produces very little food
-    { 1, 2 },  // BLD_BREWERY
-    { 1, 2 },  // BLD_ARMORY
-    { 1, 2 },  // BLD_METALWORKS
-    { 1, 2 },  // BLD_IRONSMELTER
-    { 1, 2 },  // BLD_CHARBURNER
-    { 1, 2 },  // BLD_PIGFARM
-    { 0, 0 },  // BLD_STOREHOUSE
+    { 0, 0 },  // BuildingType::Catapult
+    { 0, 0 },  // BuildingType::Woodcutter
+    { 1, 0 },  // BuildingType::Fishery
+    { 2, 0 },  // BuildingType::Quarry
+    { 0, 0 },  // BuildingType::Forester
+    { 1, 1 },  // BuildingType::Slaughterhouse
+    { 1, 0 },  // BuildingType::Hunter   // the hunter produces very little food
+    { 1, 2 },  // BuildingType::Brewery
+    { 1, 2 },  // BuildingType::Armory
+    { 1, 2 },  // BuildingType::Metalworks
+    { 1, 2 },  // BuildingType::Ironsmelter
+    { 1, 2 },  // BuildingType::Charburner
+    { 1, 2 },  // BuildingType::PigFarm
+    { 0, 0 },  // BuildingType::Storehouse
     { 0, 0 },  // BLD_NOTHING9
-    { 1, 1 },  // BLD_MILL
-    { 1, 2 },  // BLD_BAKERY
-    { 1, 2 },  // BLD_SAWMILL
-    { 1, 1 },  // BLD_MINT
-    { 2, 0 },  // BLD_WELL
-    { 1, 1 },  // BLD_SHIPYARD
-    { 1, 0 },  // BLD_FARM
-    { 1, 2 },  // BLD_DONKEYBREEDER
-    { 0, 0 },  // BLD_HARBORBUILDING
-};
+    { 1, 1 },  // BuildingType::Mill
+    { 1, 2 },  // BuildingType::Bakery
+    { 1, 2 },  // BuildingType::Sawmill
+    { 1, 1 },  // BuildingType::Mint
+    { 2, 0 },  // BuildingType::Well
+    { 1, 1 },  // BuildingType::Shipyard
+    { 1, 0 },  // BuildingType::Farm
+    { 1, 2 },  // BuildingType::DonkeyBreeder
+    { 0, 0 },  // BuildingType::HarborBuilding
+}};
 
 Building::Building(
         World& buildings,
@@ -141,7 +141,7 @@ const MapPoint& Building::GetPt() const
 MapPoint Building::GetFlag() const
 {
     if (pt_.isValid())
-        return world_.GetNeighbour(pt_, Direction::SOUTHEAST);
+        return world_.GetNeighbour(pt_, Direction::SouthEast);
     return MapPoint::Invalid();
 }
 
@@ -210,15 +210,15 @@ unsigned Building::GetJobs(Job job) const
 
 bool Building::IsGrouped() const
 {
-    return type_ == BLD_WOODCUTTER ||
-           type_ == BLD_FORESTER ||
-           type_ == BLD_SLAUGHTERHOUSE ||
-           type_ == BLD_ARMORY ||
-           type_ == BLD_IRONSMELTER ||
-           type_ == BLD_PIGFARM ||
-           type_ == BLD_MILL ||
-           type_ == BLD_BAKERY ||
-           type_ == BLD_SAWMILL;
+    return type_ == BuildingType::Woodcutter ||
+           type_ == BuildingType::Forester ||
+           type_ == BuildingType::Slaughterhouse ||
+           type_ == BuildingType::Armory ||
+           type_ == BuildingType::Ironsmelter ||
+           type_ == BuildingType::PigFarm ||
+           type_ == BuildingType::Mill ||
+           type_ == BuildingType::Bakery ||
+           type_ == BuildingType::Sawmill;
 }
 
 const Inventory* Building::GetInventory() const
@@ -232,7 +232,7 @@ const Inventory* Building::GetInventory() const
     const noBaseBuilding* base = world_.GetBaseBuilding(this);
 
     RTTR_Assert(base);
-    RTTR_Assert(base->GetType() == NOP_BUILDING);
+    RTTR_Assert(base->GetType() == NodalObjectType::Building);
     RTTR_Assert(BuildingProperties::IsWareHouse(base->GetBuildingType()));
 
     const nobBaseWarehouse* warehouse = static_cast<const nobBaseWarehouse*>(base);

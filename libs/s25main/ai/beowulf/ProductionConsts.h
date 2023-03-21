@@ -43,47 +43,47 @@ struct ProductionStats {
     int speed; // higher number is faster (consumption and production)
 };
 
-static const ProductionStats PRODUCTION[NUM_BUILDING_TYPES] = {
-   { BGD_NONE      , { }                        , 0  },  // BLD_HEADQUARTERS
-   { BGD_NONE      , { }                        , 0  },  // BLD_BARRACKS
-   { BGD_NONE      , { }                        , 0  },  // BLD_GUARDHOUSE
+static const ProductionStats PRODUCTION[helpers::NumEnumValues_v<BuildingType>] = {
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Headquarters
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Barracks
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Guardhouse
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING2
-   { BGD_NONE      , { }                        , 0  },  // BLD_WATCHTOWER
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Watchtower
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING3
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING4
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING5
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING6
-   { BGD_NONE      , { }                        , 0  },  // BLD_FORTRESS
-   { BGD_STONE     , { BGD_FOOD }               , 5  },  // BLD_GRANITEMINE
-   { BGD_COAL      , { BGD_FOOD }               , 5  },  // BLD_COALMINE
-   { BGD_IRONORE   , { BGD_FOOD }               , 5  },  // BLD_IRONMINE
-   { BGD_GOLD      , { BGD_FOOD }               , 5  },  // BLD_GOLDMINE
-   { BGD_NONE      , { }                        , 0  },  // BLD_LOOKOUTTOWER
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Fortress
+   { BGD_STONE     , { BGD_FOOD }               , 5  },  // BuildingType::GraniteMine
+   { BGD_COAL      , { BGD_FOOD }               , 5  },  // BuildingType::CoalMine
+   { BGD_IRONORE   , { BGD_FOOD }               , 5  },  // BuildingType::IronMine
+   { BGD_GOLD      , { BGD_FOOD }               , 5  },  // BuildingType::GoldMine
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::LookoutTower
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING7
-   { BGD_NONE      , { }                        , 0  },  // BLD_CATAPULT
-   { BGD_WOOD      , { }                        , 10 },  // BLD_WOODCUTTER
-   { BGD_FOOD      , { }                        , 5  },  // BLD_FISHERY
-   { BGD_STONE     , { }                        , 10 },  // BLD_QUARRY
-   { BGD_NONE      , { }                        , 0  },  // BLD_FORESTER
-   { BGD_FOOD      , { BGD_PIG  }               , 10 },  // BLD_SLAUGHTERHOUSE
-   { BGD_FOOD      , { }                        , 3  },  // BLD_HUNTER
-   { BGD_BEER      , { BGD_GRAIN, BGD_WATER }   , 10 },  // BLD_BREWERY
-   { BGD_WEAPON    , { BGD_IRON, BGD_COAL }     , 10 },  // BLD_ARMORY
-   { BGD_TOOL      , { BGD_IRON, BGD_BOARD }    , 10 },  // BLD_METALWORKS
-   { BGD_IRON      , { BGD_IRONORE, BGD_COAL}   , 10 },  // BLD_IRONSMELTER
-   { BGD_COAL      , { BGD_BOARD }              , 10 },  // BLD_CHARBURNER
-   { BGD_PIG       , { BGD_GRAIN, BGD_WATER }   , 10 },  // BLD_PIGFARM
-   { BGD_NONE      , { }                        , 0  },  // BLD_STOREHOUSE
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Catapult
+   { BGD_WOOD      , { }                        , 10 },  // BuildingType::Woodcutter
+   { BGD_FOOD      , { }                        , 5  },  // BuildingType::Fishery
+   { BGD_STONE     , { }                        , 10 },  // BuildingType::Quarry
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Forester
+   { BGD_FOOD      , { BGD_PIG  }               , 10 },  // BuildingType::Slaughterhouse
+   { BGD_FOOD      , { }                        , 3  },  // BuildingType::Hunter
+   { BGD_BEER      , { BGD_GRAIN, BGD_WATER }   , 10 },  // BuildingType::Brewery
+   { BGD_WEAPON    , { BGD_IRON, BGD_COAL }     , 10 },  // BuildingType::Armory
+   { BGD_TOOL      , { BGD_IRON, BGD_BOARD }    , 10 },  // BuildingType::Metalworks
+   { BGD_IRON      , { BGD_IRONORE, BGD_COAL}   , 10 },  // BuildingType::Ironsmelter
+   { BGD_COAL      , { BGD_BOARD }              , 10 },  // BuildingType::Charburner
+   { BGD_PIG       , { BGD_GRAIN, BGD_WATER }   , 10 },  // BuildingType::PigFarm
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::Storehouse
    { BGD_NONE      , { }                        , 0  },  // BLD_NOTHING9
-   { BGD_FLOUR     , { BGD_GRAIN }              , 10 },  // BLD_MILL
-   { BGD_FOOD      , { BGD_FLOUR, BGD_WATER }   , 10 },  // BLD_BAKERY
-   { BGD_BOARD     , { BGD_WOOD }               , 20 },  // BLD_SAWMILL
-   { BGD_COIN      , { BGD_GOLD, BGD_COAL }     , 10 },  // BLD_MINT
-   { BGD_WATER     , { }                        , 50 },  // BLD_WELL
-   { BGD_SHIP      , { BGD_BOARD }              , 2  },  // BLD_SHIPYARD
-   { BGD_GRAIN     , { }                        , 5  },  // BLD_FARM
-   { BGD_DONKEY    , { BGD_GRAIN, BGD_WATER }   , 10 },  // BLD_DONKEYBREEDER
-   { BGD_NONE      , { }                        , 0  },  // BLD_HARBORBUILDING
+   { BGD_FLOUR     , { BGD_GRAIN }              , 10 },  // BuildingType::Mill
+   { BGD_FOOD      , { BGD_FLOUR, BGD_WATER }   , 10 },  // BuildingType::Bakery
+   { BGD_BOARD     , { BGD_WOOD }               , 20 },  // BuildingType::Sawmill
+   { BGD_COIN      , { BGD_GOLD, BGD_COAL }     , 10 },  // BuildingType::Mint
+   { BGD_WATER     , { }                        , 50 },  // BuildingType::Well
+   { BGD_SHIP      , { BGD_BOARD }              , 2  },  // BuildingType::Shipyard
+   { BGD_GRAIN     , { }                        , 5  },  // BuildingType::Farm
+   { BGD_DONKEY    , { BGD_GRAIN, BGD_WATER }   , 10 },  // BuildingType::DonkeyBreeder
+   { BGD_NONE      , { }                        , 0  },  // BuildingType::HarborBuilding
 };
 
 
@@ -109,47 +109,47 @@ static const std::string SUPPRESS_UNUSED BGOOD_NAMES[BGD_COUNT] = {
     "<none>"
 };
 
-static const BResourceType REQUIRED_RESOURCES[NUM_BUILDING_TYPES] = {
-   BResourceCount           , // BLD_HEADQUARTERS
-   BResourceCount           , // BLD_BARRACKS
-   BResourceCount           , // BLD_GUARDHOUSE
+static const BResourceType REQUIRED_RESOURCES[helpers::NumEnumValues_v<BuildingType>] = {
+   BResourceCount           , // BuildingType::Headquarters
+   BResourceCount           , // BuildingType::Barracks
+   BResourceCount           , // BuildingType::Guardhouse
    BResourceCount           , // BLD_NOTHING2
-   BResourceCount           , // BLD_WATCHTOWER
+   BResourceCount           , // BuildingType::Watchtower
    BResourceCount           , // BLD_NOTHING3
    BResourceCount           , // BLD_NOTHING4
    BResourceCount           , // BLD_NOTHING5
    BResourceCount           , // BLD_NOTHING6
-   BResourceCount           , // BLD_FORTRESS
-   BResourceGranite         , // BLD_GRANITEMINE
-   BResourceCoal            , // BLD_COALMINE
-   BResourceIron            , // BLD_IRONMINE
-   BResourceGold            , // BLD_GOLDMINE
-   BResourceCount           , // BLD_LOOKOUTTOWER
+   BResourceCount           , // BuildingType::Fortress
+   BResourceGranite         , // BuildingType::GraniteMine
+   BResourceCoal            , // BuildingType::CoalMine
+   BResourceIron            , // BuildingType::IronMine
+   BResourceGold            , // BuildingType::GoldMine
+   BResourceCount           , // BuildingType::LookoutTower
    BResourceCount           , // BLD_NOTHING7
-   BResourceCount           , // BLD_CATAPULT
-   BResourceCount           , // BLD_WOODCUTTER
-   BResourceFish            , // BLD_FISHERY
-   BResourceStone           , // BLD_QUARRY
-   BResourcePlantSpace_6    , // BLD_FORESTER
-   BResourceCount           , // BLD_SLAUGHTERHOUSE
-   BResourceHuntableAnimals , // BLD_HUNTER
-   BResourceCount           , // BLD_BREWERY
-   BResourceCount           , // BLD_ARMORY
-   BResourceCount           , // BLD_METALWORKS
-   BResourceCount           , // BLD_IRONSMELTER
-   BResourcePlantSpace_2    , // BLD_CHARBURNER
-   BResourceCount           , // BLD_PIGFARM
-   BResourceCount           , // BLD_STOREHOUSE
+   BResourceCount           , // BuildingType::Catapult
+   BResourceCount           , // BuildingType::Woodcutter
+   BResourceFish            , // BuildingType::Fishery
+   BResourceStone           , // BuildingType::Quarry
+   BResourcePlantSpace_6    , // BuildingType::Forester
+   BResourceCount           , // BuildingType::Slaughterhouse
+   BResourceHuntableAnimals , // BuildingType::Hunter
+   BResourceCount           , // BuildingType::Brewery
+   BResourceCount           , // BuildingType::Armory
+   BResourceCount           , // BuildingType::Metalworks
+   BResourceCount           , // BuildingType::Ironsmelter
+   BResourcePlantSpace_2    , // BuildingType::Charburner
+   BResourceCount           , // BuildingType::PigFarm
+   BResourceCount           , // BuildingType::Storehouse
    BResourceCount           , // BLD_NOTHING9
-   BResourceCount           , // BLD_MILL
-   BResourceCount           , // BLD_BAKERY
-   BResourceCount           , // BLD_SAWMILL
-   BResourceCount           , // BLD_MINT
-   BResourceWater           , // BLD_WELL
-   BResourceCount           , // BLD_SHIPYARD
-   BResourcePlantSpace_2    , // BLD_FARM
-   BResourceCount           , // BLD_DONKEYBREEDER
-   BResourceCount           , // BLD_HARBORBUILDING
+   BResourceCount           , // BuildingType::Mill
+   BResourceCount           , // BuildingType::Bakery
+   BResourceCount           , // BuildingType::Sawmill
+   BResourceCount           , // BuildingType::Mint
+   BResourceWater           , // BuildingType::Well
+   BResourceCount           , // BuildingType::Shipyard
+   BResourcePlantSpace_2    , // BuildingType::Farm
+   BResourceCount           , // BuildingType::DonkeyBreeder
+   BResourceCount           , // BuildingType::HarborBuilding
 };
 
 } // namespace beowulf

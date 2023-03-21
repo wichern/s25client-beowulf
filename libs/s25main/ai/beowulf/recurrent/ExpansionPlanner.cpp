@@ -83,7 +83,7 @@ void ExpansionPlanner::OnRun()
             continue;
         if (inventory[JOB_BUILDER] < 1 || inventory[JOB_PLANER] < 1)
             continue;
-        const BuildingCost& cost = BUILDING_COSTS[beowulf_->GetAII().GetNation()][BLD_GUARDHOUSE];
+        const BuildingCost& cost = BUILDING_COSTS[beowulf_->GetAII().GetNation()][BuildingType::Guardhouse];
         if (inventory[GD_BOARDS] < cost.boards || inventory[GD_STONES] < cost.stones)
             continue;
 
@@ -144,8 +144,8 @@ void ExpansionPlanner::Expand(const MapPoint& pt)
 
     World& world = beowulf_->world;
 
-    for (const MapPoint& loc : locations.Get(BQ_HUT)) {
-        BuildingType type = BLD_GUARDHOUSE;
+    for (const MapPoint& loc : locations.Get(BuildingQuality::Hut)) {
+        BuildingType type = BuildingType::Guardhouse;
 
         if (!world.CanBuildMilitary(loc))
             continue;
@@ -213,13 +213,13 @@ bool ExpansionPlanner::ShouldExpand() const
     unsigned quarry = 0;
     for (const Building* bld : beowulf_->world.GetBuildings()) {
         switch (bld->GetType()) {
-        case BLD_SAWMILL:
+        case BuildingType::Sawmill:
             sawmill++;
             break;
-        case BLD_WOODCUTTER:
+        case BuildingType::Woodcutter:
             woodcutter++;
             break;
-        case BLD_QUARRY:
+        case BuildingType::Quarry:
             quarry++;
             break;
         default:
@@ -242,16 +242,16 @@ bool ExpansionPlanner::ShouldExpand() const
 
 bool ExpansionPlanner::TryImprove(BuildingType& type, BuildingQuality bq) const
 {
-    if (type == BLD_BARRACKS && beowulf_->GetAII().CanBuildBuildingtype(BLD_GUARDHOUSE)) {
-        type = BLD_GUARDHOUSE;
+    if (type == BuildingType::Barracks && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Guardhouse)) {
+        type = BuildingType::Guardhouse;
         return true;
     }
-    if (type == BLD_GUARDHOUSE && beowulf_->GetAII().CanBuildBuildingtype(BLD_WATCHTOWER) && bq >= BQ_HOUSE) {
-        type = BLD_WATCHTOWER;
+    if (type == BuildingType::Guardhouse && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Watchtower) && bq >= BuildingQuality::House) {
+        type = BuildingType::Watchtower;
         return true;
     }
-    if (type == BLD_WATCHTOWER && beowulf_->GetAII().CanBuildBuildingtype(BLD_FORTRESS) && bq >= BQ_CASTLE) {
-        type = BLD_FORTRESS;
+    if (type == BuildingType::Watchtower && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Fortress) && bq >= BuildingQuality::Castle) {
+        type = BuildingType::Fortress;
         return true;
     }
     return false;

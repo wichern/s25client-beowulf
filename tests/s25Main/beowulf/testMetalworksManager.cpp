@@ -51,7 +51,7 @@ BOOST_FIXTURE_TEST_CASE(Simple, BiggerWorldWithGCExecution)
     BOOST_REQUIRE(beowulf_raw->metalworks.JobOrToolOrQueueSpace(JOB_FORESTER, false));
 
     // Build Metalworks
-    beowulf::Building* building = beowulf_raw->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
+    beowulf::Building* building = beowulf_raw->world.Create(BuildingType::Metalworks, beowulf::Building::PlanningRequest);
     MapPoint metalworksPt(15, 13);
     beowulf_raw->world.Construct(building, metalworksPt);
     beowulf_raw->roads.Connect(building);
@@ -145,7 +145,7 @@ BOOST_FIXTURE_TEST_CASE(ContinueQueueAfterReconstruction, BiggerWorldWithGCExecu
     // Build Metalworks
     MapPoint metalworksPt(15, 13);
     {
-        beowulf::Building* building = beowulf_raw->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
+        beowulf::Building* building = beowulf_raw->world.Create(BuildingType::Metalworks, beowulf::Building::PlanningRequest);
         beowulf_raw->world.Construct(building, metalworksPt);
         beowulf_raw->roads.Connect(building);
         Proceed([&]() { return building->GetState() != beowulf::Building::UnderConstruction; }, { beowulf_raw }, em, world);
@@ -170,7 +170,7 @@ BOOST_FIXTURE_TEST_CASE(ContinueQueueAfterReconstruction, BiggerWorldWithGCExecu
 
     // Rebuild on new position
     {
-        beowulf::Building* building = beowulf_raw->world.Create(BLD_METALWORKS, beowulf::Building::PlanningRequest);
+        beowulf::Building* building = beowulf_raw->world.Create(BuildingType::Metalworks, beowulf::Building::PlanningRequest);
         MapPoint metalworksPt(14, 5);
         beowulf_raw->world.Construct(building, metalworksPt);
         beowulf_raw->roads.Connect(building);

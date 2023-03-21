@@ -54,7 +54,7 @@ bool Proceed(
         Condition condition,
         std::vector<AIPlayer*> player,
         TestEventManager& em,
-        GameWorldGame& world,
+        GameWorld& world,
         unsigned maxGf = 0,
         unsigned* totalGf = nullptr)
 {
@@ -89,11 +89,11 @@ bool Proceed(
 void Proceed(
         std::vector<AIPlayer*> player,
         TestEventManager& em,
-        GameWorldGame& world);
+        GameWorld& world);
 
 bool ConstructBuilding(
         AIPlayer* ai,
-        GameWorldGame& world,
+        GameWorld& world,
         TestEventManager& em,
         BuildingType type,
         const MapPoint& pos,
@@ -101,7 +101,7 @@ bool ConstructBuilding(
 
 bool CompareBuildingsWithWorld(
         AIPlayer* ai,
-        GameWorldGame& world);
+        GameWorld& world);
 
 bool IsOutsidePlayerTerritory(
         const beowulf::Beowulf* beowulf,

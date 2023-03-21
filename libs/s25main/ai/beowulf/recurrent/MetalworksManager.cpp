@@ -97,7 +97,7 @@ bool MetalworksManager::CheckMetalworksExists()
     if (metalworksPt_.isValid()) {
         // Still exists?
         Building* building = beowulf_->world.GetBuilding(metalworksPt_);
-        if (!building || building->GetType() != BLD_METALWORKS || building->GetState() != Building::Finished) {
+        if (!building || building->GetType() != BuildingType::Metalworks || building->GetState() != Building::Finished) {
             metalworksPt_ = MapPoint::Invalid();
 
             // If the metalworks was currently working, we have to remove the latest order.
@@ -110,8 +110,8 @@ bool MetalworksManager::CheckMetalworksExists()
         return true;
     } else {
         // New metalworks exists?
-        for (const Building* building : beowulf_->world.GetBuildings(BLD_METALWORKS)) {
-            if (building->GetType() == BLD_METALWORKS && building->GetState() == Building::Finished) {
+        for (const Building* building : beowulf_->world.GetBuildings(BuildingType::Metalworks)) {
+            if (building->GetType() == BuildingType::Metalworks && building->GetState() == Building::Finished) {
                 metalworksPt_ = building->GetPt();
                 isWorking_ = false;
                 beowulf_->GetAII().SetProductionEnabled(metalworksPt_, false);

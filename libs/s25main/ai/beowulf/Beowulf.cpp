@@ -127,7 +127,7 @@ bool Beowulf::CheckDefeat()
 void Beowulf::Chat(const std::string& message) const
 {
     GAMECLIENT.GetMainPlayer().sendMsgAsync(
-                new GameMessage_Chat(playerId, CD_ALL, message));
+                new GameMessage_Chat(playerId, ChatDestination::All, message));
 }
 
 } // namespace beowulf

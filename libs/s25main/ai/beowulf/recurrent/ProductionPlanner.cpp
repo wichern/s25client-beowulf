@@ -148,16 +148,16 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // BGD_BOARD
     // We extend board production based on the number of military buildings.
     // We use a fibonacci scale based on military building count.
-    unsigned sawmillsPlaced = region.CountBuildings({ BLD_SAWMILL });
-    unsigned sawmills = sawmillsPlaced + beowulf_->build.GetRequestCount({ BLD_SAWMILL }, regionPt);
-    unsigned militaries = region.CountBuildings({ BLD_BARRACKS, BLD_GUARDHOUSE, BLD_WATCHTOWER, BLD_FORTRESS }, true);
+    unsigned sawmillsPlaced = region.CountBuildings({ BuildingType::Sawmill });
+    unsigned sawmills = sawmillsPlaced + beowulf_->build.GetRequestCount({ BuildingType::Sawmill }, regionPt);
+    unsigned militaries = region.CountBuildings({ BuildingType::Barracks, BuildingType::Guardhouse, BuildingType::Watchtower, BuildingType::Fortress }, true);
     static const std::vector<unsigned> fib = { 1, 2, 3, 5, 8, 13, 21, 34 };
     if (sawmills < 2 || militaries > fib[sawmills]) {
-        World::ProductionGroup& group = beowulf_->world.CreateGroup({ BLD_WOODCUTTER, BLD_WOODCUTTER, BLD_FORESTER, BLD_SAWMILL }, regionPt);
-        RequestBuilding(regionPt, BLD_WOODCUTTER, group.id);
-        RequestBuilding(regionPt, BLD_WOODCUTTER, group.id);
-        RequestBuilding(regionPt, BLD_FORESTER, group.id);
-        RequestBuilding(regionPt, BLD_SAWMILL, group.id);
+        World::ProductionGroup& group = beowulf_->world.CreateGroup({ BuildingType::Woodcutter, BuildingType::Woodcutter, BuildingType::Forester, BuildingType::Sawmill }, regionPt);
+        RequestBuilding(regionPt, BuildingType::Woodcutter, group.id);
+        RequestBuilding(regionPt, BuildingType::Woodcutter, group.id);
+        RequestBuilding(regionPt, BuildingType::Forester, group.id);
+        RequestBuilding(regionPt, BuildingType::Sawmill, group.id);
         maxRequests -= std::min(maxRequests, static_cast<unsigned>(group.types.size()));
 
         if (0 == maxRequests)
@@ -171,18 +171,18 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // BGD_STONE
     // We extend board production based on the number of military buildings.
     // We use a fibonacci scale based on military building count.
-    unsigned stoneProducer = region.CountBuildings({ BLD_QUARRY, BLD_GRANITEMINE });
-    stoneProducer += beowulf_->build.GetRequestCount({ BLD_QUARRY, BLD_GRANITEMINE }, regionPt);
+    unsigned stoneProducer = region.CountBuildings({ BuildingType::Quarry, BuildingType::GraniteMine });
+    stoneProducer += beowulf_->build.GetRequestCount({ BuildingType::Quarry, BuildingType::GraniteMine }, regionPt);
     if (stoneProducer < 1 || militaries > fib[stoneProducer]) {
-        auto quarries =  region.CountBuildings({ BLD_QUARRY });
+        auto quarries =  region.CountBuildings({ BuildingType::Quarry });
         if (quarries == 0 && region.resources[BResourceStone] > 0) {
-            RequestBuilding(regionPt, BLD_QUARRY);
+            RequestBuilding(regionPt, BuildingType::Quarry);
             maxRequests--;
         } else if (region.resources[BResourceStone] >= 2 * quarries) {
-            RequestBuilding(regionPt, BLD_QUARRY);
+            RequestBuilding(regionPt, BuildingType::Quarry);
             maxRequests--;
         } else if (region.resources[BResourceGranite] > 0) {
-            RequestBuilding(regionPt, BLD_GRANITEMINE);
+            RequestBuilding(regionPt, BuildingType::GraniteMine);
             maxRequests--;
         }
 
@@ -193,7 +193,7 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // BGD_BEER
     // Produce more beer if more is needed.
     if (region.production[BGD_BEER].consumed > region.production[BGD_BEER].produced) {
-        RequestBuilding(regionPt, BLD_BREWERY);
+        RequestBuilding(regionPt, BuildingType::Brewery);
         if (0 == --maxRequests)
             return;
     }
@@ -201,8 +201,8 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // BGD_TOOL
     // Create a metalworks if we produce iron and do not yet have a metalworks.
     if (region.isMain) {
-        if (beowulf_->world.GetBuildings(BLD_METALWORKS).empty() && region.production[BGD_IRON].produced > 0) {
-            RequestBuilding(regionPt, BLD_METALWORKS);
+        if (beowulf_->world.GetBuildings(BuildingType::Metalworks).empty() && region.production[BGD_IRON].produced > 0) {
+            RequestBuilding(regionPt, BuildingType::Metalworks);
             if (0 == --maxRequests)
                 return;
         }
@@ -211,7 +211,7 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // BGD_COIN
     if (region.isMain) {
         if (region.production[BGD_GOLD].produced > region.production[BGD_GOLD].consumed) {
-            RequestBuilding(regionPt, BLD_MINT);
+            RequestBuilding(regionPt, BuildingType::Mint);
             if (0 == --maxRequests)
                 return;
         }
@@ -223,9 +223,9 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
         if (region.production[BGD_COAL].produced > region.production[BGD_COAL].consumed
                 && region.production[BGD_IRONORE].produced > region.production[BGD_IRONORE].consumed)
         {
-            World::ProductionGroup& group = beowulf_->world.CreateGroup({ BLD_IRONSMELTER, BLD_ARMORY }, regionPt);
-            RequestBuilding(regionPt, BLD_IRONSMELTER, group.id);
-            RequestBuilding(regionPt, BLD_ARMORY, group.id);
+            World::ProductionGroup& group = beowulf_->world.CreateGroup({ BuildingType::Ironsmelter, BuildingType::Armory }, regionPt);
+            RequestBuilding(regionPt, BuildingType::Ironsmelter, group.id);
+            RequestBuilding(regionPt, BuildingType::Armory, group.id);
             maxRequests -= std::min(maxRequests, static_cast<unsigned>(group.types.size()));
 
             if (0 == maxRequests)
@@ -235,21 +235,21 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
 
     // BGD_FOOD
     if (region.production[BGD_GRAIN].produced > region.production[BGD_GRAIN].consumed) {
-        if (0 == beowulf_->build.GetRequestCount({ BLD_BAKERY, BLD_SLAUGHTERHOUSE }, regionPt)) {
+        if (0 == beowulf_->build.GetRequestCount({ BuildingType::Bakery, BuildingType::Slaughterhouse }, regionPt)) {
             // Make only mills until we are out of bakers and then make only pigfarms until we are out of butchers.
             // Then continue with mills.
 
             unsigned possibleBakers = region.GetTotalJobs(JOB_BAKER) + region.GetTotalGoods(*JOB_CONSTS[JOB_BAKER].tool);
             unsigned possibleButchers = region.GetTotalJobs(JOB_BUTCHER) + region.GetTotalGoods(*JOB_CONSTS[JOB_BUTCHER].tool);
             if (possibleBakers > 0 || 0 == possibleButchers) {
-                World::ProductionGroup& group = beowulf_->world.CreateGroup({ BLD_MILL, BLD_BAKERY }, regionPt);
-                RequestBuilding(regionPt, BLD_MILL, group.id);
-                RequestBuilding(regionPt, BLD_BAKERY, group.id);
+                World::ProductionGroup& group = beowulf_->world.CreateGroup({ BuildingType::Mill, BuildingType::Bakery }, regionPt);
+                RequestBuilding(regionPt, BuildingType::Mill, group.id);
+                RequestBuilding(regionPt, BuildingType::Bakery, group.id);
                 maxRequests -= std::min(maxRequests, static_cast<unsigned>(group.types.size()));
             } else {
-                World::ProductionGroup& group = beowulf_->world.CreateGroup({ BLD_SLAUGHTERHOUSE, BLD_PIGFARM }, regionPt);
-                RequestBuilding(regionPt, BLD_SLAUGHTERHOUSE, group.id);
-                RequestBuilding(regionPt, BLD_PIGFARM, group.id);
+                World::ProductionGroup& group = beowulf_->world.CreateGroup({ BuildingType::Slaughterhouse, BuildingType::PigFarm }, regionPt);
+                RequestBuilding(regionPt, BuildingType::Slaughterhouse, group.id);
+                RequestBuilding(regionPt, BuildingType::PigFarm, group.id);
                 maxRequests -= std::min(maxRequests, static_cast<unsigned>(group.types.size()));
             }
         }
@@ -258,11 +258,11 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // BGD_DONKEY
     // Only build one donkeybreeder and not before all donkeys left the storages.
     if (region.isMain && 0 == region.GetTotalJobs(JOB_PACKDONKEY)) {
-        unsigned donkeyBreeder = region.CountBuildings({ BLD_DONKEYBREEDER });
-        donkeyBreeder += beowulf_->build.GetRequestCount({ BLD_DONKEYBREEDER }, regionPt);
+        unsigned donkeyBreeder = region.CountBuildings({ BuildingType::DonkeyBreeder });
+        donkeyBreeder += beowulf_->build.GetRequestCount({ BuildingType::DonkeyBreeder }, regionPt);
 
-        if (0 == region.CountBuildings({ BLD_DONKEYBREEDER })) {
-            RequestBuilding(regionPt, BLD_MINT);
+        if (0 == region.CountBuildings({ BuildingType::DonkeyBreeder })) {
+            RequestBuilding(regionPt, BuildingType::Mint);
             if (0 == --maxRequests)
                 return;
         }
@@ -271,10 +271,10 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // Hunter
     // We add hunters based on the amount of deer available.
     if (beowulf_->metalworks.JobOrToolOrQueueSpace(JOB_HUNTER)) {
-        if (0 == beowulf_->build.GetRequestCount({ BLD_HUNTER }, regionPt)) {
+        if (0 == beowulf_->build.GetRequestCount({ BuildingType::Hunter }, regionPt)) {
             if (region.resources[BResourceHuntableAnimals] > 0) {
-                if (0 == beowulf_->build.GetRequestCount({ BLD_HUNTER }, regionPt)) {
-                    RequestBuilding(regionPt, BLD_HUNTER);
+                if (0 == beowulf_->build.GetRequestCount({ BuildingType::Hunter }, regionPt)) {
+                    RequestBuilding(regionPt, BuildingType::Hunter);
                     if (0 == --maxRequests)
                         return;
                 }
@@ -285,10 +285,10 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     // Fishermen
     // We add fishermen based on the amount of fish available.
     if (beowulf_->metalworks.JobOrToolOrQueueSpace(JOB_FISHER)) {
-        if (0 == beowulf_->build.GetRequestCount({ BLD_FISHERY }, regionPt)) {
+        if (0 == beowulf_->build.GetRequestCount({ BuildingType::Fishery }, regionPt)) {
             if (region.resources[BResourceHuntableAnimals] > 0) {
-                if (0 == beowulf_->build.GetRequestCount({ BLD_FISHERY }, regionPt)) {
-                    RequestBuilding(regionPt, BLD_FISHERY);
+                if (0 == beowulf_->build.GetRequestCount({ BuildingType::Fishery }, regionPt)) {
+                    RequestBuilding(regionPt, BuildingType::Fishery);
                     if (0 == --maxRequests)
                         return;
                 }
@@ -298,7 +298,7 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
 
     // Farms, Wells
     // try to produce at least one more than required.
-    for (BuildingType type : { BLD_FARM, BLD_WELL }) {
+    for (BuildingType type : { BuildingType::Farm, BuildingType::Well }) {
         BResourceType required = REQUIRED_RESOURCES[type];
         // Has resources in region?
         if (0 == region.resources[required])
@@ -326,36 +326,36 @@ void ProductionPlanner::Plan(const MapPoint& regionPt, Region& region)
     int ironOverproduction = static_cast<int>(region.production[BGD_IRON].produced) - static_cast<int>(region.production[BGD_IRON].consumed);
     int goldOverproduction = static_cast<int>(region.production[BGD_GOLD].produced) - static_cast<int>(region.production[BGD_GOLD].consumed);
 
-    unsigned requestedCoal = beowulf_->build.GetRequestCount({ BLD_COALMINE }, regionPt);
-    unsigned requestedIron = beowulf_->build.GetRequestCount({ BLD_IRONMINE }, regionPt);
-    unsigned requestedGold = beowulf_->build.GetRequestCount({ BLD_GOLDMINE }, regionPt);
+    unsigned requestedCoal = beowulf_->build.GetRequestCount({ BuildingType::CoalMine }, regionPt);
+    unsigned requestedIron = beowulf_->build.GetRequestCount({ BuildingType::IronMine }, regionPt);
+    unsigned requestedGold = beowulf_->build.GetRequestCount({ BuildingType::GoldMine }, regionPt);
 
     if (coalOverproduction < ironOverproduction && coalOverproduction < goldOverproduction && region.resources[BResourceCoal] && 0 == requestedCoal) {
-        RequestBuilding(regionPt, BLD_COALMINE);
+        RequestBuilding(regionPt, BuildingType::CoalMine);
         if (0 == --maxRequests)
             return;
     } else if (ironOverproduction < coalOverproduction && ironOverproduction < goldOverproduction && region.resources[BResourceIron] && 0 == requestedIron) {
-        RequestBuilding(regionPt, BLD_IRONMINE);
+        RequestBuilding(regionPt, BuildingType::IronMine);
         if (0 == --maxRequests)
             return;
     } else if (goldOverproduction < coalOverproduction && goldOverproduction < ironOverproduction && region.resources[BResourceGold] && 0 == requestedGold) {
-        RequestBuilding(regionPt, BLD_GOLDMINE);
+        RequestBuilding(regionPt, BuildingType::GoldMine);
         if (0 == --maxRequests)
             return;
     } else {
         // Build anything we can.
         if (region.resources[BResourceCoal] > 0 && 0 == requestedCoal) {
-            RequestBuilding(regionPt, BLD_COALMINE);
+            RequestBuilding(regionPt, BuildingType::CoalMine);
             if (0 == --maxRequests)
                 return;
         }
         if (region.resources[BResourceIron] > 0 && 0 == requestedIron) {
-            RequestBuilding(regionPt, BLD_IRONMINE);
+            RequestBuilding(regionPt, BuildingType::IronMine);
             if (0 == --maxRequests)
                 return;
         }
         if (region.resources[BResourceGold] > 0 && 0 == requestedGold) {
-            RequestBuilding(regionPt, BLD_GOLDMINE);
+            RequestBuilding(regionPt, BuildingType::GoldMine);
             if (0 == --maxRequests)
                 return;
         }
@@ -379,19 +379,19 @@ int ProductionPlanner::GetOvercapacity(const ProductionPlanner::Region &region, 
 {
     // Some production has to happen locally, other can be globally.
     switch (type) {
-    case BLD_BAKERY:
-    case BLD_MILL:
-    case BLD_DONKEYBREEDER:
-    case BLD_PIGFARM:
+    case BuildingType::Bakery:
+    case BuildingType::Mill:
+    case BuildingType::DonkeyBreeder:
+    case BuildingType::PigFarm:
     {
         return region.production[good].produced - region.production[good].consumed;
     }
-    case BLD_COALMINE:
-    case BLD_IRONMINE:
-    case BLD_GOLDMINE:
-    case BLD_MINT:
-    case BLD_IRONSMELTER:
-    case BLD_ARMORY:
+    case BuildingType::CoalMine:
+    case BuildingType::IronMine:
+    case BuildingType::GoldMine:
+    case BuildingType::Mint:
+    case BuildingType::Ironsmelter:
+    case BuildingType::Armory:
     {
         return globalProduction_[good].produced - globalProduction_[good].consumed;
     }
@@ -415,7 +415,7 @@ void ProductionPlanner::CalculateRegions()
     }
 
     for (const Building* bld : world.GetBuildings()) {
-        if (bld->GetType() == BLD_HARBORBUILDING) {
+        if (bld->GetType() == BuildingType::HarborBuilding) {
             if (considered.find(bld) != considered.end())
                 continue;
             if (considered.insert(bld).second) {
@@ -431,7 +431,7 @@ void ProductionPlanner::CalculateRegions()
         for (auto& it : regions_) {
             Region& region = it.second;
             for (const Building* bld : region.buildings) {
-                if (bld->GetType() == BLD_METALWORKS || bld->GetType() == BLD_ARMORY || bld->GetType() == BLD_IRONSMELTER) {
+                if (bld->GetType() == BuildingType::Metalworks || bld->GetType() == BuildingType::Armory || bld->GetType() == BuildingType::Ironsmelter) {
                     region.isMain = true;
                     found = true;
                     break;
@@ -468,7 +468,7 @@ void ProductionPlanner::CalculateRegion(
     [&](const MapPoint& pt)
     {
         if (world.HasFlag(pt)) {
-            MapPoint buildingPt = world.GetNeighbour(pt, Direction::NORTHWEST);
+            MapPoint buildingPt = world.GetNeighbour(pt, Direction::NorthWest);
             const Building* bld = world.GetBuilding(buildingPt);
             if (bld) {
                 if (considered.find(bld) != considered.end())
@@ -497,12 +497,12 @@ void ProductionPlanner::CalculateRegion(
     for (const MapPoint& pt : bl.Get()) {
         BuildingQuality bq = bl.Get(pt);
 
-        if (bq == BQ_MINE) {
+        if (bq == BuildingQuality::Mine) {
             region.resources[BResourceCoal] += world.resources.GetReachable(pt, BResourceCoal, false, true, false);
             region.resources[BResourceIron] += world.resources.GetReachable(pt, BResourceIron, false, true, false);
             region.resources[BResourceGold] += world.resources.GetReachable(pt, BResourceGold, false, true, false);
             region.resources[BResourceGranite] += world.resources.GetReachable(pt, BResourceGranite, false, true, false);
-        } else if (bq >= BQ_HUT && bq <= BQ_CASTLE) {
+        } else if (bq >= BuildingQuality::Hut && bq <= BuildingQuality::Castle) {
             region.resources[BResourceWater] += world.resources.GetReachable(pt, BResourceWater, false);
             region.resources[BResourcePlantSpace_6] += world.resources.GetReachable(pt, BResourcePlantSpace_6, false);
             region.resources[BResourceFish] += world.resources.GetReachable(pt, BResourceFish, false);
@@ -510,7 +510,7 @@ void ProductionPlanner::CalculateRegion(
             region.resources[BResourceWood] += world.resources.GetReachable(pt, BResourceWood, false, false);
             region.resources[BResourceStone] += world.resources.GetReachable(pt, BResourceStone, false, false);
         }
-        if (bq == BQ_CASTLE) {
+        if (bq == BuildingQuality::Castle) {
             region.resources[BResourcePlantSpace_2] += world.resources.GetReachable(pt, BResourcePlantSpace_2);
         }
     }

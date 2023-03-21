@@ -58,9 +58,9 @@ BOOST_FIXTURE_TEST_CASE(Simple, WorldLoaded1PFixture)
     beowulf_raw->expand.Enable();
 
     // Wait for the expansion planner to request a new military building.
-    Proceed([&]() { return !beowulf_raw->world.GetBuildings(BLD_GUARDHOUSE).empty(); }, { beowulf.get() }, em, world);
+    Proceed([&]() { return !beowulf_raw->world.GetBuildings(BuildingType::Guardhouse).empty(); }, { beowulf.get() }, em, world);
 
-    std::vector<Building*> guardhouses = beowulf_raw->world.GetBuildings(BLD_GUARDHOUSE);
+    std::vector<Building*> guardhouses = beowulf_raw->world.GetBuildings(BuildingType::Guardhouse);
     BOOST_REQUIRE_EQUAL(guardhouses.size(), 1);
 
     Building* guardhouse = guardhouses.front();
@@ -72,7 +72,7 @@ BOOST_FIXTURE_TEST_CASE(Simple, WorldLoaded1PFixture)
     Proceed([&]() { return guardhouse->GetState() == beowulf::Building::Finished; }, { beowulf.get() }, em, world);
 
     // Wait for at least three additional expansion buildings.
-    Proceed([&]() { return beowulf_raw->world.GetBuildings(BLD_GUARDHOUSE).size() > 3; }, { beowulf.get() }, em, world);
+    Proceed([&]() { return beowulf_raw->world.GetBuildings(BuildingType::Guardhouse).size() > 3; }, { beowulf.get() }, em, world);
 
 //    {
 //        beowulf::AsciiMap map(beowulf->GetAIInterface(), beowulf_raw->world.GetHQFlag(), 20);

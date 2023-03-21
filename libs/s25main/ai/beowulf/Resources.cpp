@@ -193,7 +193,7 @@ unsigned Resources::Get(const MapPoint& pt, BResourceType type, bool guess)
     {
         unsigned ret = 0;
         for (const noBase* fig : aii_.gwb.GetFigures(pt)) {
-            if (fig->GetType() == NOP_ANIMAL && static_cast<const noAnimal*>(fig)->CanHunted())
+            if (fig->GetType() == NodalObjectType::Animal && static_cast<const noAnimal*>(fig)->CanHunted())
                 ret++;
         }
         return ret;
@@ -202,7 +202,7 @@ unsigned Resources::Get(const MapPoint& pt, BResourceType type, bool guess)
     {
         if (!fow_ || aii_.IsVisible(pt))
             return aii_.gwb.IsWalkable(pt)
-                    && aii_.gwb.GetNO(pt)->GetType() == NOP_TREE
+                    && aii_.gwb.GetNO(pt)->GetType() == NodalObjectType::Tree
                     && aii_.gwb.GetSpecObj<noTree>(pt)->ProducesWood() ? 1 : 0;
         if (guess)
             return 0;
@@ -211,7 +211,7 @@ unsigned Resources::Get(const MapPoint& pt, BResourceType type, bool guess)
     case BResourceStone:
     {
         if (!fow_ || aii_.IsVisible(pt)) {
-            if (aii_.gwb.GetNO(pt)->GetType() != NOP_GRANITE)
+            if (aii_.gwb.GetNO(pt)->GetType() != NodalObjectType::Granite)
                 return 0;
             if (!aii_.gwb.IsWalkable(pt))
                 return 0;
@@ -306,17 +306,17 @@ void Resources::OnBuildingNote(const BuildingNote& note)
 {
     if (note.type == BuildingNote::NoRessources) {
         switch (note.bld) {
-        case BLD_FISHERY:
+        case BuildingType::Fishery:
             // We can say for sure that there is no more fish around here.
             for (const MapPoint& p : nodes_.GetPointsInRadius(note.pos, FISHER_RADIUS)) {
                 if (aii_.gwb.IsWaterPoint(p))
                     nodes_[p].underground_known = true;
             }
             break;
-        case BLD_COALMINE:
-        case BLD_GOLDMINE:
-        case BLD_GRANITEMINE:
-        case BLD_IRONMINE:
+        case BuildingType::CoalMine:
+        case BuildingType::GoldMine:
+        case BuildingType::GraniteMine:
+        case BuildingType::IronMine:
             /*
              * We cannot do anything here, because we can only safely say that there is no
              * more of the corresponding ore here but not if there are other ores on

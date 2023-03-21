@@ -47,7 +47,7 @@ BOOST_FIXTURE_TEST_CASE(PlanSingleBuilding, BiggerWorldWithGCExecution)
     beowulf_raw->DisableRecurrents();
     beowulf_raw->build.Enable();
 
-    Building* bld = beowulf_raw->world.Create(BLD_BREWERY, Building::PlanningRequest);
+    Building* bld = beowulf_raw->world.Create(BuildingType::Brewery, Building::PlanningRequest);
     beowulf_raw->build.Request(bld, beowulf_raw->world.GetHQFlag());
 
     Proceed([&]() { return bld->GetState() == Building::UnderConstruction; }, { beowulf.get() }, em, world);
@@ -63,10 +63,10 @@ BOOST_FIXTURE_TEST_CASE(PlanMultipleBuildings, BiggerWorldWithGCExecution)
     beowulf_raw->build.Enable();
 
     std::vector<Building*> requests;
-    requests.push_back(beowulf_raw->world.Create(BLD_SAWMILL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FORESTER, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Sawmill, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Forester, Building::PlanningRequest));
 
     for (Building* building : requests)
         beowulf_raw->build.Request(building, beowulf_raw->world.GetHQFlag());
@@ -162,10 +162,10 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
      *  21   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .
      */
 
-    beowulf::Building* sawmill = beowulf_raw->world.Create(BLD_SAWMILL, beowulf::Building::PlanningRequest);
+    beowulf::Building* sawmill = beowulf_raw->world.Create(BuildingType::Sawmill, beowulf::Building::PlanningRequest);
     beowulf_raw->world.Construct(sawmill, MapPoint(14, 12));
     beowulf_raw->world.ConstructRoad(MapPoint(14, 13),
-    { Direction::WEST, Direction::NORTHWEST });
+    { Direction::West, Direction::NorthWest });
     buildLocations.Update(MapPoint(14, 13), 3);
 
     Proceed({ beowulf.get() }, em, world);
@@ -193,22 +193,22 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             BOOST_REQUIRE(bq_Beowulf == bq_BuildLocations1);
         }
     }
 
-    Building* storehouse = beowulf_raw->world.Create(BLD_STOREHOUSE, Building::PlanningRequest);
+    Building* storehouse = beowulf_raw->world.Create(BuildingType::Storehouse, Building::PlanningRequest);
     beowulf_raw->world.Construct(storehouse, MapPoint(7, 17));
     beowulf_raw->world.ConstructRoad(MapPoint(8, 18),
-    { Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::EAST,
-      Direction::EAST });
+    { Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::East,
+      Direction::East });
     buildLocations.Update(MapPoint(8, 18), 8);
     Proceed({ beowulf.get() }, em, world);
 
@@ -223,12 +223,12 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         }
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             BOOST_REQUIRE(bq_Beowulf == bq_BuildLocations1);
         }
     }
 
-    Building* bakery = beowulf_raw->world.Create(BLD_BAKERY, Building::PlanningRequest);
+    Building* bakery = beowulf_raw->world.Create(BuildingType::Bakery, Building::PlanningRequest);
     beowulf_raw->world.Construct(bakery, MapPoint(8, 15));
     buildLocations.Update(MapPoint(8, 15));
     Proceed({ beowulf.get() }, em, world);
@@ -242,12 +242,12 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             BOOST_REQUIRE(bq_Beowulf == bq_BuildLocations1);
         }
     }
 
-    Building* forester = beowulf_raw->world.Create(BLD_FORESTER, Building::PlanningRequest);
+    Building* forester = beowulf_raw->world.Create(BuildingType::Forester, Building::PlanningRequest);
     beowulf_raw->world.Construct(forester, MapPoint(9, 13));
     buildLocations.Update(MapPoint(9, 13));
     Proceed({ beowulf.get() }, em, world);
@@ -261,7 +261,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             if (bq_Beowulf != bq_BuildLocations1) {
                 beowulf::AsciiMap map(beowulf_raw->GetAII(), 1);
                 map.draw(beowulf_raw->world, true);
@@ -271,12 +271,12 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         }
     }
 
-    Building* farm1 = beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest);
+    Building* farm1 = beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest);
     beowulf_raw->world.Construct(farm1, MapPoint(12, 15));
     beowulf_raw->world.ConstructRoad(MapPoint(13, 16),
-    { Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::NORTHEAST });
+    { Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::NorthEast });
     buildLocations.Update(MapPoint(13, 16), 4);
     Proceed({ beowulf.get() }, em, world);
 
@@ -291,17 +291,17 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         }
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             BOOST_REQUIRE(bq_Beowulf == bq_BuildLocations1);
         }
     }
 
-    Building* farm2 = beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest);
+    Building* farm2 = beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest);
     beowulf_raw->world.Construct(farm2, MapPoint(11, 18));
     beowulf_raw->world.ConstructRoad(MapPoint(11, 19),
-    { Direction::NORTHEAST,
-      Direction::NORTHEAST,
-      Direction::NORTHEAST });
+    { Direction::NorthEast,
+      Direction::NorthEast,
+      Direction::NorthEast });
     buildLocations.Update(MapPoint(11, 19), 4);
     Proceed({ beowulf.get() }, em, world);
 
@@ -314,18 +314,18 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             BOOST_REQUIRE(bq_Beowulf == bq_BuildLocations1);
         }
     }
 
-    Building* farm3 = beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest);
+    Building* farm3 = beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest);
     beowulf_raw->world.Construct(farm3, MapPoint(6, 11));
     beowulf_raw->world.ConstructRoad(MapPoint(7, 12),
-    { Direction::SOUTHEAST,
-      Direction::SOUTHEAST,
-      Direction::EAST,
-      Direction::EAST });
+    { Direction::SouthEast,
+      Direction::SouthEast,
+      Direction::East,
+      Direction::East });
     buildLocations.Update(MapPoint(7, 12), 5);
     Proceed({ beowulf.get() }, em, world);
 
@@ -338,7 +338,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsStepByStep, BiggerWorldWithGCExecution)
         BOOST_REQUIRE(bq_BuildLocations1 == bq_BuildLocations2);
 
         // BuildingLocations ignores flags
-        if (bq_Beowulf != BQ_FLAG) {
+        if (bq_Beowulf != BuildingQuality::Flag) {
             BOOST_REQUIRE(bq_Beowulf == bq_BuildLocations1);
         }
     }
@@ -352,19 +352,19 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
     beowulf_raw->build.Enable();
 
     std::vector<beowulf::Building*> requests;
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_MILL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FORESTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_QUARRY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_SAWMILL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_STOREHOUSE, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_QUARRY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WELL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_BAKERY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest));
-    //requests.push_back(buildings.Create(BLD_FARM, beowulf::Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Mill, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Forester, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Quarry, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Sawmill, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Storehouse, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Quarry, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Well, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Bakery, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest));
+    //requests.push_back(buildings.Create(BuildingType::Farm, beowulf::Building::PlanningRequest));
 
     for (Building* bld : requests)
         beowulf_raw->build.Request(bld, beowulf_raw->world.GetHQFlag());
@@ -385,7 +385,7 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildings, BiggerWorldWithGCExecution)
         }
 
         // BuildingLocations ignores flags
-        if (bq_GWB != BQ_FLAG) {
+        if (bq_GWB != BuildingQuality::Flag) {
             if (bq_GWB != bq_BuildLocations) {
                 beowulf::AsciiMap map(beowulf_raw->GetAII(), 1);
                 map.draw(beowulf_raw->world, true);
@@ -405,18 +405,18 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsOnRealMap, WorldLoaded1PFixture)
     beowulf_raw->build.Enable();
 
     std::vector<beowulf::Building*> requests;
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_MILL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FORESTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_QUARRY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_SAWMILL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_STOREHOUSE, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_QUARRY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WELL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_BAKERY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Mill, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Forester, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Quarry, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Sawmill, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Storehouse, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Quarry, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Well, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Bakery, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest));
 
     for (Building* bld : requests)
         beowulf_raw->build.Request(bld, beowulf_raw->world.GetHQFlag());
@@ -434,8 +434,8 @@ BOOST_FIXTURE_TEST_CASE(PlanManyBuildingsOnRealMap, WorldLoaded1PFixture)
         BOOST_REQUIRE(bq_GWB == bq_Beowulf);
 
         // BuildingLocations ignores flags and can be same as gwb or none (because there is no route to the building flag)
-        if (bq_GWB != BQ_FLAG && bq_GWB != bq_BuildLocations) {
-            BOOST_REQUIRE(bq_BuildLocations == BQ_NOTHING);
+        if (bq_GWB != BuildingQuality::Flag && bq_GWB != bq_BuildLocations) {
+            BOOST_REQUIRE(bq_BuildLocations == BuildingQuality::Nothing);
         }
     }
 }
@@ -448,12 +448,12 @@ BOOST_FIXTURE_TEST_CASE(InvalidPositionBug_1, WorldLoaded1PFixture)
     beowulf_raw->build.Enable();
 
     std::vector<beowulf::Building*> requests;
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_WOODCUTTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_FORESTER, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_SAWMILL, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_QUARRY, Building::PlanningRequest));
-    requests.push_back(beowulf_raw->world.Create(BLD_GUARDHOUSE, Building::PlanningRequest, beowulf::InvalidProductionGroup, { 12, 92 }));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Woodcutter, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Forester, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Sawmill, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Quarry, Building::PlanningRequest));
+    requests.push_back(beowulf_raw->world.Create(BuildingType::Guardhouse, Building::PlanningRequest, beowulf::InvalidProductionGroup, { 12, 92 }));
 
     for (Building* bld : requests)
         beowulf_raw->build.Request(bld, beowulf_raw->world.GetHQFlag());
@@ -482,7 +482,7 @@ BOOST_FIXTURE_TEST_CASE(TooManyBuildings, WorldLoaded1PFixture)
 
     std::vector<beowulf::Building*> requests;
     for (int i = 0; i < 20; ++i) {
-        beowulf::Building* building = beowulf_raw->world.Create(BLD_FARM, Building::PlanningRequest);
+        beowulf::Building* building = beowulf_raw->world.Create(BuildingType::Farm, Building::PlanningRequest);
         requests.push_back(building);
         beowulf_raw->build.Request(building, beowulf_raw->world.GetHQFlag());
     }

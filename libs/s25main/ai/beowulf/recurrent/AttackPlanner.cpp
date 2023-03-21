@@ -73,7 +73,7 @@ void AttackPlanner::OnRun()
 
     // Try to find a HQ and attack that first.
     for (const nobBaseMilitary* target : targets) {
-        if (target->GetBuildingType() == BLD_HEADQUARTERS) {
+        if (target->GetBuildingType() == BuildingType::Headquarters) {
             unsigned attackers = GetAttackersCount(GetAvailableAttackers(target->GetPos()), target->GetPlayer());
             if (attackers > 0) {
                 beowulf_->GetAII().Attack(target->GetPos(), attackers, true);
@@ -84,7 +84,7 @@ void AttackPlanner::OnRun()
 
     // Try to find a harbour to attack.
     for (const nobBaseMilitary* target : targets) {
-        if (target->GetBuildingType() == BLD_HARBORBUILDING) {
+        if (target->GetBuildingType() == BuildingType::HarborBuilding) {
             unsigned attackers = GetAttackersCount(GetAvailableAttackers(target->GetPos()), target->GetPlayer());
             if (attackers > 0) {
                 beowulf_->GetAII().Attack(target->GetPos(), attackers, true);
@@ -113,24 +113,24 @@ void AttackPlanner::OnRun()
                     additionalTerritory,
                     destroyed);
 
-        unsigned destruction = BUILDING_SIZE[target->GetBuildingType()];
+        unsigned destruction = static_cast<unsigned>(BUILDING_SIZE[target->GetBuildingType()]);
         for (const noBaseBuilding* building : destroyed) {
             switch (BUILDING_SIZE[building->GetBuildingType()]) {
-            case BQ_HUT:
+            case BuildingQuality::Hut:
                 destruction += 2;
                 break;
-            case BQ_HOUSE:
+            case BuildingQuality::House:
                 destruction += 5;
                 break;
-            case BQ_CASTLE:
+            case BuildingQuality::Castle:
                 destruction += 10;
                 break;
-            case BQ_MINE:
+            case BuildingQuality::Mine:
                 destruction += 10;
                 break;
             default: break;
             }
-            if (building->GetBuildingType() == BLD_CATAPULT)
+            if (building->GetBuildingType() == BuildingType::Catapult)
                 destruction += 50;
         }
 
@@ -151,7 +151,7 @@ std::vector<const nobBaseMilitary*> AttackPlanner::GetPotentialTargets() const
 
     for (const nobMilitary* building : beowulf_->GetAII().GetMilitaryBuildings()) {
         // Skip buildings that are far away from the front.
-        if (building->GetFrontierDistance() == nobMilitary::DIST_FAR)
+        if (building->GetFrontierDistance() == FrontierDistance::Far)
             continue;
 
         for (const nobBaseMilitary* target : beowulf_->gwb.LookForMilitaryBuildings(building->GetPos(), 2)) {

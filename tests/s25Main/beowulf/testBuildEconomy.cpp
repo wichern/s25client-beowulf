@@ -45,7 +45,7 @@ BOOST_FIXTURE_TEST_CASE(Bergschlumpf, WorldLoaded1PFixture)
 
     unsigned totalGf;
     bool ret = Proceed([&]() {
-        auto metalworks = beowulf_raw->world.GetBuildings(BLD_METALWORKS);
+        auto metalworks = beowulf_raw->world.GetBuildings(BuildingType::Metalworks);
 
         if (metalworks.empty())
             return false;

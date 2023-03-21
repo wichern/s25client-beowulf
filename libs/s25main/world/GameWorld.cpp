@@ -23,6 +23,7 @@
 #include "notifications/ExpeditionNote.h"
 #include "notifications/NodeNote.h"
 #include "notifications/RoadNote.h"
+#include "notifications/FlagNote.h"
 #include "pathfinding/PathConditionHuman.h"
 #include "pathfinding/PathConditionRoad.h"
 #include "postSystem/PostMsgWithBuilding.h"
@@ -69,11 +70,15 @@ MilitarySquares& GameWorld::GetMilitarySquares()
 
 void GameWorld::SetFlag(const MapPoint pt, const unsigned char player)
 {
-    if(GetBQ(pt, player) == BuildingQuality::Nothing)
+    if(GetBQ(pt, player) == BuildingQuality::Nothing) {
+        GetNotifications().publish(FlagNote(FlagNote::ConstructionFailed, pt, player));
         return;
+    }
     // There must be no other flag around that point
-    if(IsFlagAround(pt))
+    if(IsFlagAround(pt)) {
+        GetNotifications().publish(FlagNote(FlagNote::ConstructionFailed, pt, player));
         return;
+    }
 
     // Gucken, nicht, dass schon eine Flagge dasteht
     if(GetNO(pt)->GetType() != NodalObjectType::Flag)
@@ -82,6 +87,8 @@ void GameWorld::SetFlag(const MapPoint pt, const unsigned char player)
         SetNO(pt, new noFlag(pt, player));
 
         RecalcBQAroundPointBig(pt);
+    } else {
+        GetNotifications().publish(FlagNote(FlagNote::ConstructionFailed, pt, player));
     }
 }
 
@@ -92,7 +99,10 @@ void GameWorld::DestroyFlag(const MapPoint pt, unsigned char playerId)
     {
         auto* flag = GetSpecObj<noFlag>(pt);
         if(flag->GetPlayer() != playerId)
+        {
+            GetNotifications().publish(FlagNote(FlagNote::DestructionFailed, pt, playerId));
             return;
+        }
 
         // Get the attached building if existing
         noBase* building = GetNO(GetNeighbour(pt, Direction::NorthWest));
@@ -102,7 +112,10 @@ void GameWorld::DestroyFlag(const MapPoint pt, unsigned char playerId)
         {
             // Maybe demolition of the building is not allowed?
             if(!static_cast<nobMilitary*>(building)->IsDemolitionAllowed())
+            {
+                GetNotifications().publish(FlagNote(FlagNote::DestructionFailed, pt, playerId));
                 return; // Abort the whole thing
+            }
         }
 
         // Demolish, also the building
@@ -110,6 +123,9 @@ void GameWorld::DestroyFlag(const MapPoint pt, unsigned char playerId)
 
         DestroyNO(pt, false);
         RecalcBQAroundPointBig(pt);
+    } else
+    {
+        GetNotifications().publish(FlagNote(FlagNote::DestructionFailed, pt, playerId));
     }
 
     if(gi)

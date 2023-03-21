@@ -60,8 +60,8 @@ World::World(Beowulf* beowulf, bool fow)
     // Set existing buildings.
     const nobHQ* bld = aii_.GetHeadquarter();
     if (bld) {
-        SetPoint(Create(BLD_HEADQUARTERS, Building::Finished), bld->GetPos());
-        hqFlag_ = GetNeighbour(bld->GetPos(), Direction::SOUTHEAST);
+        SetPoint(Create(BuildingType::Headquarters, Building::Finished), bld->GetPos());
+        hqFlag_ = GetNeighbour(bld->GetPos(), Direction::SouthEast);
     } else {
         hqFlag_ = MapPoint::Invalid();
     }
@@ -72,7 +72,7 @@ World::World(Beowulf* beowulf, bool fow)
     for (const nobMilitary* bld : aii_.GetMilitaryBuildings())
         SetPoint(Create(bld->GetBuildingType(), Building::Finished), bld->GetPos());
 
-    for (unsigned i = FIRST_USUAL_BUILDING; i < NUM_BUILDING_TYPES; ++i)
+    for (unsigned i = FIRST_USUAL_BUILDING; i < helpers::MaxEnumValue_v<BuildingType>; ++i)
         for (const nobUsual* bld : aii_.GetBuildings(static_cast<BuildingType>(i)))
             SetPoint(Create(bld->GetBuildingType(), Building::Finished), bld->GetPos());
 
@@ -84,8 +84,8 @@ World::World(Beowulf* beowulf, bool fow)
             SetFlagState(pt, FlagFinished);
         for (const RoadDir rdir : helpers::EnumRange<RoadDir>{}) {
             if (aii_.gwb.GetRoad(pt, rdir) != PointRoad::None) {
-                if (aii_.gwb.GetNO(pt)->GetType() != NOP_BUILDING &&
-                        aii_.gwb.GetNO(GetNeighbour(pt, OppositeDirection(toDirection(rdir))))->GetType() != NOP_BUILDING)
+                if (aii_.gwb.GetNO(pt)->GetType() != NodalObjectType::Building &&
+                        aii_.gwb.GetNO(GetNeighbour(pt, OppositeDirection(toDirection(rdir))))->GetType() != NodalObjectType::Building)
                 {
                     node.roads[static_cast<int>(rdir)] = RoadFinished;
                 }
@@ -225,7 +225,7 @@ void World::Plan(Building* building, const MapPoint& pt)
 
     resources.Added(pt, building->GetType());
 
-    PlanFlag(GetNeighbour(pt, Direction::SOUTHEAST));
+    PlanFlag(GetNeighbour(pt, Direction::SouthEast));
 
     activePlan_ = true;
 }
@@ -534,7 +534,7 @@ bool World::IsRoadPossible(
                 break;
             }
         }
-        if (hasRoads && GetBQ(pt, includeAnticipated, tmps) < BQ_FLAG)
+        if (hasRoads && GetBQ(pt, includeAnticipated, tmps) < BuildingQuality::Flag)
             return false;
     }
 
@@ -556,7 +556,7 @@ bool World::IsRoadPossible(
     for (const auto d : helpers::EnumRange<Direction>{}) {
         if (HasRoad(dest, d)) {
             // Can we place a flag at dest?
-            if (GetBQ(dest, includeAnticipated, tmps) < BQ_FLAG)
+            if (GetBQ(dest, includeAnticipated, tmps) < BuildingQuality::Flag)
                 return false;
 
             // Do we need to place a flag at pt?
@@ -672,7 +672,7 @@ const noBaseBuilding* World::GetBaseBuilding(const Building* building) const
     if (!node)
         return nullptr;
 
-    if (!(node->GetType() == NOP_BUILDING || node->GetType() == NOP_BUILDINGSITE))
+    if (!(node->GetType() == NodalObjectType::Building || node->GetType() == NodalObjectType::BuildingSITE))
         return nullptr;
 
     return static_cast<const noBaseBuilding*>(node);
@@ -714,7 +714,7 @@ bool World::CanConnectBuilding(
     // Condition
     [&](const MapPoint& pt, Direction dir)
     {
-//        if (pt == buildingFlag && dir == Direction::NORTHWEST)
+//        if (pt == buildingFlag && dir == Direction::NorthWest)
 //            return false;
         if (HasRoad(pt, dir))
             return true;
@@ -783,11 +783,11 @@ std::vector<const noBaseBuilding*> World::GetEnemyCatapultsInReach(const MapPoin
     VisitPointsInRadius(pt, CATAPULT_ATTACK_RANGE, [&](const MapPoint& p)
     {
         const noBase* obj = aii_.gwb.GetNO(p);
-        if (!(obj->GetType() == NOP_BUILDING || obj->GetType() == NOP_BUILDINGSITE))
+        if (!(obj->GetType() == NodalObjectType::Building || obj->GetType() == NodalObjectType::BuildingSITE))
             return;
 
         BuildingType buildingType = static_cast<const noBaseBuilding*>(obj)->GetBuildingType();
-        if (buildingType != BLD_CATAPULT)
+        if (buildingType != BuildingType::Catapult)
             return;
 
         if (aii_.IsPlayerAttackable(aii_.gwb.GetNode(p).owner))
@@ -813,16 +813,16 @@ unsigned World::GetEnemySoldiersInReach(const MapPoint& pt) const
             continue;
 
         switch (bld->GetBuildingType()) {
-        case BLD_BARRACKS:
+        case BuildingType::Barracks:
             ret += 2 - 1;
             break;
-        case BLD_GUARDHOUSE:
+        case BuildingType::Guardhouse:
             ret += 3 - 1;
             break;
-        case BLD_WATCHTOWER:
+        case BuildingType::Watchtower:
             ret += 6 - 1;
             break;
-        case BLD_FORTRESS:
+        case BuildingType::Fortress:
             ret += 9 - 1;
             break;
         default: RTTR_Assert(false);
@@ -985,24 +985,24 @@ BlockingManner World::GetBM(
         return BlockingManner::Flag;
 
     // Check for castle extensions
-    for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
+    for (unsigned dir = Direction::East; dir < Direction::COUNT; ++dir) {
         Building* building = nodes_[GetNeighbour(pt, Direction(dir))].building;
-        if (building && building->GetQuality() == BQ_CASTLE) {
+        if (building && building->GetQuality() == BuildingQuality::Castle) {
             return BlockingManner::Single;
         }
     }
 
     for (const auto& bld : tmps) {
         if (bld.first == pt) {
-            if (BQ_FLAG == bld.second)
+            if (BuildingQuality::Flag == bld.second)
                 return BlockingManner::Flag;
             return BlockingManner::Building;
         }
 
         // Check for castle extensions
-        if (BQ_CASTLE == bld.second) {
+        if (BuildingQuality::Castle == bld.second) {
             if (CalcDistance(pt, bld.first) == 1) {
-                for (unsigned dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
+                for (unsigned dir = Direction::East; dir < Direction::COUNT; ++dir) {
                     if (bld.first == GetNeighbour(pt, Direction(dir))) {
                         return BlockingManner::Single;
                     }
@@ -1058,19 +1058,19 @@ bool World::IsOwner(const MapPoint& pt, bool includeAnticipated) const
 
 BuildingQuality World::AdjustBQ(const MapPoint pt, BuildingQuality nodeBQ, bool includeAnticipated) const
 {
-    if (nodeBQ == BQ_NOTHING || !IsPlayerTerritory(pt, includeAnticipated))
-        return BQ_NOTHING;
+    if (nodeBQ == BuildingQuality::Nothing || !IsPlayerTerritory(pt, includeAnticipated))
+        return BuildingQuality::Nothing;
 
     // If we could build a building, but the buildings flag point is at the border, we can only build a flag
-    if (nodeBQ != BQ_FLAG &&
-            !IsPlayerTerritory(GetNeighbour(pt, Direction::SOUTHEAST), includeAnticipated))
+    if (nodeBQ != BuildingQuality::Flag &&
+            !IsPlayerTerritory(GetNeighbour(pt, Direction::SouthEast), includeAnticipated))
     {
         // Check for close flags, that prohibit to build a flag but not a building at this spot
-        for (unsigned dir = Direction::WEST; dir <= Direction::NORTHEAST; ++dir) {
+        for (unsigned dir = Direction::West; dir <= Direction::NorthEast; ++dir) {
             if (GetBM(GetNeighbour(pt, Direction(dir))) == BlockingManner::Flag)
-                return BQ_NOTHING;
+                return BuildingQuality::Nothing;
         }
-        return BQ_FLAG;
+        return BuildingQuality::Flag;
     } else
         return nodeBQ;
 }
@@ -1100,7 +1100,7 @@ void World::OnBuildingNote(const BuildingNote& note)
 
     case BuildingNote::DestructionFailed:
     {
-        if (aii_.gwb.GetNO(note.pos)->GetType() == NOP_BUILDINGSITE)
+        if (aii_.gwb.GetNO(note.pos)->GetType() == NodalObjectType::BuildingSITE)
             SetState(bld, Building::UnderConstruction);
         else
             SetState(bld, Building::Finished);
@@ -1181,7 +1181,7 @@ void World::OnRoadNote(const RoadNote& note)
     case RoadNote::ConstructionFailed:
     {
         // Check if there was a construction site at the start.
-        Building* bld = GetBuilding(GetNeighbour(note.pos, Direction::NORTHWEST));
+        Building* bld = GetBuilding(GetNeighbour(note.pos, Direction::NorthWest));
         if (bld && bld->GetState() == Building::UnderConstruction) {
             // Is it connected in a different way?
             bool connected = false;
@@ -1244,10 +1244,10 @@ const noBaseBuilding* World::GetEnemyBuilding(const MapPoint& pt) const
     if (nullptr == no)
         return nullptr;
     const NodalObjectType noType = no->GetType();
-    if (noType == NOP_BUILDING || noType == NOP_BUILDINGSITE)
+    if (noType == NodalObjectType::Building || noType == NodalObjectType::BuildingSITE)
         return static_cast<const noBaseBuilding*>(no);
-    if (noType == NOP_FLAG)
-        return GetEnemyBuilding(GetNeighbour(pt, Direction::NORTHWEST));
+    if (noType == NodalObjectType::Flag)
+        return GetEnemyBuilding(GetNeighbour(pt, Direction::NorthWest));
     return nullptr;
 }
 

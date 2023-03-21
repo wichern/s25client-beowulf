@@ -165,7 +165,7 @@ bool GameWorldBase::IsOnRoad(const MapPoint& pt) const
 bool GameWorldBase::IsPlantSpace(const MapPoint& pt) const
 {
     NodalObjectType no = GetNO(pt)->GetType();
-    if (!(no == NOP_NOTHING || no == NOP_ENVIRONMENT))
+    if (!(no == NodalObjectType::Nothing || no == NodalObjectType::Environment))
         return false;
 
     if (IsOnRoad(pt))

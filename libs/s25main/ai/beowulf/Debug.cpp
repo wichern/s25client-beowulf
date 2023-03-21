@@ -86,19 +86,19 @@ std::string to_string(const unsigned* intvec, unsigned len)
 
 std::string to_string(Direction dir)
 {
-    switch (dir.native_value())
+    switch (dir)
     {
-    case Direction::SOUTHEAST:
+    case Direction::SouthEast:
         return "SE";
-    case Direction::SOUTHWEST:
+    case Direction::SouthWest:
         return "SW";
-    case Direction::WEST:
+    case Direction::West:
         return "W";
-    case Direction::EAST:
+    case Direction::East:
         return "E";
-    case Direction::NORTHEAST:
+    case Direction::NorthEast:
         return "NE";
-    case Direction::NORTHWEST:
+    case Direction::NorthWest:
         return "NW";
     default:
         return "<unknown>";
@@ -162,7 +162,7 @@ void AsciiMap::draw(const MapPoint& pt, const std::string& str)
     set(getPos(ptS), str);
 }
 
-void AsciiMap::drawRoad(const MapPoint& pt, unsigned char dir, bool fat)
+void AsciiMap::drawRoad(const MapPoint& pt, Direction dir, bool fat)
 {
     if (pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
@@ -172,21 +172,21 @@ void AsciiMap::drawRoad(const MapPoint& pt, unsigned char dir, bool fat)
     AsciiPosition pos = getPos(ptS);
 
     AsciiPosition::ElementType length = scale_w_ - 1;
-    if (dir != Direction::WEST && dir != Direction::EAST)
+    if (dir != Direction::West && dir != Direction::East)
         length = (scale_w_/2) - 1;
 
     switch (dir)
     {
-    case Direction::EAST:
+    case Direction::East:
     {
         pos.x += 1;
     } break;
-    case Direction::SOUTHEAST:
+    case Direction::SouthEast:
     {
         pos.x += 1;
         pos.y += 1;
     } break;
-    case Direction::SOUTHWEST:
+    case Direction::SouthWest:
     {
         pos.x -= 1;
         pos.y += 1;
@@ -196,19 +196,19 @@ void AsciiMap::drawRoad(const MapPoint& pt, unsigned char dir, bool fat)
     for (AsciiPosition::ElementType i = 0; i < length && onMap(pos); ++i) {
         switch (dir)
         {
-        case Direction::EAST:
+        case Direction::East:
         {
             set(pos, fat ? '=' : '-');
             pos.x += 1;
         } break;
-        case Direction::SOUTHEAST:
+        case Direction::SouthEast:
         {
             set(pos, '\\');
             if (fat) set({pos.x + 1, pos.y}, '\\');
             pos.x += 1;
             pos.y += 1;
         } break;
-        case Direction::SOUTHWEST:
+        case Direction::SouthWest:
         {
             set(pos, '/');
             if (fat) set({pos.x + 1, pos.y}, '/');
@@ -219,7 +219,7 @@ void AsciiMap::drawRoad(const MapPoint& pt, unsigned char dir, bool fat)
     }
 }
 
-static const char* c_short_building_names[NUM_BUILDING_TYPES] = {
+static const char* c_short_building_names[helpers::MaxEnumValue_v<BuildingType>] = {
     "HQ", "Bar", "Gua", "", "Wat", "", "", "", "", "Fort", "GrM", "CoM", "IrM", "GoM", "Loo",
     "", "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre", "Arm", "Met",
     "Iro", "Cha", "Pig", "Sto", "", "Mil", "Bak", "Saw", "Min", "Wel",
@@ -238,7 +238,7 @@ void AsciiMap::draw(const World& world, bool includeAnticipated)
         if (world.HasFlag(pt))
             draw(pt, 'f');
 
-        for (unsigned char dir = Direction::EAST; dir < Direction::COUNT; ++dir) {
+        for (unsigned char dir = Direction::East; dir < Direction::COUNT; ++dir) {
             if (world.HasRoad(pt, Direction(dir)))
                 draw(pt, dir);
         }
@@ -249,7 +249,7 @@ void AsciiMap::draw(const World& world, bool includeAnticipated)
                 draw(pt, std::string("(") + c_short_building_names[building->GetType()] + ")");
             else
                 draw(pt, c_short_building_names[building->GetType()]);
-            draw(pt, static_cast<unsigned char>(Direction::SOUTHEAST));
+            draw(pt, static_cast<unsigned char>(Direction::SouthEast));
         }
     }
 }
@@ -264,13 +264,13 @@ void AsciiMap::draw(const AIPlayer* player)
 
         for (const auto roadDir : helpers::EnumRange<RoadDir>{}) {
             if (PointRoad::Normal == player->gwb.GetRoad(pt, roadDir)) {
-                drawRoad(pt, static_cast<unsigned char>(roadDir) + static_cast<unsigned char>(3));
+                drawRoad(pt, convertToDirection(static_cast<unsigned>(roadDir) + 3U));
             }
         }
     }
 
     const BuildingRegister& buildings = player->player.GetBuildingRegister();
-    for(unsigned i = FIRST_USUAL_BUILDING; i < NUM_BUILDING_TYPES; ++i)
+    for(unsigned i = FIRST_USUAL_BUILDING; i < helpers::NumEnumValues_v<BuildingType>; ++i)
         for (nobUsual* building : buildings.GetBuildings(BuildingType(i)))
             draw(building->GetPos(), c_short_building_names[building->GetBuildingType()]);
     for(const nobBaseWarehouse* building : buildings.GetStorehouses())
@@ -315,17 +315,17 @@ void AsciiMap::drawResources()
         default: break;
         }
 
-        if (node.obj && node.obj->GetType() == NOP_GRAINFIELD)
+        if (node.obj && node.obj->GetType() == NodalObjectType::Grainfield)
             draw(pt, '#');
 
         DescIdx<TerrainDesc> t1 = aii_.gwb.GetNode(pt).t1;
         if (aii_.gwb.GetDescription().get(t1).Is(ETerrain::Walkable)) {
             NodalObjectType no = aii_.gwb.GetNO(pt)->GetType();
 
-            if (no == NOP_TREE) {
+            if (no == NodalObjectType::Tree) {
                 if (aii_.gwb.GetSpecObj<noTree>(pt)->ProducesWood())
                     draw(pt, "T");
-            } else if (no == NOP_GRANITE) {
+            } else if (no == NodalObjectType::Granite) {
                 draw(pt, "S");
             }
         }
@@ -497,23 +497,23 @@ bool AsciiMap::onMap(const AsciiPosition& pos) const
 void AsciiMap::drawBQ(const MapPoint& pt, BuildingQuality bq)
 {
     switch (bq) {
-    case BQ_HUT:
+    case BuildingQuality::Hut:
         draw(pt, 'h');
         break;
-    case BQ_HOUSE:
+    case BuildingQuality::House:
         draw(pt, 'H');
         break;
-    case BQ_CASTLE:
+    case BuildingQuality::Castle:
         draw(pt, 'C');
         break;
-    case BQ_MINE:
+    case BuildingQuality::Mine:
         draw(pt, 'm');
         break;
     case BQ_HARBOR:
         draw(pt, 'H');
         break;
-    case BQ_FLAG:
-    case BQ_NOTHING:
+    case BuildingQuality::Flag:
+    case BuildingQuality::Nothing:
         // skip
         break;
     }

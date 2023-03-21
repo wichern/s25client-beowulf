@@ -40,7 +40,7 @@ void JoinPlayerInfo::FixSwappedSaveSlot(JoinPlayerInfo& other)
 
 void JoinPlayerInfo::SetAIName(unsigned playerId)
 {
-    RTTR_Assert(ps == PS_AI);
+    RTTR_Assert(ps == PlayerState::AI);
 
     switch (aiInfo.type)
     {
@@ -48,7 +48,7 @@ void JoinPlayerInfo::SetAIName(unsigned playerId)
             name = (boost::format(_("Dummy %u")) % playerId).str();
             break;
         case AI::Type::Beowulf:
-            name = (boost::format(_("Beowulf %u")) % playerId).str(); break;
+            name = (boost::format(_("Beowulf AI %u")) % playerId).str(); break;
         default: 
             name = (boost::format(_("Computer %u")) % playerId).str(); break;
     }

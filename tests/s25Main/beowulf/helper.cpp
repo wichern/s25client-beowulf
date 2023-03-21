@@ -21,7 +21,7 @@
 
 bool ConstructBuilding(
         AIPlayer* ai,
-        GameWorldGame& world,
+        GameWorld& world,
         TestEventManager& em, BuildingType type,
         const MapPoint& pos,
         bool wait_for_site)
@@ -52,7 +52,7 @@ bool ConstructBuilding(
 
 bool CompareBuildingsWithWorld(
         AIPlayer* ai,
-        GameWorldGame& world)
+        GameWorld& world)
 {
     beowulf::Beowulf& beowulf = static_cast<beowulf::Beowulf&>(*ai);
     beowulf::World& buildings = beowulf.world;
@@ -72,7 +72,7 @@ bool CompareBuildingsWithWorld(
     for (const nobMilitary* bld : beowulf.GetAII().GetMilitaryBuildings())
         to_check.push_back({ bld->GetPos(), bld->GetBuildingType()} );
 
-    for (unsigned i = FIRST_USUAL_BUILDING; i < NUM_BUILDING_TYPES; ++i)
+    for (unsigned i = FIRST_USUAL_BUILDING; i < helpers::MaxEnumValue_v<BuildingType>; ++i)
         for (const nobUsual* bld : beowulf.GetAII().GetBuildings(static_cast<BuildingType>(i)))
             to_check.push_back({ bld->GetPos(), bld->GetBuildingType()} );
 
@@ -82,7 +82,7 @@ bool CompareBuildingsWithWorld(
             return false;
         if (bld->GetType() != existing.second)
             return false;
-        if (beowulf.GetAII().gwb.GetNO(existing.first)->GetType() == NOP_BUILDINGSITE) {
+        if (beowulf.GetAII().gwb.GetNO(existing.first)->GetType() == NodalObjectType::BuildingSITE) {
             if (bld->GetState() != beowulf::Building::UnderConstruction)
                 return false;
         } else {
@@ -97,9 +97,9 @@ bool CompareBuildingsWithWorld(
     for (beowulf::Building* bld : buildings.GetBuildings()) {
         NodalObjectType type = world.GetNO(bld->GetPt())->GetType();
 
-        if (bld->GetState() == beowulf::Building::UnderConstruction && type != NOP_BUILDINGSITE)
+        if (bld->GetState() == beowulf::Building::UnderConstruction && type != NodalObjectType::BuildingSITE)
             return false;
-        if (bld->GetState() == beowulf::Building::Finished && type != NOP_BUILDING)
+        if (bld->GetState() == beowulf::Building::Finished && type != NodalObjectType::Building)
             return false;
     }
 
@@ -107,7 +107,7 @@ bool CompareBuildingsWithWorld(
      * Check all flags and roads
      */
     RTTR_FOREACH_PT(MapPoint, world.GetSize()) {
-        bool flag_exists = world.GetNO(pt)->GetType() == NOP_FLAG;
+        bool flag_exists = world.GetNO(pt)->GetType() == NodalObjectType::Flag;
         bool flag_known = buildings.GetFlagState(pt) == beowulf::FlagFinished;
         if (flag_exists != flag_known)
             return false;
@@ -116,13 +116,13 @@ bool CompareBuildingsWithWorld(
             bool road_exist = world.GetRoad(pt, RoadDir(dir - 3)) != PointRoad::None;
             bool road_known = buildings.GetRoadState(pt, Direction(dir)) == beowulf::RoadFinished;
             if (road_exist != road_known) {
-                if (world.GetNO(pt)->GetType() == NOP_BUILDING)
+                if (world.GetNO(pt)->GetType() == NodalObjectType::Building)
                     continue;
-                if (world.GetNO(pt)->GetType() == NOP_BUILDINGSITE)
+                if (world.GetNO(pt)->GetType() == NodalObjectType::BuildingSITE)
                     continue;
-                if (world.GetNO(world.GetNeighbour(pt, Direction(dir)))->GetType() == NOP_BUILDING)
+                if (world.GetNO(world.GetNeighbour(pt, Direction(dir)))->GetType() == NodalObjectType::Building)
                     continue;
-                if (world.GetNO(world.GetNeighbour(pt, Direction(dir)))->GetType() == NOP_BUILDINGSITE)
+                if (world.GetNO(world.GetNeighbour(pt, Direction(dir)))->GetType() == NodalObjectType::BuildingSITE)
                     continue;
                 return false;
             }
@@ -138,7 +138,7 @@ bool IsConnected(const MapPoint& src, const MapPoint& dst, const beowulf::World&
     // Condition
     [&world, src](const MapPoint& pt, Direction dir)
     {
-        if (pt == src && dir == Direction::NORTHWEST)
+        if (pt == src && dir == Direction::NorthWest)
             return false;
         return world.HasRoad(pt, dir);
     },
@@ -168,7 +168,7 @@ bool IsConnected(const beowulf::Building* building, const beowulf::Beowulf* beow
     return IsConnected(building->GetFlag(), beowulf->world.GetHQFlag(), beowulf->world);
 }
 
-void Proceed(std::vector<AIPlayer*> player, TestEventManager& em, GameWorldGame& world)
+void Proceed(std::vector<AIPlayer*> player, TestEventManager& em, GameWorld& world)
 {
     bool isnfw = false;
     while (!isnfw) {

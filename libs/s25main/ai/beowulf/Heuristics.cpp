@@ -43,47 +43,47 @@ struct BuildingLocationChecks {
 };
 
 // Map building types to the resource it needs to find on resource map.
-static const BuildingLocationChecks S_build_location_checks[NUM_BUILDING_TYPES] = {
-   { 0, {},                     false }, // BLD_HEADQUARTERS
-   { 0, {},                     false }, // BLD_BARRACKS
-   { 0, {},                     false }, // BLD_GUARDHOUSE
+static const BuildingLocationChecks S_build_location_checks[helpers::MaxEnumValue_v<BuildingType>] = {
+   { 0, {},                     false }, // BuildingType::Headquarters
+   { 0, {},                     false }, // BuildingType::Barracks
+   { 0, {},                     false }, // BuildingType::Guardhouse
    { 0, {},                     false }, // BLD_NOTHING2
-   { 0, {},                     false }, // BLD_WATCHTOWER
+   { 0, {},                     false }, // BuildingType::Watchtower
    { 0, {},                     false }, // BLD_NOTHING3
    { 0, {},                     false }, // BLD_NOTHING4
    { 0, {},                     false }, // BLD_NOTHING5
    { 0, {},                     false }, // BLD_NOTHING6
-   { 0, {},                     false }, // BLD_FORTRESS
-   { 1, {},                     true  }, // BLD_GRANITEMINE
-   { 1, {},                     true  }, // BLD_COALMINE
-   { 1, {},                     true  }, // BLD_IRONMINE
-   { 1, {},                     true  }, // BLD_GOLDMINE
-   { 0, {},                     false }, // BLD_LOOKOUTTOWER
+   { 0, {},                     false }, // BuildingType::Fortress
+   { 1, {},                     true  }, // BuildingType::GraniteMine
+   { 1, {},                     true  }, // BuildingType::CoalMine
+   { 1, {},                     true  }, // BuildingType::IronMine
+   { 1, {},                     true  }, // BuildingType::GoldMine
+   { 0, {},                     false }, // BuildingType::LookoutTower
    { 0, {},                     false }, // BLD_NOTHING7
-   { 0, {},                     false }, // BLD_CATAPULT
-   { 0, { BLD_FORESTER, BLD_WOODCUTTER, BLD_SAWMILL }, true  }, // BLD_WOODCUTTER
-   { 1, {},                     true  }, // BLD_FISHERY
-   { 1, {},                     true  }, // BLD_QUARRY
-   { 4, { BLD_WOODCUTTER },     true  }, // BLD_FORESTER
-   { 0, { BLD_PIGFARM },        true  }, // BLD_SLAUGHTERHOUSE
-   { 2, {},                     false }, // BLD_HUNTER
-   { 0, {},                     true  }, // BLD_BREWERY
-   { 0, { BLD_IRONSMELTER },    true  }, // BLD_ARMORY
-   { 0, {},                     true  }, // BLD_METALWORKS
-   { 0, {},                     true  }, // BLD_IRONSMELTER
-   { 8, {},                     true  }, // BLD_CHARBURNER
-   { 0, {},                     true  }, // BLD_PIGFARM
-   { 0, {},                     false }, // BLD_STOREHOUSE
+   { 0, {},                     false }, // BuildingType::Catapult
+   { 0, { BuildingType::Forester, BuildingType::Woodcutter, BuildingType::Sawmill }, true  }, // BuildingType::Woodcutter
+   { 1, {},                     true  }, // BuildingType::Fishery
+   { 1, {},                     true  }, // BuildingType::Quarry
+   { 4, { BuildingType::Woodcutter },     true  }, // BuildingType::Forester
+   { 0, { BuildingType::PigFarm },        true  }, // BuildingType::Slaughterhouse
+   { 2, {},                     false }, // BuildingType::Hunter
+   { 0, {},                     true  }, // BuildingType::Brewery
+   { 0, { BuildingType::Ironsmelter },    true  }, // BuildingType::Armory
+   { 0, {},                     true  }, // BuildingType::Metalworks
+   { 0, {},                     true  }, // BuildingType::Ironsmelter
+   { 8, {},                     true  }, // BuildingType::Charburner
+   { 0, {},                     true  }, // BuildingType::PigFarm
+   { 0, {},                     false }, // BuildingType::Storehouse
    { 0, {},                     false }, // BLD_NOTHING9
-   { 0, {},                     true  }, // BLD_MILL
-   { 0, { BLD_MILL },           true  }, // BLD_BAKERY
-   { 0, { BLD_WOODCUTTER },     true  }, // BLD_SAWMILL
-   { 0, {},                     true  }, // BLD_MINT
-   { 1, {},                     true  }, // BLD_WELL
-   { 0, {},                     false }, // BLD_SHIPYARD
-   {20, {},                     true  }, // BLD_FARM
-   { 0, {},                     false }, // BLD_DONKEYBREEDER
-   { 0, {},                     false }, // BLD_HARBORBUILDING
+   { 0, {},                     true  }, // BuildingType::Mill
+   { 0, { BuildingType::Mill },           true  }, // BuildingType::Bakery
+   { 0, { BuildingType::Woodcutter },     true  }, // BuildingType::Sawmill
+   { 0, {},                     true  }, // BuildingType::Mint
+   { 1, {},                     true  }, // BuildingType::Well
+   { 0, {},                     false }, // BuildingType::Shipyard
+   {20, {},                     true  }, // BuildingType::Farm
+   { 0, {},                     false }, // BuildingType::DonkeyBreeder
+   { 0, {},                     false }, // BuildingType::HarborBuilding
 };
 
 BuildingPositionCosts::BuildingPositionCosts(const AIInterface& aii,
@@ -119,7 +119,7 @@ bool BuildingPositionCosts::Score(
 
     // Set of known storage building types.
     static const std::vector<BuildingType> c_storages =
-    { BLD_HEADQUARTERS, BLD_STOREHOUSE, BLD_HARBORBUILDING };
+    { BuildingType::Headquarters, BuildingType::Storehouse, BuildingType::HarborBuilding };
 
     // Distance rating thresholds.
     static const std::vector<unsigned> c_distanceGroups =
@@ -158,13 +158,13 @@ bool BuildingPositionCosts::Score(
     }
 
     // Should not be close to farms or charburners.
-    if (world_.GetNearestBuilding(pt, { BLD_FARM, BLD_CHARBURNER }, building).second < (2*FARMER_RADIUS))
+    if (world_.GetNearestBuilding(pt, { BuildingType::Farm, BuildingType::Charburner }, building).second < (2*FARMER_RADIUS))
         return false;
     else
         score.push_back(1.0);
 
     switch (building->GetType()) {
-    case BLD_LOOKOUTTOWER:
+    case BuildingType::LookoutTower:
     {
         // Should have a lot of undiscovered area around.
         int undiscovered = 0;
@@ -176,7 +176,7 @@ bool BuildingPositionCosts::Score(
             return false;
 
         // Should have enough distance to other towers.
-        auto bld = world_.GetNearestBuilding(pt, { BLD_LOOKOUTTOWER });
+        auto bld = world_.GetNearestBuilding(pt, { BuildingType::LookoutTower });
         if (bld.first.isValid() && bld.second < (VISUALRANGE_LOOKOUTTOWER/3)) {
             score.push_back(RateHigh(bld.second, c_distanceGroups));
         } else {
@@ -190,7 +190,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(RateHigh(undiscovered, c_undiscoveredGroups));
     } break;
 
-    case BLD_WOODCUTTER:
+    case BuildingType::Woodcutter:
     {
         unsigned resources = world_.resources.GetReachable(pt, BResourceWood, true, true);
 
@@ -198,7 +198,7 @@ bool BuildingPositionCosts::Score(
         if (building->GetGroup() == InvalidProductionGroup && 0 == resources)
             return false;
 
-        unsigned distance = world_.GetMaxGroupMemberDistance(pt, building->GetGroup(), BLD_FORESTER);
+        unsigned distance = world_.GetMaxGroupMemberDistance(pt, building->GetGroup(), BuildingType::Forester);
         if (distance < std::numeric_limits<unsigned>::max() && distance > (FORESTER_RADIUS + 3))
             return false;
 
@@ -206,7 +206,7 @@ bool BuildingPositionCosts::Score(
         score.push_back(RateHigh(resources, c_resourceGroups));
     } break;
 
-    case BLD_QUARRY:
+    case BuildingType::Quarry:
     {
         // Should be placed close to a storehouse with little stones.
         auto bld = world_.GetNearestBuilding(pt, c_storages);
@@ -214,31 +214,31 @@ bool BuildingPositionCosts::Score(
         score.push_back(0.2*RateSmall(bld.second, c_distanceGroups)); // 0.2 because this is less important
     } break;
 
-    case BLD_FORESTER:
+    case BuildingType::Forester:
     {
         // Must have a minimal distance to the group woodcutters
-        unsigned distance = world_.GetMaxGroupMemberDistance(pt, building->GetGroup(), BLD_WOODCUTTER);
+        unsigned distance = world_.GetMaxGroupMemberDistance(pt, building->GetGroup(), BuildingType::Woodcutter);
         if (distance < std::numeric_limits<unsigned>::max())
             if (distance > FORESTER_RADIUS + 3)
                 return false;
     } break;
 
-    case BLD_HUNTER:
+    case BuildingType::Hunter:
     {
         // Should be far enough from other hunters.
-        auto bld = world_.GetNearestBuilding(pt, { BLD_HUNTER });
+        auto bld = world_.GetNearestBuilding(pt, { BuildingType::Hunter });
         score.push_back(RateHigh(bld.second, { 4, 8, 12, 16, 20, 24 }));
     } break;
 
-    case BLD_HARBORBUILDING:
-    case BLD_STOREHOUSE:
+    case BuildingType::HarborBuilding:
+    case BuildingType::Storehouse:
     {
         // Should be far enough from other storages.
         auto bld = world_.GetNearestBuilding(pt, c_storages);
         score.push_back(RateHigh(bld.second, { 2, 3, 5, 7, 10, 12 }));
     } break;
 
-    case BLD_SHIPYARD:
+    case BuildingType::Shipyard:
     {
         score.push_back(1.0);
     } break;
@@ -248,21 +248,21 @@ bool BuildingPositionCosts::Score(
 
     // Rate the amount of possible flag locations removed.
     unsigned possibleFlags = 0;
-    for (unsigned dir = Direction::WEST; dir < Direction::EAST; ++dir) {
+    for (unsigned dir = Direction::West; dir < Direction::East; ++dir) {
         MapPoint neighbour = world_.GetNeighbour(pt, Direction(dir));
-        if (world_.IsOnRoad(neighbour) && world_.GetBQ(neighbour, false) == BQ_FLAG) {
+        if (world_.IsOnRoad(neighbour) && world_.GetBQ(neighbour, false) == BuildingQuality::Flag) {
             possibleFlags++;
         }
     }
-    MapPoint flag = world_.GetNeighbour(pt, Direction::SOUTHEAST);
-    for (unsigned dir = Direction::NORTHEAST; dir < Direction::COUNT; ++dir) {
+    MapPoint flag = world_.GetNeighbour(pt, Direction::SouthEast);
+    for (unsigned dir = Direction::NorthEast; dir < Direction::COUNT; ++dir) {
         MapPoint neighbour = world_.GetNeighbour(flag, Direction(dir));
-        if (world_.IsOnRoad(neighbour) && world_.GetBQ(neighbour, false) == BQ_FLAG) {
+        if (world_.IsOnRoad(neighbour) && world_.GetBQ(neighbour, false) == BuildingQuality::Flag) {
             possibleFlags++;
         }
     }
-    MapPoint neighbour = world_.GetNeighbour(flag, Direction::WEST);
-    if (world_.IsOnRoad(neighbour) && world_.GetBQ(neighbour, false) == BQ_FLAG) {
+    MapPoint neighbour = world_.GetNeighbour(flag, Direction::West);
+    if (world_.IsOnRoad(neighbour) && world_.GetBQ(neighbour, false) == BuildingQuality::Flag) {
         possibleFlags++;
     }
     // There are less then 8 possible flag locations around.
