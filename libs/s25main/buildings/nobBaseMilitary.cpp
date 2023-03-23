@@ -71,6 +71,12 @@ void nobBaseMilitary::DestroyBuilding()
             static_cast<nofActiveSoldier&>(figRef).HomeDestroyedAtBegin();
         else
         {
+            // If the soldier was on his way to this destroyed building -> remove his goal.
+            if(figRef.IsGoingHome() && figRef.GetGoal() == this)
+            {
+                figRef.SetGoalTonullptr();
+            }
+
             figRef.Abrogate();
             figRef.StartWandering();
             figRef.StartWalking(RANDOM_ENUM(Direction));

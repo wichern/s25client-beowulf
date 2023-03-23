@@ -129,6 +129,7 @@ public:
     bool GetRoadDir() const { return rs_dir; }
     const RoadSegment* GetCurrentRoad() const { return cur_rs; }
     bool IsWandering() const { return fs == FigureState::Wander; }
+    bool IsGoingHome() const { return fs == FigureState::GoHome; }
     /// Tut was, nachdem er rausgehen soll
     void ActAtFirst();
     /// Legt die Anfangsdaten für das Laufen auf Wegen fest

@@ -64,9 +64,6 @@ nobBaseWarehouse::~nobBaseWarehouse() = default;
 
 void nobBaseWarehouse::DestroyBuilding()
 {
-    // Den Waren und Figuren Bescheid sagen, die zu uns auf den Weg sind, dass wir nun nicht mehr existieren
-    for(noFigure* dependent_figure : dependent_figures)
-        dependent_figure->GoHome();
     dependent_figures.clear();
     for(Ware* dependent_ware : dependent_wares)
         WareNotNeeded(dependent_ware);
@@ -99,6 +96,10 @@ void nobBaseWarehouse::DestroyBuilding()
 
     // Objekt, das die flüchtenden Leute nach und nach ausspuckt, erzeugen
     world->AddFigure(pos, std::make_unique<BurnedWarehouse>(pos, player, inventory.real.people));
+
+    // Den Waren und Figuren Bescheid sagen, die zu uns auf den Weg sind, dass wir nun nicht mehr existieren
+    for(noFigure* dependent_figure : dependent_figures)
+        dependent_figure->GoHome();
 
     nobBaseMilitary::DestroyBuilding();
 }
