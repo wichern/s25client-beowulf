@@ -1,32 +1,19 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_RECURRENT_BUILDINGPLANNER_H_INCLUDED
-#define BEOWULF_RECURRENT_BUILDINGPLANNER_H_INCLUDED
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "ai/beowulf/recurrent/RecurrentBase.h"
-#include "ai/beowulf/Types.h"
-#include "ai/beowulf/Heuristics.h"
+#pragma once
+
 #include "ai/beowulf/BuildLocations.h"
 #include "ai/beowulf/Building.h"
 #include "ai/beowulf/Helper.h"
+#include "ai/beowulf/Heuristics.h"
+#include "ai/beowulf/Types.h"
+#include "ai/beowulf/recurrent/RecurrentBase.h"
 
-#include <vector>
-#include <limits>
 #include <bitset>
+#include <limits>
+#include <vector>
 
 class AIInterface;
 
@@ -61,7 +48,8 @@ private:
 
     BuildingPositionCosts costs_;
 
-    struct {
+    struct
+    {
         std::vector<Building*> requests;
 
         // One flag as startposition for build location search.
@@ -71,30 +59,29 @@ private:
 
     // List building types for which no position could be found.
     // Is cleared once the any nodes building quality changed.
-    std::bitset<helpers::MaxEnumValue_v<BuildingType>> blacklist_;
+    helpers::EnumArray<bool, BuildingType> blacklist_;
 
     // First field is idx of dest, second is array of buildings to place.
     std::map<MapPoint, std::vector<Building*>, MapPointComp> requests_;
 };
 
 template<typename Score>
-bool BuildingPlanner::FindBestPosition(
-        const Building* building,
-        MapPoint& pt,
-        Score scoreFunc,
-        BuildLocations& locations)
+bool BuildingPlanner::FindBestPosition(const Building* building, MapPoint& pt, Score scoreFunc,
+                                       BuildLocations& locations)
 {
     std::vector<double> score_vec;
     double bestScore = -std::numeric_limits<double>::max();
 
-    for (const MapPoint& location : locations.Get(building->GetQuality())) {
+    for(const MapPoint& location : locations.Get(building->GetQuality()))
+    {
         score_vec.clear();
 
-        if (!costs_.Score(score_vec, building, location))
+        if(!costs_.Score(score_vec, building, location))
             continue;
 
         double score = scoreFunc(score_vec);
-        if (score > bestScore) {
+        if(score > bestScore)
+        {
             bestScore = score;
             pt = location;
         }
@@ -104,5 +91,3 @@ bool BuildingPlanner::FindBestPosition(
 }
 
 } // namespace beowulf
-
-#endif //! BEOWULF_RECURRENT_BUILDINGPLANNER_H_INCLUDED

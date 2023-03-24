@@ -18,26 +18,25 @@
 #include "ai/beowulf/recurrent/AttackPlanner.h"
 #include "ai/beowulf/Beowulf.h"
 
-#include "helpers/containerUtils.h"
 #include "buildings/nobMilitary.h"
 #include "figures/nofPassiveSoldier.h"
+#include "helpers/containerUtils.h"
 #include "gameData/BuildingConsts.h"
 
 namespace beowulf {
 
-AttackPlanner::AttackPlanner(Beowulf* beowulf)
-    : RecurrentBase(beowulf, 50)
+AttackPlanner::AttackPlanner(Beowulf* beowulf) : RecurrentBase(beowulf, 50)
 {
     // Set military settings.
     MilitarySettings data;
-    data[0] = 10;  // Recruiting ratio (to max possible recruits)
-    data[1] = 5;   // Send strong soldiers first
-    data[2] = 4;   // Active defenders (engaging attackers by leaving building): Chance that one is sent
-    data[3] = 5;   // Ratio of used attackers to available attackers
-    data[4] = 1;   // Ratio of soldiers in buildings to full occupation for inland
-    data[5] = 5;   // Ratio of soldiers in buildings to full occupation for middle region
-    data[6] = 5;   // Ratio of soldiers in buildings to full occupation for harbor spots
-    data[7] = 8;   // Ratio of soldiers in buildings to full occupation for border region
+    data[0] = 10; // Recruiting ratio (to max possible recruits)
+    data[1] = 5;  // Send strong soldiers first
+    data[2] = 4;  // Active defenders (engaging attackers by leaving building): Chance that one is sent
+    data[3] = 5;  // Ratio of used attackers to available attackers
+    data[4] = 1;  // Ratio of soldiers in buildings to full occupation for inland
+    data[5] = 5;  // Ratio of soldiers in buildings to full occupation for middle region
+    data[6] = 5;  // Ratio of soldiers in buildings to full occupation for harbor spots
+    data[7] = 8;  // Ratio of soldiers in buildings to full occupation for border region
     beowulf_->GetAII().ChangeMilitary(data);
 }
 
@@ -68,14 +67,17 @@ void AttackPlanner::OnRun()
 
     std::vector<const nobBaseMilitary*> targets = GetPotentialTargets();
 
-    if (targets.empty())
+    if(targets.empty())
         return;
 
     // Try to find a HQ and attack that first.
-    for (const nobBaseMilitary* target : targets) {
-        if (target->GetBuildingType() == BuildingType::Headquarters) {
+    for(const nobBaseMilitary* target : targets)
+    {
+        if(target->GetBuildingType() == BuildingType::Headquarters)
+        {
             unsigned attackers = GetAttackersCount(GetAvailableAttackers(target->GetPos()), target->GetPlayer());
-            if (attackers > 0) {
+            if(attackers > 0)
+            {
                 beowulf_->GetAII().Attack(target->GetPos(), attackers, true);
                 return;
             }
@@ -83,10 +85,13 @@ void AttackPlanner::OnRun()
     }
 
     // Try to find a harbour to attack.
-    for (const nobBaseMilitary* target : targets) {
-        if (target->GetBuildingType() == BuildingType::HarborBuilding) {
+    for(const nobBaseMilitary* target : targets)
+    {
+        if(target->GetBuildingType() == BuildingType::HarborBuilding)
+        {
             unsigned attackers = GetAttackersCount(GetAvailableAttackers(target->GetPos()), target->GetPlayer());
-            if (attackers > 0) {
+            if(attackers > 0)
+            {
                 beowulf_->GetAII().Attack(target->GetPos(), attackers, true);
                 return;
             }
@@ -101,47 +106,40 @@ void AttackPlanner::OnRun()
     MapPoint bestTargetPt = MapPoint::Invalid();
     unsigned bestTargetAttackers = 0;
 
-    for (const nobBaseMilitary* target : targets) {
+    for(const nobBaseMilitary* target : targets)
+    {
         // Do not attack with less than the power of two most simple soldiers.
         unsigned attackers = GetAttackersCount(GetAvailableAttackers(target->GetPos()), target->GetPlayer());
-        if (attackers < 2)
+        if(attackers < 2)
             continue;
 
-        beowulf_->world.PredictExpansionResults(
-                    target->GetPos(),
-                    target->GetBuildingType(),
-                    additionalTerritory,
-                    destroyed);
+        beowulf_->world.PredictExpansionResults(target->GetPos(), target->GetBuildingType(), additionalTerritory,
+                                                destroyed);
 
         unsigned destruction = static_cast<unsigned>(BUILDING_SIZE[target->GetBuildingType()]);
-        for (const noBaseBuilding* building : destroyed) {
-            switch (BUILDING_SIZE[building->GetBuildingType()]) {
-            case BuildingQuality::Hut:
-                destruction += 2;
-                break;
-            case BuildingQuality::House:
-                destruction += 5;
-                break;
-            case BuildingQuality::Castle:
-                destruction += 10;
-                break;
-            case BuildingQuality::Mine:
-                destruction += 10;
-                break;
-            default: break;
+        for(const noBaseBuilding* building : destroyed)
+        {
+            switch(BUILDING_SIZE[building->GetBuildingType()])
+            {
+                case BuildingQuality::Hut: destruction += 2; break;
+                case BuildingQuality::House: destruction += 5; break;
+                case BuildingQuality::Castle: destruction += 10; break;
+                case BuildingQuality::Mine: destruction += 10; break;
+                default: break;
             }
-            if (building->GetBuildingType() == BuildingType::Catapult)
+            if(building->GetBuildingType() == BuildingType::Catapult)
                 destruction += 50;
         }
 
-        if (destruction > highestDestruction) {
+        if(destruction > highestDestruction)
+        {
             highestDestruction = destruction;
             bestTargetPt = target->GetPos();
             bestTargetAttackers = attackers;
         }
     }
 
-    if (bestTargetPt.isValid())
+    if(bestTargetPt.isValid())
         beowulf_->GetAII().Attack(bestTargetPt, bestTargetAttackers, true);
 }
 
@@ -149,24 +147,27 @@ std::vector<const nobBaseMilitary*> AttackPlanner::GetPotentialTargets() const
 {
     std::vector<const nobBaseMilitary*> ret;
 
-    for (const nobMilitary* building : beowulf_->GetAII().GetMilitaryBuildings()) {
+    for(const nobMilitary* building : beowulf_->GetAII().GetMilitaryBuildings())
+    {
         // Skip buildings that are far away from the front.
-        if (building->GetFrontierDistance() == FrontierDistance::Far)
+        if(building->GetFrontierDistance() == FrontierDistance::Far)
             continue;
 
-        for (const nobBaseMilitary* target : beowulf_->gwb.LookForMilitaryBuildings(building->GetPos(), 2)) {
-            if (helpers::contains(ret, target))
+        for(const nobBaseMilitary* target : beowulf_->gwb.LookForMilitaryBuildings(building->GetPos(), 2))
+        {
+            if(helpers::contains(ret, target))
                 continue;
-            if (target->GetGOT() == GOT_NOB_MILITARY) {
+            if(target->GetGOT() == GO_Type::NobMilitary)
+            {
                 const nobMilitary* mil = static_cast<const nobMilitary*>(target);
-                if (mil->IsNewBuilt() || mil->IsUnderAttack())
+                if(mil->IsNewBuilt() || mil->IsUnderAttack())
                     continue;
             }
-            if (!beowulf_->world.IsVisible(target->GetPos()))
+            if(!beowulf_->world.IsVisible(target->GetPos()))
                 continue;
-            if (!beowulf_->GetAII().IsPlayerAttackable(target->GetPlayer()))
+            if(!beowulf_->GetAII().IsPlayerAttackable(target->GetPlayer()))
                 continue;
-            if (beowulf_->world.CalcDistance(building->GetPos(), target->GetPos()) >= BASE_ATTACKING_DISTANCE)
+            if(beowulf_->world.CalcDistance(building->GetPos(), target->GetPos()) >= BASE_ATTACKING_DISTANCE)
                 continue;
             ret.push_back(target);
         }
@@ -180,15 +181,17 @@ std::array<unsigned, 5> AttackPlanner::GetAvailableAttackers(const MapPoint& pt)
     std::array<unsigned, 5> ret;
     ret.fill(0);
 
-    for(const nobBaseMilitary* otherMilBld : beowulf_->gwb.LookForMilitaryBuildings(pt, 2)) {
-        if (otherMilBld->GetPlayer() != beowulf_->GetPlayerId())
+    for(const nobBaseMilitary* otherMilBld : beowulf_->gwb.LookForMilitaryBuildings(pt, 2))
+    {
+        if(otherMilBld->GetPlayer() != beowulf_->GetPlayerId())
             continue;
 
         const nobMilitary* myMil = dynamic_cast<const nobMilitary*>(otherMilBld);
-        if (!myMil || myMil->IsUnderAttack())
+        if(!myMil || myMil->IsUnderAttack())
             continue;
 
-        for (const nofPassiveSoldier* soldier : myMil->GetSoldiersForAttack(pt)) {
+        for(const nofPassiveSoldier* soldier : myMil->GetSoldiersForAttack(pt))
+        {
             ret[soldier->GetRank()]++;
         }
     }
@@ -198,22 +201,23 @@ std::array<unsigned, 5> AttackPlanner::GetAvailableAttackers(const MapPoint& pt)
 
 unsigned AttackPlanner::GetAttackersCount(const std::array<unsigned, 5>& soldiers, unsigned char enemy) const
 {
-//    // Are we producing coins?
-//    if (beowulf_->produce.GetTotalProduction(BGD_COIN) > 0) {
-//        return soldiers[4]; // only send generals
-//    }
+    //    // Are we producing coins?
+    //    if (beowulf_->produce.GetTotalProduction(BGD_COIN) > 0) {
+    //        return soldiers[4]; // only send generals
+    //    }
 
-//    // Is the enemy producing coins according to statistics?
-//    const GamePlayer::Statistic& statistic = beowulf_->gwb.GetPlayer(enemy).GetStatistic(STAT_15M);
-//    if (statistic.data[STAT_GOLD][statistic.currentIndex] > 0) {
-//        return 0;
-//    }
+    //    // Is the enemy producing coins according to statistics?
+    //    const GamePlayer::Statistic& statistic = beowulf_->gwb.GetPlayer(enemy).GetStatistic(STAT_15M);
+    //    if (statistic.data[STAT_GOLD][statistic.currentIndex] > 0) {
+    //        return 0;
+    //    }
 
     (void)enemy;
 
     // All of the best soldiers we have.
-    for (int i = 4; i >= 0; --i) {
-        if (soldiers[i] > 0)
+    for(int i = 4; i >= 0; --i)
+    {
+        if(soldiers[i] > 0)
             return soldiers[i];
     }
 

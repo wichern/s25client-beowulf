@@ -20,22 +20,23 @@
 #include "ai/beowulf/Building.h"
 #include "ai/beowulf/World.h"
 
-#include "gameData/ToolConsts.h"
-#include "gameTypes/SettingsTypes.h"
+#include "helpers/containerUtils.h"
 #include "notifications/ToolNote.h"
+#include "gameTypes/SettingsTypes.h"
+#include "gameData/ToolConsts.h"
 
 namespace beowulf {
 
-MetalworksManager::MetalworksManager(Beowulf* beowulf)
-    : RecurrentBase(beowulf)
+MetalworksManager::MetalworksManager(Beowulf* beowulf) : RecurrentBase(beowulf)
 {
     CheckMetalworksExists();
 }
 
 void MetalworksManager::OnRun()
 {
-    if (CheckMetalworksExists()) {
-        if (isWorking_)
+    if(CheckMetalworksExists())
+    {
+        if(isWorking_)
             return;
 
         PlaceNextOrder();
@@ -44,19 +45,21 @@ void MetalworksManager::OnRun()
 
 bool MetalworksManager::JobOrToolOrQueueSpace(Job job, bool addMetalworksRequest, unsigned maxQueueLength)
 {
-    for (const Building* building : beowulf_->world.GetBuildings()) {
-        if (!building->IsWarehouse())
+    for(const Building* building : beowulf_->world.GetBuildings())
+    {
+        if(!building->IsWarehouse())
             continue;
-        if (building->GetJobs(job) > 0)
+        if(building->GetJobs(job) > 0)
             return true;
 
         const boost::optional<GoodType> tool = JOB_CONSTS[job].tool;
-        if (tool && building->GetGoods(*tool) > 0)
+        if(tool && building->GetGoods(*tool) > 0)
             return true;
     }
 
     const boost::optional<GoodType> tool = JOB_CONSTS[job].tool;
-    if (tool && metalworksPt_.isValid() && addMetalworksRequest && requests_.size() < maxQueueLength) {
+    if(tool && metalworksPt_.isValid() && addMetalworksRequest && requests_.size() < maxQueueLength)
+    {
         Request(*tool);
         return true;
     }
@@ -66,17 +69,20 @@ bool MetalworksManager::JobOrToolOrQueueSpace(Job job, bool addMetalworksRequest
 
 void MetalworksManager::OnToolNote(const ToolNote& note)
 {
-    if (note.type == ToolNote::ToolProduced) {
+    if(note.type == ToolNote::ToolProduced)
+    {
         requests_.pop();
-        if (CheckMetalworksExists())
+        if(CheckMetalworksExists())
             PlaceNextOrder();
     }
 }
 
 void MetalworksManager::PlaceNextOrder()
 {
-    if (requests_.empty()) {
-        if (isWorking_) {
+    if(requests_.empty())
+    {
+        if(isWorking_)
+        {
             beowulf_->GetAII().SetProductionEnabled(metalworksPt_, false);
             isWorking_ = false;
         }
@@ -86,7 +92,8 @@ void MetalworksManager::PlaceNextOrder()
     GoodType tool = requests_.front();
     PlaceToolOrder(tool, 1);
 
-    if (!isWorking_) {
+    if(!isWorking_)
+    {
         beowulf_->GetAII().SetProductionEnabled(metalworksPt_, true);
         isWorking_ = true;
     }
@@ -94,24 +101,29 @@ void MetalworksManager::PlaceNextOrder()
 
 bool MetalworksManager::CheckMetalworksExists()
 {
-    if (metalworksPt_.isValid()) {
+    if(metalworksPt_.isValid())
+    {
         // Still exists?
         Building* building = beowulf_->world.GetBuilding(metalworksPt_);
-        if (!building || building->GetType() != BuildingType::Metalworks || building->GetState() != Building::Finished) {
+        if(!building || building->GetType() != BuildingType::Metalworks || building->GetState() != Building::Finished)
+        {
             metalworksPt_ = MapPoint::Invalid();
 
             // If the metalworks was currently working, we have to remove the latest order.
-            if (isWorking_)
+            if(isWorking_)
                 PlaceToolOrder(requests_.front(), -1);
 
             isWorking_ = false;
             return false;
         }
         return true;
-    } else {
+    } else
+    {
         // New metalworks exists?
-        for (const Building* building : beowulf_->world.GetBuildings(BuildingType::Metalworks)) {
-            if (building->GetType() == BuildingType::Metalworks && building->GetState() == Building::Finished) {
+        for(const Building* building : beowulf_->world.GetBuildings(BuildingType::Metalworks))
+        {
+            if(building->GetType() == BuildingType::Metalworks && building->GetState() == Building::Finished)
+            {
                 metalworksPt_ = building->GetPt();
                 isWorking_ = false;
                 beowulf_->GetAII().SetProductionEnabled(metalworksPt_, false);
@@ -124,21 +136,28 @@ bool MetalworksManager::CheckMetalworksExists()
 
 void MetalworksManager::PlaceToolOrder(GoodType tool, int8_t count)
 {
-    static ToolSettings settings;
-    static int8_t orders[NUM_TOOLS] = { 0 };
-    settings.fill(0);
+    // @todo: Write UT that checks that multiple subsequent tool orders are done.
 
-    unsigned idx = 0;
-    for (unsigned i = 0; i < NUM_TOOLS; ++i) {
-        if (TOOLS[i] == tool) {
-            idx = i;
+    // Reset tool settings to zero (prevent any automatic tool production).
+    static ToolSettings settings;
+    std::fill(settings.begin(), settings.end(), 0u);
+
+    // Create an order array
+    static int8_t orders[helpers::NumEnumValues_v<Tool>] = {0};
+
+    // Map GoodType to Tool
+    unsigned toolIdx = 0;
+    for(GoodType good : TOOL_TO_GOOD)
+    {
+        if(good == tool)
             break;
-        }
+
+        toolIdx++;
     }
 
-    orders[idx] = count;
+    orders[toolIdx] = count;
     beowulf_->GetAII().ChangeTools(settings, orders);
-    orders[idx] = 0;
+    orders[toolIdx] = 0;
 }
 
-}  // namespace beowulf
+} // namespace beowulf

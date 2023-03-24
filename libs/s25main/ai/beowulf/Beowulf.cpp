@@ -25,25 +25,17 @@
 
 namespace beowulf {
 
-enum Event {
+enum Event
+{
     PlaceBuildingsEvent = 0,
     PlanRoadsEvent,
     UpdateResoucesForProductinoPlanningEvent,
     PlanProductionEvent,
 };
 
-Beowulf::Beowulf(const unsigned char playerId,
-                 const GameWorldBase& gwb,
-                 const AI::Level level)
-    : AIPlayer(playerId, gwb, level),
-      world(this, false),
-      build(this),
-      roads(this),
-      expand(this),
-      produce(this),
-      metalworks(this),
-      attack(this),
-      coins(this)
+Beowulf::Beowulf(const unsigned char playerId, const GameWorldBase& gwb, const AI::Level level)
+    : AIPlayer(playerId, gwb, level), world(this, false), build(this), roads(this), expand(this), produce(this),
+      metalworks(this), attack(this), coins(this)
 {
     recurrents_.push_back(&build);
     recurrents_.push_back(&roads);
@@ -57,30 +49,29 @@ Beowulf::Beowulf(const unsigned char playerId,
     ClearWorstRuntime();
 }
 
-Beowulf::~Beowulf()
-{
-}
+Beowulf::~Beowulf() {}
 
 void Beowulf::RunGF(const unsigned gf, bool gfisnwf)
 {
-    if (CheckDefeat())
+    if(CheckDefeat())
         return;
 
-    if (waitForNextSync_ && gfisnwf)
+    if(waitForNextSync_ && gfisnwf)
         waitForNextSync_ = false;
 
     // Wait for next synchronization frame and only do calculations every 16th game frame.
-    if (waitForNextSync_ || (static_cast<unsigned char>(gf) & 0xF) != playerId)
+    if(waitForNextSync_ || (static_cast<unsigned char>(gf) & 0xF) != playerId)
         return;
 
-    for (size_t i = 0; i < recurrents_.size(); ++i) {
+    for(size_t i = 0; i < recurrents_.size(); ++i)
+    {
         std::clock_t start = std::clock();
         recurrents_[i]->RunGf();
         std::clock_t end = std::clock();
         recurrentsWorstRuntime_[i] = std::max(recurrentsWorstRuntime_[i], end - start);
     }
 
-    if (aii.HasIssuedGameCommands())
+    if(aii.HasIssuedGameCommands())
         waitForNextSync_ = true;
 
     // ResolveGoodsJams();
@@ -97,9 +88,11 @@ void Beowulf::RunGF(const unsigned gf, bool gfisnwf)
     // DecommissionUnusedRoads();
 }
 
+void Beowulf::OnChatMessage(unsigned /*sendPlayerId*/, ChatDestination, const std::string& /*msg*/) {}
+
 void Beowulf::DisableRecurrents()
 {
-    for (RecurrentBase* recurrent : recurrents_)
+    for(RecurrentBase* recurrent : recurrents_)
         recurrent->Disable();
 }
 
@@ -111,10 +104,11 @@ void Beowulf::ClearWorstRuntime()
 bool Beowulf::CheckDefeat()
 {
     // Check for defeat.st
-    if (defeated_)
+    if(defeated_)
         return true;
 
-    if (aii.GetStorehouses().empty()) {
+    if(aii.GetStorehouses().empty())
+    {
         aii.Surrender();
         Chat(_("I surrender"));
         defeated_ = true;
@@ -126,8 +120,7 @@ bool Beowulf::CheckDefeat()
 
 void Beowulf::Chat(const std::string& message) const
 {
-    GAMECLIENT.GetMainPlayer().sendMsgAsync(
-                new GameMessage_Chat(playerId, ChatDestination::All, message));
+    GAMECLIENT.GetMainPlayer().sendMsgAsync(new GameMessage_Chat(playerId, ChatDestination::All, message));
 }
 
 } // namespace beowulf

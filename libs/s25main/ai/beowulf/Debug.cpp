@@ -18,25 +18,26 @@
 #include "ai/beowulf/Debug.h"
 #include "ai/beowulf/Helper.h"
 
-#include "ai/AIPlayer.h"
 #include "RttrForeachPt.h"
-#include "gameData/BuildingConsts.h"
-#include "nodeObjs/noTree.h"
-#include "nodeObjs/noFlag.h"
-#include "buildings/nobUsual.h"
+#include "ai/AIPlayer.h"
+#include "buildings/noBuildingSite.h"
 #include "buildings/nobBaseWarehouse.h"
 #include "buildings/nobMilitary.h"
-#include "buildings/noBuildingSite.h"
+#include "buildings/nobUsual.h"
 #include "figures/nofPassiveSoldier.h"
+#include "nodeObjs/noFlag.h"
+#include "nodeObjs/noTree.h"
+#include "gameData/BuildingConsts.h"
 
 #include <boost/lexical_cast.hpp>
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 namespace beowulf {
 
-std::string to_string(unsigned val) {
+std::string to_string(unsigned val)
+{
     return boost::lexical_cast<std::string>(val);
 }
 
@@ -49,9 +50,10 @@ std::string to_string(const std::vector<unsigned>& intvec)
 {
     std::string ret("(");
 
-    for (unsigned i = 0; i < intvec.size(); ++i) {
+    for(unsigned i = 0; i < intvec.size(); ++i)
+    {
         ret += to_string(intvec[i]);
-        if (i+1 != intvec.size())
+        if(i + 1 != intvec.size())
             ret += ", ";
     }
 
@@ -62,9 +64,10 @@ std::string to_string(const std::vector<Direction>& route)
 {
     std::string ret("(");
 
-    for (unsigned i = 0; i < route.size(); ++i) {
+    for(unsigned i = 0; i < route.size(); ++i)
+    {
         ret += to_string(route[i]);
-        if (i+1 != route.size())
+        if(i + 1 != route.size())
             ret += ", ";
     }
 
@@ -75,9 +78,10 @@ std::string to_string(const unsigned* intvec, unsigned len)
 {
     std::string ret("(");
 
-    for (unsigned i = 0; i < len; ++i) {
+    for(unsigned i = 0; i < len; ++i)
+    {
         ret += to_string(intvec[i]);
-        if (i+1 != len)
+        if(i + 1 != len)
             ret += ", ";
     }
 
@@ -86,47 +90,31 @@ std::string to_string(const unsigned* intvec, unsigned len)
 
 std::string to_string(Direction dir)
 {
-    switch (dir)
+    switch(dir)
     {
-    case Direction::SouthEast:
-        return "SE";
-    case Direction::SouthWest:
-        return "SW";
-    case Direction::West:
-        return "W";
-    case Direction::East:
-        return "E";
-    case Direction::NorthEast:
-        return "NE";
-    case Direction::NorthWest:
-        return "NW";
-    default:
-        return "<unknown>";
+        case Direction::SouthEast: return "SE";
+        case Direction::SouthWest: return "SW";
+        case Direction::West: return "W";
+        case Direction::East: return "E";
+        case Direction::NorthEast: return "NE";
+        case Direction::NorthWest: return "NW";
+        default: return "<unknown>";
     }
 }
 
-AsciiMap::AsciiMap(const AIInterface& aii, unsigned short scale)
-    : aii_(aii), offset_({0, 0})
+AsciiMap::AsciiMap(const AIInterface& aii, unsigned short scale) : aii_(aii), offset_({0, 0})
 {
     init(aii.gwb.GetSize(), scale);
 }
 
-AsciiMap::AsciiMap(
-        const AIInterface& aii,
-        const MapPoint& topLeft,
-        const MapPoint& bottomRight,
-        unsigned short scale)
+AsciiMap::AsciiMap(const AIInterface& aii, const MapPoint& topLeft, const MapPoint& bottomRight, unsigned short scale)
     : aii_(aii)
 {
     offset_ = topLeft;
     init(MapPoint(bottomRight.x - topLeft.x, bottomRight.y - topLeft.y), scale);
 }
 
-AsciiMap::AsciiMap(
-        const AIInterface& aii,
-        const MapPoint& center,
-        unsigned short radius,
-        unsigned short scale)
+AsciiMap::AsciiMap(const AIInterface& aii, const MapPoint& center, unsigned short radius, unsigned short scale)
     : aii_(aii)
 {
     const MapExtent& size = aii.gwb.GetSize();
@@ -138,15 +126,15 @@ AsciiMap::AsciiMap(
 
 AsciiMap::~AsciiMap()
 {
-    if (map_)
-        delete [] map_;
+    if(map_)
+        delete[] map_;
 }
 
 void AsciiMap::draw(const MapPoint& pt, char c)
 {
-    if (pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
+    if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
-    if (pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
+    if(pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
         return;
     MapPoint ptS = MapPoint(pt.x - offset_.x, pt.y - offset_.y);
     set(getPos(ptS), c);
@@ -154,9 +142,9 @@ void AsciiMap::draw(const MapPoint& pt, char c)
 
 void AsciiMap::draw(const MapPoint& pt, const std::string& str)
 {
-    if (pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
+    if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
-    if (pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
+    if(pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
         return;
     MapPoint ptS = MapPoint(pt.x - offset_.x, pt.y - offset_.y);
     set(getPos(ptS), str);
@@ -164,88 +152,101 @@ void AsciiMap::draw(const MapPoint& pt, const std::string& str)
 
 void AsciiMap::drawRoad(const MapPoint& pt, Direction dir, bool fat)
 {
-    if (pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
+    if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
-    if (pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
+    if(pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
         return;
     MapPoint ptS = MapPoint(pt.x - offset_.x, pt.y - offset_.y);
     AsciiPosition pos = getPos(ptS);
 
     AsciiPosition::ElementType length = scale_w_ - 1;
-    if (dir != Direction::West && dir != Direction::East)
-        length = (scale_w_/2) - 1;
+    if(dir != Direction::West && dir != Direction::East)
+        length = (scale_w_ / 2) - 1;
 
-    switch (dir)
+    switch(dir)
     {
-    case Direction::East:
-    {
-        pos.x += 1;
-    } break;
-    case Direction::SouthEast:
-    {
-        pos.x += 1;
-        pos.y += 1;
-    } break;
-    case Direction::SouthWest:
-    {
-        pos.x -= 1;
-        pos.y += 1;
-    } break;
-    }
-
-    for (AsciiPosition::ElementType i = 0; i < length && onMap(pos); ++i) {
-        switch (dir)
-        {
         case Direction::East:
         {
-            set(pos, fat ? '=' : '-');
             pos.x += 1;
-        } break;
+        }
+        break;
         case Direction::SouthEast:
         {
-            set(pos, '\\');
-            if (fat) set({pos.x + 1, pos.y}, '\\');
             pos.x += 1;
             pos.y += 1;
-        } break;
+        }
+        break;
         case Direction::SouthWest:
         {
-            set(pos, '/');
-            if (fat) set({pos.x + 1, pos.y}, '/');
             pos.x -= 1;
             pos.y += 1;
-        } break;
+        }
+        break;
+        default:
+            // noop
+            break;
+    }
+
+    for(AsciiPosition::ElementType i = 0; i < length && onMap(pos); ++i)
+    {
+        switch(dir)
+        {
+            case Direction::East:
+            {
+                set(pos, fat ? '=' : '-');
+                pos.x += 1;
+            }
+            break;
+            case Direction::SouthEast:
+            {
+                set(pos, '\\');
+                if(fat)
+                    set({pos.x + 1, pos.y}, '\\');
+                pos.x += 1;
+                pos.y += 1;
+            }
+            break;
+            case Direction::SouthWest:
+            {
+                set(pos, '/');
+                if(fat)
+                    set({pos.x + 1, pos.y}, '/');
+                pos.x -= 1;
+                pos.y += 1;
+            }
+            break;
+            default:
+                // noop
+                break;
         }
     }
 }
 
-static const char* c_short_building_names[helpers::MaxEnumValue_v<BuildingType>] = {
-    "HQ", "Bar", "Gua", "", "Wat", "", "", "", "", "Fort", "GrM", "CoM", "IrM", "GoM", "Loo",
-    "", "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre", "Arm", "Met",
-    "Iro", "Cha", "Pig", "Sto", "", "Mil", "Bak", "Saw", "Min", "Wel",
-    "Shi", "Far", "Don", "Har"
-};
+static const helpers::EnumArray<const char*, BuildingType> c_short_building_names = {
+  "HQ",  "Bar", "Gua", "",    "Wat", "",    "",    "",    "",    "Fort", "GrM", "CoM", "IrM", "GoM",
+  "Loo", "",    "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre",  "Arm", "Met", "Iro", "Cha",
+  "Pig", "Sto", "",    "Mil", "Bak", "Saw", "Min", "Wel", "Shi", "Far",  "Don", "Har"};
 
 void AsciiMap::draw(const World& world, bool includeAnticipated)
 {
     RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
     {
-        if (world.IsPlayerTerritory(pt, includeAnticipated))
+        if(world.IsPlayerTerritory(pt, includeAnticipated))
             draw(pt, '_');
-        else if (world.IsBorder(pt, includeAnticipated))
+        else if(world.IsBorder(pt, includeAnticipated))
             draw(pt, 'b');
 
-        if (world.HasFlag(pt))
+        if(world.HasFlag(pt))
             draw(pt, 'f');
 
-        for (unsigned char dir = Direction::East; dir < Direction::COUNT; ++dir) {
-            if (world.HasRoad(pt, Direction(dir)))
-                draw(pt, dir);
-        }
+        for(Direction dir : helpers::enumRange(Direction::East))
+            if(world.HasRoad(pt, dir))
+                drawRoad(pt, dir);
 
         Building* building = world.GetBuilding(pt);
-        if (building) {
-            if (building->GetState() == Building::ConstructionRequested)
+        if(building)
+        {
+            if(building->GetState() == Building::ConstructionRequested)
                 draw(pt, std::string("(") + c_short_building_names[building->GetType()] + ")");
             else
                 draw(pt, c_short_building_names[building->GetType()]);
@@ -259,19 +260,21 @@ void AsciiMap::draw(const AIPlayer* player)
     RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
     {
         const noFlag* flagObj = player->gwb.GetSpecObj<noFlag>(pt);
-        if (flagObj && flagObj->GetPlayer() == player->GetPlayerId())
+        if(flagObj && flagObj->GetPlayer() == player->GetPlayerId())
             draw(pt, 'f');
 
-        for (const auto roadDir : helpers::EnumRange<RoadDir>{}) {
-            if (PointRoad::Normal == player->gwb.GetRoad(pt, roadDir)) {
+        for(const auto roadDir : helpers::EnumRange<RoadDir>{})
+        {
+            if(PointRoad::Normal == player->gwb.GetRoad(pt, roadDir))
+            {
                 drawRoad(pt, convertToDirection(static_cast<unsigned>(roadDir) + 3U));
             }
         }
     }
 
     const BuildingRegister& buildings = player->player.GetBuildingRegister();
-    for(unsigned i = FIRST_USUAL_BUILDING; i < helpers::NumEnumValues_v<BuildingType>; ++i)
-        for (nobUsual* building : buildings.GetBuildings(BuildingType(i)))
+    for(BuildingType bld : helpers::enumRange<BuildingType>())
+        for(nobUsual* building : buildings.GetBuildings(bld))
             draw(building->GetPos(), c_short_building_names[building->GetBuildingType()]);
     for(const nobBaseWarehouse* building : buildings.GetStorehouses())
         draw(building->GetPos(), c_short_building_names[building->GetBuildingType()]);
@@ -295,37 +298,31 @@ void AsciiMap::drawResources()
     {
         const MapNode& node = aii_.gwb.GetNode(pt);
         const Resource& res = node.resources;
-        switch (res.getType()) {
-        case Resource::Iron:
-            draw(pt, "I" + std::to_string(res.getAmount()));
-            break;
-        case Resource::Gold:
-            draw(pt, "G" + std::to_string(res.getAmount()));
-            break;
-        case Resource::Coal:
-            draw(pt, "C" + std::to_string(res.getAmount()));
-            break;
-        case Resource::Granite:
-            draw(pt, "Gr" + std::to_string(res.getAmount()));
-            break;
-        case Resource::Fish:
-            draw(pt, "F" + std::to_string(res.getAmount()));
-            break;
-        case Resource::Water:
-        default: break;
+        switch(res.getType())
+        {
+            case ResourceType::Iron: draw(pt, "I" + std::to_string(res.getAmount())); break;
+            case ResourceType::Gold: draw(pt, "G" + std::to_string(res.getAmount())); break;
+            case ResourceType::Coal: draw(pt, "C" + std::to_string(res.getAmount())); break;
+            case ResourceType::Granite: draw(pt, "Gr" + std::to_string(res.getAmount())); break;
+            case ResourceType::Fish: draw(pt, "F" + std::to_string(res.getAmount())); break;
+            case ResourceType::Water:
+            default: break;
         }
 
-        if (node.obj && node.obj->GetType() == NodalObjectType::Grainfield)
+        if(node.obj && node.obj->GetType() == NodalObjectType::Grainfield)
             draw(pt, '#');
 
         DescIdx<TerrainDesc> t1 = aii_.gwb.GetNode(pt).t1;
-        if (aii_.gwb.GetDescription().get(t1).Is(ETerrain::Walkable)) {
+        if(aii_.gwb.GetDescription().get(t1).Is(ETerrain::Walkable))
+        {
             NodalObjectType no = aii_.gwb.GetNO(pt)->GetType();
 
-            if (no == NodalObjectType::Tree) {
-                if (aii_.gwb.GetSpecObj<noTree>(pt)->ProducesWood())
+            if(no == NodalObjectType::Tree)
+            {
+                if(aii_.gwb.GetSpecObj<noTree>(pt)->ProducesWood())
                     draw(pt, "T");
-            } else if (no == NodalObjectType::Granite) {
+            } else if(no == NodalObjectType::Granite)
+            {
                 draw(pt, "S");
             }
         }
@@ -336,7 +333,7 @@ void AsciiMap::drawResourcesInReach(Resources& resources, BResourceType type)
 {
     RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
     {
-        if (!aii_.IsOwnTerritory(pt))
+        if(!aii_.IsOwnTerritory(pt))
             continue;
         draw(pt, std::to_string(resources.GetReachable(pt, type)));
     }
@@ -346,7 +343,8 @@ void AsciiMap::drawBorder(const World& world, bool includeAnticipated)
 {
     RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
     {
-        if (world.IsBorder(pt, includeAnticipated)) {
+        if(world.IsBorder(pt, includeAnticipated))
+        {
             draw(pt, '!');
         }
     }
@@ -356,7 +354,8 @@ void AsciiMap::drawBorder(unsigned char player)
 {
     RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
     {
-        if (aii_.gwb.GetNode(pt).boundary_stones[BorderStonePos::OnPoint] == (player + 1)) {
+        if(aii_.gwb.GetNode(pt).boundary_stones[BorderStonePos::OnPoint] == (player + 1))
+        {
             draw(pt, '!');
         }
     }
@@ -380,7 +379,7 @@ void AsciiMap::drawBuildLocations(const World& world, bool includeAnticipated)
 
 void AsciiMap::drawAdditionalTerritory(const std::vector<MapPoint>& at)
 {
-    for (const MapPoint& pt : at)
+    for(const MapPoint& pt : at)
     {
         draw(pt, "(_)");
     }
@@ -388,16 +387,19 @@ void AsciiMap::drawAdditionalTerritory(const std::vector<MapPoint>& at)
 
 void AsciiMap::drawSoldiers(const AIPlayer* player)
 {
-    for (const nobMilitary* mil : player->getAIInterface().GetMilitaryBuildings()) {
+    for(const nobMilitary* mil : player->getAIInterface().GetMilitaryBuildings())
+    {
         std::string str;
-        for (const nofPassiveSoldier* soldier : mil->GetTroops()) {
-            switch (soldier->GetRank()) {
-            case 0: str += "p"; break;
-            case 1: str += "P"; break;
-            case 2: str += "S"; break;
-            case 3: str += "O"; break;
-            case 4: str += "G"; break;
-            default: str += "?"; break;
+        for(const nofPassiveSoldier& soldier : mil->GetTroops())
+        {
+            switch(soldier.GetRank())
+            {
+                case 0: str += "p"; break;
+                case 1: str += "P"; break;
+                case 2: str += "S"; break;
+                case 3: str += "O"; break;
+                case 4: str += "G"; break;
+                default: str += "?"; break;
             }
         }
         draw(mil->GetPos(), str);
@@ -409,15 +411,17 @@ void AsciiMap::clear()
     // Fill with spaces.
     memset(map_, 0x20, map_buffer_len_ - 1);
 
-    for (AsciiPosition::ElementType x = 0; x < w_; ++x) {
+    for(AsciiPosition::ElementType x = 0; x < w_; ++x)
+    {
         // Add column number
-        if (x % scale_w_ == 0)
+        if(x % scale_w_ == 0)
             set({x + c_margin_left_, 1}, std::to_string((x / scale_w_) + offset_.x));
     }
 
-    for (AsciiPosition::ElementType y = 0; y < h_; ++y) {
+    for(AsciiPosition::ElementType y = 0; y < h_; ++y)
+    {
         // Add line number.
-        if (y % scale_h_ == 0)
+        if(y % scale_h_ == 0)
             set({1, y + c_margin_top_}, std::to_string((y / scale_h_) + offset_.y));
 
         // Add newline for every row.
@@ -427,8 +431,9 @@ void AsciiMap::clear()
     // Add null terminator.
     map_[map_buffer_len_ - 1] = 0;
 
-    RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize()) {
-        if (aii_.IsOwnTerritory(pt))
+    RTTR_FOREACH_PT(MapPoint, aii_.gwb.GetSize())
+    {
+        if(aii_.IsOwnTerritory(pt))
             draw(pt, '_');
         else
             draw(pt, '.');
@@ -482,7 +487,8 @@ void AsciiMap::set(const AsciiPosition& pos, char c)
 
 void AsciiMap::set(AsciiMap::AsciiPosition pos, const std::string& str)
 {
-    for (std::string::size_type i = 0; i < str.length() && onMap(pos); ++i) {
+    for(std::string::size_type i = 0; i < str.length() && onMap(pos); ++i)
+    {
         set(pos, str[i]);
         pos.x++;
     }
@@ -490,37 +496,26 @@ void AsciiMap::set(AsciiMap::AsciiPosition pos, const std::string& str)
 
 bool AsciiMap::onMap(const AsciiPosition& pos) const
 {
-    return pos.x >= 0 && (pos.x + 1) < w_ &&
-            pos.y >= 0 && pos.y < h_;
+    return pos.x >= 0 && (pos.x + 1) < w_ && pos.y >= 0 && pos.y < h_;
 }
 
 void AsciiMap::drawBQ(const MapPoint& pt, BuildingQuality bq)
 {
-    switch (bq) {
-    case BuildingQuality::Hut:
-        draw(pt, 'h');
-        break;
-    case BuildingQuality::House:
-        draw(pt, 'H');
-        break;
-    case BuildingQuality::Castle:
-        draw(pt, 'C');
-        break;
-    case BuildingQuality::Mine:
-        draw(pt, 'm');
-        break;
-    case BQ_HARBOR:
-        draw(pt, 'H');
-        break;
-    case BuildingQuality::Flag:
-    case BuildingQuality::Nothing:
-        // skip
-        break;
+    switch(bq)
+    {
+        case BuildingQuality::Hut: draw(pt, 'h'); break;
+        case BuildingQuality::House: draw(pt, 'H'); break;
+        case BuildingQuality::Castle: draw(pt, 'C'); break;
+        case BuildingQuality::Mine: draw(pt, 'm'); break;
+        case BuildingQuality::Harbor: draw(pt, 'H'); break;
+        case BuildingQuality::Flag:
+        case BuildingQuality::Nothing:
+            // skip
+            break;
     }
 }
 
-AsciiTable::AsciiTable(size_t columns)
-    : columns_(columns)
+AsciiTable::AsciiTable(size_t columns) : columns_(columns)
 {
     alignment_.resize(columns_);
     std::fill(alignment_.begin(), alignment_.end(), false);
@@ -540,8 +535,9 @@ void AsciiTable::alignLeft(int column, bool left)
 void AsciiTable::writeHorizontal(std::ostream& out, const std::vector<size_t>& widths) const
 {
     out << '+';
-    for (size_t w : widths) {
-        for (size_t i = 0; i < w; ++i)
+    for(size_t w : widths)
+    {
+        for(size_t i = 0; i < w; ++i)
             out << '-';
         out << '+';
     }
@@ -555,16 +551,17 @@ void AsciiTable::write(std::ostream& out) const
     widths.resize(columns_);
     std::fill(widths.begin(), widths.end(), 0);
 
-    for (const std::vector<std::string>& row : rows_)
-        for (size_t i = 0; i < columns_; ++i)
+    for(const std::vector<std::string>& row : rows_)
+        for(size_t i = 0; i < columns_; ++i)
             widths[i] = std::max(widths[i], row[i].size());
-
 
     writeHorizontal(out, widths);
 
-    for (const std::vector<std::string>& row : rows_) {
+    for(const std::vector<std::string>& row : rows_)
+    {
         out << '|';
-        for (size_t c = 0; c < columns_; ++c) {
+        for(size_t c = 0; c < columns_; ++c)
+        {
             out << std::setw(widths[c]) << (alignment_.at(c) ? std::left : std::right) << row[c] << '|';
         }
         out << '\n';

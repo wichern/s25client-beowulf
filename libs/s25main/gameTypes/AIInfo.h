@@ -27,7 +27,7 @@ enum class Type : uint8_t
 };
 constexpr auto maxEnumValue(Type)
 {
-    return Type::Default;
+    return Type::Beowulf;
 }
 
 struct Info

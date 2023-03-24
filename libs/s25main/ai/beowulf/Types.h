@@ -1,36 +1,24 @@
-// Copyright (c) 2005 - 2017 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
 //
-// This file is part of Return To The Roots.
-//
-// Return To The Roots is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 2 of the License, or
-// (at your option) any later version.
-//
-// Return To The Roots is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Return To The Roots. If not, see <http://www.gnu.org/licenses/>.
-#ifndef BEOWULF_TYPES_H_INCLUDED
-#define BEOWULF_TYPES_H_INCLUDED
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "gameTypes/BuildingType.h"
-#include "gameTypes/MapCoordinates.h"
-#include "gameTypes/Direction.h"
-#include "commonDefines.h"
+#pragma once
+
 #include "ai/AIResource.h"
+#include "commonDefines.h"
+#include "gameTypes/BuildingType.h"
+#include "gameTypes/Direction.h"
+#include "gameTypes/MapCoordinates.h"
 
-#include <string>
 #include <boost/scoped_array.hpp>
+#include <string>
 
 namespace beowulf {
 
 static constexpr unsigned InvalidProductionGroup = std::numeric_limits<unsigned>::max();
 
-enum FlagState {
+enum FlagState
+{
     // There is no flag at this position.
     FlagDoesNotExist,
 
@@ -43,7 +31,8 @@ enum FlagState {
     FlagDestructionRequested,
 };
 
-enum RoadState {
+enum RoadState
+{
     // There is no road at this position.
     RoadDoesNotExist,
 
@@ -64,7 +53,8 @@ enum RoadState {
  * The goods are sorted such that production of a good never depends on
  * a good with a smaller index.
  */
-enum BGoodType {
+enum BGoodType
+{
     BGD_WEAPON = 0,
     BGD_BEER,
 
@@ -96,7 +86,8 @@ enum BGoodType {
     BGD_COUNT
 };
 
-enum BResourceType {
+enum BResourceType
+{
     BResourceIron = 0,
     BResourceGold,
     BResourceCoal,
@@ -112,5 +103,3 @@ enum BResourceType {
 };
 
 } // namespace beowulf
-
-#endif //! BEOWULF_TYPES_H_INCLUDED

@@ -145,7 +145,7 @@ bool nofMetalworker::StartWorking()
 
 void nofMetalworker::WareDelivered()
 {
-    gwg->GetNotifications().publish(ToolNote(ToolNote::ToolProduced, player));
+    world->GetNotifications().publish(ToolNote(ToolNote::ToolProduced, player));
 }
 
 void nofMetalworker::CheckForOrders()

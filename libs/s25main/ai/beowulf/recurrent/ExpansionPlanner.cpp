@@ -17,18 +17,18 @@
 
 #include "ai/beowulf/recurrent/ExpansionPlanner.h"
 #include "ai/beowulf/Beowulf.h"
-#include "ai/beowulf/World.h"
 #include "ai/beowulf/BuildLocations.h"
 #include "ai/beowulf/Helper.h"
+#include "ai/beowulf/World.h"
 
 #include "ai/AIInterface.h"
 #include "buildings/noBuildingSite.h"
 #include "buildings/nobBaseWarehouse.h"
 #include "buildings/nobMilitary.h"
+#include "helpers/containerUtils.h"
+#include "gameData/BuildingConsts.h"
 #include "gameData/BuildingProperties.h"
 #include "gameData/MilitaryConsts.h"
-#include "gameData/BuildingConsts.h"
-#include "helpers/containerUtils.h"
 
 namespace beowulf {
 
@@ -54,49 +54,50 @@ namespace beowulf {
  *   - Availability of stones
  */
 
-ExpansionPlanner::ExpansionPlanner(Beowulf* beowulf)
-    : RecurrentBase(beowulf, 10, 0) // check every 10*16 gf
-{
-
-}
+ExpansionPlanner::ExpansionPlanner(Beowulf* beowulf) : RecurrentBase(beowulf, 10, 0) // check every 10*16 gf
+{}
 
 void ExpansionPlanner::OnRun()
 {
     // @todo: Try the following loop that deconstructs unused military buildings.
-//    for (const nobMilitary* building : beowulf_->GetAII().GetMilitaryBuildings()) {
-//        if (building->IsUseless()) {
-//            beowulf_->world.Deconstruct(beowulf_->world.GetBuilding(building->GetPos()));
-//        }
-//    }
+    //    for (const nobMilitary* building : beowulf_->GetAII().GetMilitaryBuildings()) {
+    //        if (building->IsUseless()) {
+    //            beowulf_->world.Deconstruct(beowulf_->world.GetBuilding(building->GetPos()));
+    //        }
+    //    }
 
     // Check whether we actually want to expand.
-    if (!ShouldExpand())
+    if(!ShouldExpand())
         return;
 
     // Get list of expandable territories.
     std::vector<MapPoint> starts;
-    for (nobBaseWarehouse* warehouse : beowulf_->GetAII().GetStorehouses()) {
+    for(nobBaseWarehouse* warehouse : beowulf_->GetAII().GetStorehouses())
+    {
         // Check for enough soldiers, builders and materials.
         const Inventory& inventory = warehouse->GetInventory();
-        unsigned soldiers = inventory[JOB_PRIVATE] + inventory[JOB_PRIVATEFIRSTCLASS] + inventory[JOB_SERGEANT] + inventory[JOB_OFFICER] + inventory[JOB_GENERAL];
-        if (soldiers < minSoldiers_)
+        unsigned soldiers = inventory[Job::Private] + inventory[Job::PrivateFirstClass] + inventory[Job::Sergeant]
+                            + inventory[Job::Officer] + inventory[Job::General];
+        if(soldiers < minSoldiers_)
             continue;
-        if (inventory[JOB_BUILDER] < 1 || inventory[JOB_PLANER] < 1)
+        if(inventory[Job::Builder] < 1 || inventory[Job::Planer] < 1)
             continue;
-        const BuildingCost& cost = BUILDING_COSTS[beowulf_->GetAII().GetNation()][BuildingType::Guardhouse];
-        if (inventory[GD_BOARDS] < cost.boards || inventory[GD_STONES] < cost.stones)
+        const BuildingCost& cost = BUILDING_COSTS[BuildingType::Guardhouse];
+        if(inventory[GoodType::Boards] < cost.boards || inventory[GoodType::Stones] < cost.stones)
             continue;
 
         // Check that this warehouse is not connected to another warehouse.
         // (We only want to add one military building for every region).
         bool skip = false;
-        for (const MapPoint& start : starts) {
-            if (!beowulf_->world.GetPath(warehouse->GetFlagPos(), start).empty()) {
+        for(const MapPoint& start : starts)
+        {
+            if(!beowulf_->world.GetPath(warehouse->GetFlagPos(), start).empty())
+            {
                 skip = true;
                 break;
             }
         }
-        if (skip)
+        if(skip)
             continue;
 
         // @todo: Keep track of which region is currently building a new military building.
@@ -104,7 +105,7 @@ void ExpansionPlanner::OnRun()
         starts.push_back(warehouse->GetFlagPos());
     }
 
-    for (const MapPoint& start : starts)
+    for(const MapPoint& start : starts)
         Expand(start);
 }
 
@@ -123,9 +124,8 @@ void ExpansionPlanner::Expand(const MapPoint& pt)
      * #     quality = Fortress
      * #   for pt in radius(GuardHouse) not yet in owned territory:
      * #     for type in resource_types:
-     * #       res[type] = known (by geologist) + assumed (close to known, or random on mountain, or less random if close to mountain or even less random if close to something else.)
-     * #   rating = 0
-     * #   for type in resource_types:
+     * #       res[type] = known (by geologist) + assumed (close to known, or random on mountain, or less random if
+     * close to mountain or even less random if close to something else.) #   rating = 0 #   for type in resource_types:
      * #     rating += res[type] * value(type) // value can be adjusted if resources are low
      * #
      * # choose best rated location
@@ -137,30 +137,34 @@ void ExpansionPlanner::Expand(const MapPoint& pt)
 
     unsigned bestRating = 0;
     MapPoint bestPoint = MapPoint::Invalid();
-    BuildingType bestType = BLD_NOTHING2;
+    BuildingType bestType = BuildingType::Nothing2;
 
     std::vector<MapPoint> additionalTerritory;
     std::vector<const noBaseBuilding*> destroyed;
 
     World& world = beowulf_->world;
 
-    for (const MapPoint& loc : locations.Get(BuildingQuality::Hut)) {
+    for(const MapPoint& loc : locations.Get(BuildingQuality::Hut))
+    {
         BuildingType type = BuildingType::Guardhouse;
 
-        if (!world.CanBuildMilitary(loc))
+        if(!world.CanBuildMilitary(loc))
             continue;
-        if (world.IsRestricted(loc))
+        if(world.IsRestricted(loc))
             continue;
 
         // check if the enemy is close:
         unsigned enemies = world.GetEnemySoldiersInReach(pt);
-        if (enemies > 1) {
+        if(enemies > 1)
+        {
             TryImprove(type, locations.Get(loc));
-            if (enemies > 5) {
+            if(enemies > 5)
+            {
                 TryImprove(type, locations.Get(loc));
             }
-        } else {
-            if (world.IsEnemyNear(pt, MAX_MILITARY_DISTANCE_NEAR))
+        } else
+        {
+            if(world.IsEnemyNear(pt, MAX_MILITARY_DISTANCE_NEAR))
                 TryImprove(type, locations.Get(loc));
         }
 
@@ -168,38 +172,41 @@ void ExpansionPlanner::Expand(const MapPoint& pt)
 
         std::vector<const noBaseBuilding*> catapults = world.GetEnemyCatapultsInReach(pt);
         bool catapultsRemaining = false;
-        for (const noBaseBuilding* catapult : catapults) {
-            if (!helpers::contains(destroyed, catapult)) {
+        for(const noBaseBuilding* catapult : catapults)
+        {
+            if(!helpers::contains(destroyed, catapult))
+            {
                 catapultsRemaining = true;
                 break;
             }
         }
-        if (catapultsRemaining)
+        if(catapultsRemaining)
             continue;
 
         // Check what resources we can gain with this building.
         unsigned ores = 0;
         unsigned stones = 0;
         unsigned plantspace = 0;
-        for (const MapPoint& p : additionalTerritory) {
-            ores +=   world.resources.Get(p, BResourceCoal, true)
-                    + world.resources.Get(p, BResourceIron, true)
+        for(const MapPoint& p : additionalTerritory)
+        {
+            ores += world.resources.Get(p, BResourceCoal, true) + world.resources.Get(p, BResourceIron, true)
                     + world.resources.Get(p, BResourceGold, true);
-            stones += world.resources.Get(p, BResourceStone, true)
-                    + world.resources.Get(p, BResourceGranite, true);
+            stones += world.resources.Get(p, BResourceStone, true) + world.resources.Get(p, BResourceGranite, true);
             plantspace += world.resources.Get(p, BResourcePlantSpace_2, true);
         }
 
         // @todo: Weigth resources based on what we need the most.
         unsigned rating = (ores * 2u) + stones + plantspace + (static_cast<unsigned>(destroyed.size()) * 2u);
-        if (rating > bestRating) {
+        if(rating > bestRating)
+        {
             bestRating = rating;
             bestPoint = loc;
             bestType = type;
         }
     }
 
-    if (bestPoint.isValid()) {
+    if(bestPoint.isValid())
+    {
         Building* building = world.Create(bestType, Building::PlanningRequest, InvalidProductionGroup, bestPoint);
         beowulf_->build.Request(building, pt);
     }
@@ -207,32 +214,32 @@ void ExpansionPlanner::Expand(const MapPoint& pt)
 
 bool ExpansionPlanner::ShouldExpand() const
 {
-    unsigned mililtaryBuildingSites = 0;    // no more than maxParallelSites_ military building sites.
-    unsigned sawmill = 0;                   // at least a sawmill, a woodcutter and a quarry
+    unsigned mililtaryBuildingSites = 0; // no more than maxParallelSites_ military building sites.
+    unsigned sawmill = 0;                // at least a sawmill, a woodcutter and a quarry
     unsigned woodcutter = 0;
     unsigned quarry = 0;
-    for (const Building* bld : beowulf_->world.GetBuildings()) {
-        switch (bld->GetType()) {
-        case BuildingType::Sawmill:
-            sawmill++;
-            break;
-        case BuildingType::Woodcutter:
-            woodcutter++;
-            break;
-        case BuildingType::Quarry:
-            quarry++;
-            break;
-        default:
+    for(const Building* bld : beowulf_->world.GetBuildings())
+    {
+        switch(bld->GetType())
         {
-            if (BuildingProperties::IsMilitary(bld->GetType())) {
-                if (bld->GetState() == Building::UnderConstruction) {
-                    mililtaryBuildingSites++;
-                    if (mililtaryBuildingSites >= maxParallelSites_) {
-                        return false;
+            case BuildingType::Sawmill: sawmill++; break;
+            case BuildingType::Woodcutter: woodcutter++; break;
+            case BuildingType::Quarry: quarry++; break;
+            default:
+            {
+                if(BuildingProperties::IsMilitary(bld->GetType()))
+                {
+                    if(bld->GetState() == Building::UnderConstruction)
+                    {
+                        mililtaryBuildingSites++;
+                        if(mililtaryBuildingSites >= maxParallelSites_)
+                        {
+                            return false;
+                        }
                     }
                 }
             }
-        } break;
+            break;
         }
     }
 
@@ -242,15 +249,20 @@ bool ExpansionPlanner::ShouldExpand() const
 
 bool ExpansionPlanner::TryImprove(BuildingType& type, BuildingQuality bq) const
 {
-    if (type == BuildingType::Barracks && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Guardhouse)) {
+    if(type == BuildingType::Barracks && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Guardhouse))
+    {
         type = BuildingType::Guardhouse;
         return true;
     }
-    if (type == BuildingType::Guardhouse && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Watchtower) && bq >= BuildingQuality::House) {
+    if(type == BuildingType::Guardhouse && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Watchtower)
+       && bq >= BuildingQuality::House)
+    {
         type = BuildingType::Watchtower;
         return true;
     }
-    if (type == BuildingType::Watchtower && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Fortress) && bq >= BuildingQuality::Castle) {
+    if(type == BuildingType::Watchtower && beowulf_->GetAII().CanBuildBuildingtype(BuildingType::Fortress)
+       && bq >= BuildingQuality::Castle)
+    {
         type = BuildingType::Fortress;
         return true;
     }

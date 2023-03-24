@@ -44,7 +44,7 @@ noFlag::noFlag(const MapPoint pos, const unsigned char player)
     else
         flagtype = FlagType::Normal;
 
-    gwg->GetNotifications().publish(FlagNote(FlagNote::Constructed, pos, player));
+    world->GetNotifications().publish(FlagNote(FlagNote::Constructed, pos, player));
 }
 
 noFlag::noFlag(SerializedGameData& sgd, const unsigned obj_id)
@@ -88,7 +88,7 @@ void noFlag::Destroy()
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
     world->GetPlayer(player).FlagDestroyed(this);
 
-    gwg->GetNotifications().publish(FlagNote(FlagNote::Destroyed, pos, player));
+    world->GetNotifications().publish(FlagNote(FlagNote::Destroyed, pos, player));
 
     noRoadNode::Destroy();
 }
@@ -299,8 +299,8 @@ void noFlag::Capture(const unsigned char new_owner)
     }
     wares.clear();
 
-    gwg->GetNotifications().publish(FlagNote(FlagNote::Captured, GetPos(), new_owner));
-    gwg->GetNotifications().publish(FlagNote(FlagNote::Destroyed, GetPos(), GetPlayer()));
+    world->GetNotifications().publish(FlagNote(FlagNote::Captured, GetPos(), new_owner));
+    world->GetNotifications().publish(FlagNote(FlagNote::Destroyed, GetPos(), GetPlayer()));
 
     // Unregister this flag in the players flags
     world->GetPlayer(player).FlagDestroyed(this);
