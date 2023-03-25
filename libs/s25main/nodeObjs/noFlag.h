@@ -29,7 +29,7 @@ public:
     inline GO_Type GetGOT() const final { return GO_Type::Flag; }
     inline FlagType GetFlagType() const { return flagtype; }
     /// Gibt Auskunft darüber, ob noch Platz für eine Ware an der Flagge ist.
-    inline bool HasSpaceForWare() const { return wares.size() < wares.max_size(); }
+    inline bool HasSpaceForWare() const { return GetNumWares() < 8; }
 
     void Draw(DrawPoint drawPt) override;
 
@@ -40,7 +40,12 @@ public:
     /// Legt eine Ware an der Flagge ab.
     void AddWare(std::unique_ptr<Ware> ware) override;
     /// Gibt die Anzahl der Waren zurück, die an der Flagge liegen.
-    unsigned GetNumWares() const { return wares.size(); }
+    unsigned GetNumWares() const {
+        unsigned count = 0;
+        for (const auto& vec : wares_)
+            count += vec.size();
+        return count;
+    }
     /// Wählt eine Ware von einer Flagge aus (anhand der Transportreihenfolge), entfernt sie von der Flagge und gibt sie
     /// zurück.
     std::unique_ptr<Ware> SelectWare(Direction roadDir, bool swap_wares, const noFigure* carrier);
@@ -65,7 +70,7 @@ private:
     FlagType flagtype;
 
     /// Die Waren, die an dieser Flagge liegen
-    boost::container::static_vector<std::unique_ptr<Ware>, 8> wares;
+    helpers::EnumArray<boost::container::static_vector<std::unique_ptr<Ware>, 8>, RoadPathDirection> wares_;
 
     /// Wieviele BWU-Teile es maximal geben soll, also wieviele abgebrannte Lagerhausgruppen
     /// gleichzeitig die Flagge als nicht begehbar deklarieren können.
