@@ -5,6 +5,7 @@
 #include "PlayerInfo.h"
 #include "gameTypes/Nation.h"
 #include "s25util/colors.h"
+#include "s25util/Log.h"
 
 #include "AIGameManager.h"
 
@@ -49,7 +50,7 @@ void ConsoleSignalHandler(int signum);
  * @todo: Use GUI mode by default
  * @todo: Add detailed description to argument parser
  */
-bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::string>& players, bool& replay);
+bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::string>& players, bool& replay, bool& save, unsigned& gflimit);
 
 /**
  *  Main
@@ -63,10 +64,15 @@ bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::str
  */
 int main(int argc, char** argv)
 {
+    LOG.setLogFilepath(".");
+    LOG.open();
+
     std::string mapPath;
     std::vector<std::string> players;
     bool replay;
-    if(!parseArgs(argc, argv, mapPath, players, replay))
+    bool save;
+    unsigned gflimit;
+    if(!parseArgs(argc, argv, mapPath, players, replay, save, gflimit))
     {
         return EXIT_FAILURE;
     }
@@ -112,16 +118,16 @@ int main(int argc, char** argv)
 
     while(!g_stop)
     {
-        if(!gameManager.Run())
+        if(!gameManager.Run(gflimit))
             break;
     }
 
-    gameManager.Stop();
+    gameManager.Stop(save);
 
     return EXIT_SUCCESS;
 }
 
-bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::string>& players, bool& replay)
+bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::string>& players, bool& replay, bool& save, unsigned& gflimit)
 {
     bnw::args _(argc, argv);
 
@@ -130,13 +136,14 @@ bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::str
     desc.add_options()
         ("help,h", "Show help")
         ("replay", "Record replay")
+        ("save", "Create savegame at end")
+        ("gflimit", po::value<int>(), "Last GF to execute")
         ("map,m", po::value<std::string>(),"Map to load")
         ("player", po::value<std::vector<std::string>>(), "Player configurations")
         ;
     // clang-format on
     po::positional_options_description positionalOptions;
     positionalOptions.add("map", 1);
-    positionalOptions.add("player", 1);
 
     po::variables_map options;
     try
@@ -172,6 +179,10 @@ bool parseArgs(int argc, char** argv, std::string& mapPath, std::vector<std::str
     mapPath = options["map"].as<std::string>();
     players = options["player"].as<std::vector<std::string>>();
     replay = options.count("replay");
+    save = options.count("save");
+    gflimit = std::numeric_limits<unsigned>::max();
+    if(options.count("gflimit"))
+        gflimit = options["gflimit"].as<int>();
 
     return true;
 }

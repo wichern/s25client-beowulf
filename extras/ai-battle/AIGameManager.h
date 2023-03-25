@@ -29,17 +29,19 @@ public:
 
     /// @brief Run next GF
     /// @return                 true, unless the game is over
-    bool Run();
+    bool Run(unsigned gflimit);
 
     /// @brief Stop game
     ///
     /// This method will write the replay file.
-    void Stop();
+    /// @param save             Whether to create a savegame
+    void Stop(bool save);
 
 private:
     std::vector<PlayerInfo> playerInfos_;
     std::unique_ptr<ReplayInfo> replayInfo_;
     Game game_;
+    std::string filename_;
 
     /// @brief Initialize replayInfo_ object
     /// @param mapPath          path to map

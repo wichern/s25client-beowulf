@@ -15,6 +15,7 @@
 #include "world/MapLoader.h"
 #include "gameTypes/MapInfo.h"
 #include "gameData/GameConsts.h"
+#include "Savegame.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/nowide/args.hpp>
@@ -33,6 +34,8 @@ AIGameManager::AIGameManager(bool createReplay, const std::vector<PlayerInfo>&& 
     {
         replayInfo_ = std::make_unique<ReplayInfo>();
     }
+
+    filename_ = s25util::Time::FormatTime("%Y-%m-%d_%H-%i-%s");
 }
 
 bool AIGameManager::Start(std::string& mapPath)
@@ -66,7 +69,7 @@ bool AIGameManager::InitReplay(std::string& mapPath, uint64_t random_init)
 {
     if(replayInfo_)
     {
-        replayInfo_->filename = "ai-battle " + s25util::Time::FormatTime("%Y-%m-%d_%H-%i-%s") + ".rpl";
+        replayInfo_->filename = "ai-battle " + filename_ + ".rpl";
         replayInfo_->replay.random_init = random_init;
         replayInfo_->replay.ggs = game_.ggs_;
         for(const auto& pi : playerInfos_)
@@ -111,9 +114,11 @@ bool AIGameManager::InitReplay(std::string& mapPath, uint64_t random_init)
     return true;
 }
 
-bool AIGameManager::Run()
+bool AIGameManager::Run(unsigned gflimit)
 {
     if(game_.IsGameFinished())
+        return false;
+    if (game_.em_->GetCurrentGF() > gflimit)
         return false;
 
     bool isnwf = (game_.em_->GetCurrentGF() % 5 == 0);
@@ -153,7 +158,7 @@ bool AIGameManager::Run()
     return true;
 }
 
-void AIGameManager::Stop()
+void AIGameManager::Stop(bool createSavegame)
 {
     if(replayInfo_)
     {
@@ -165,6 +170,25 @@ void AIGameManager::Stop()
         replayInfo_->replay.Close();
         bnw::cout << "Replay written to " << replayInfo_->filename << "\n";
         replayInfo_.reset();
+    }
+
+    if (createSavegame)
+    {
+        Savegame save;
+        for(unsigned i = 0; i < game_.world_.GetNumPlayers(); ++i)
+            save.AddPlayer(game_.world_.GetPlayer(i));
+        save.ggs = game_.ggs_;
+        save.start_gf = game_.em_->GetCurrentGF();
+        save.sgd.debugMode = true;
+
+        try
+        {
+            save.sgd.MakeSnapshot(game_);
+            save.Save(RTTRCONFIG.ExpandPath(s25::folders::save) / ("ai-battle" + filename_ + ".sav"), "AI Battle");
+        } catch(std::exception& e)
+        {
+            bnw::cerr << "Error during saving: " << e.what() << "\n";
+        }
     }
 }
 
