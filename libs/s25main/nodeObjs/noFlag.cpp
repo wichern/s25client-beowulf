@@ -49,14 +49,25 @@ noFlag::noFlag(SerializedGameData& sgd, const unsigned obj_id)
 {
     if(sgd.GetGameDataVersion() < 8)
     {
-        for(unsigned i = 0; i < wares.max_size(); i++)
+        for(unsigned i = 0; i < 8; i++)
         {
             auto* ware = sgd.PopObject<Ware>(GO_Type::Ware);
             if(ware)
-                wares.emplace_back(ware);
+            {
+                wares_[ware->GetNextDir()].emplace_back(ware);
+                numWares_++;
+            }
         }
     } else
+    {
+        boost::container::static_vector<std::unique_ptr<Ware>, 8> wares;
         sgd.PopObjectContainer(wares, GO_Type::Ware);
+        for(auto& w : wares)
+        {
+            wares_[w->GetNextDir()].push_back(std::move(w));
+            numWares_++;
+        }
+    }
 
     // BWUs laden
     for(auto& bwu : bwus)
@@ -74,13 +85,18 @@ void noFlag::Destroy()
     world->SetNO(pos, nullptr);
 
     // Waren vernichten
-    for(auto& ware : wares)
+    for(auto& ware_vec : wares_)
     {
-        // Inventur entsprechend verringern
-        ware->WareLost(player);
-        ware->Destroy();
+        for(auto& ware : ware_vec)
+        {
+            // Inventur entsprechend verringern
+            ware->SetFlag(nullptr);
+            ware->WareLost(player);
+            ware->Destroy();
+        }
+        ware_vec.clear();
     }
-    wares.clear();
+    numWares_ = 0;
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
     world->GetPlayer(player).FlagDestroyed(this);
@@ -93,7 +109,10 @@ void noFlag::Serialize(SerializedGameData& sgd) const
     noRoadNode::Serialize(sgd);
 
     sgd.PushEnum<uint8_t>(flagtype);
-    sgd.PushObjectContainer(wares, true);
+    sgd.PushVarSize(GetNumWares());
+    for(const auto& ware_vec : wares_)
+        for(const auto& ware : ware_vec)
+            sgd.PushObject(ware, true);
 
     // BWUs speichern
     for(const auto& bwu : bwus)
@@ -115,10 +134,15 @@ void noFlag::Draw(DrawPoint drawPt)
                                                                                 world->GetPlayer(player).color);
 
     // Waren (von hinten anfangen zu zeichnen)
-    for(unsigned i = wares.size(); i > 0; --i)
+    int i = 0;
+    for(auto& ware_vec : wares_)
     {
-        LOADER.GetMapTexture(WARE_STACK_TEX_MAP_OFFSET + rttr::enum_cast(wares[i - 1]->type))
-          ->DrawFull(drawPt + WARES_POS[i - 1]);
+        for(int j = ware_vec.size(); j > 0; --j)
+        {
+            LOADER.GetMapTexture(WARE_STACK_TEX_MAP_OFFSET + rttr::enum_cast(ware_vec[j]->type))
+              ->DrawFull(drawPt + WARES_POS[i - 1]);
+            i++;
+        }
     }
 }
 
@@ -137,9 +161,13 @@ std::unique_ptr<FOWObject> noFlag::CreateFOWObject() const
  */
 void noFlag::AddWare(std::unique_ptr<Ware> ware)
 {
+    RTTR_Assert(numWares_ < 8);
+
     // First add ware, then tell carrier. So get the info from the ware first
     const RoadPathDirection nextDir = ware->GetNextDir();
-    wares.push_back(std::move(ware));
+    ware->SetFlag(this);
+    wares_[nextDir].push_back(std::move(ware));
+    numWares_++;
 
     if(nextDir != RoadPathDirection::None)
         GetRoute(toDirection(nextDir))->AddWareJob(this);
@@ -158,28 +186,29 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     int best_ware_index = -1;
 
     // Die mit der niedrigsten, d.h. höchsten Priorität wird als erstes transportiert
-    for(unsigned i = 0; i < wares.size(); ++i)
+    auto& wares_vec = wares_[toRoadPathDirection(roadDir)];
+    for(unsigned i = 0; i < wares_vec.size(); ++i)
     {
-        if(wares[i]->GetNextDir() == toRoadPathDirection(roadDir))
+        if(best_ware_index >= 0)
         {
-            if(best_ware_index >= 0)
+            if(world->GetPlayer(player).GetTransportPriority(wares_vec[i]->type)
+               < world->GetPlayer(player).GetTransportPriority(wares_vec[best_ware_index]->type))
             {
-                if(world->GetPlayer(player).GetTransportPriority(wares[i]->type)
-                   < world->GetPlayer(player).GetTransportPriority(wares[best_ware_index]->type))
-                {
-                    best_ware_index = i;
-                }
-            } else
                 best_ware_index = i;
-        }
+            }
+        } else
+            best_ware_index = i;
     }
 
     // Ware von der Flagge entfernen
     std::unique_ptr<Ware> bestWare;
     if(best_ware_index >= 0)
     {
-        bestWare = std::move(wares[best_ware_index]);
-        wares.erase(wares.begin() + best_ware_index);
+        bestWare = std::move(wares_vec[best_ware_index]);
+        wares_vec.erase(wares_vec.begin() + best_ware_index);
+        bestWare->SetFlag(nullptr);
+        RTTR_Assert(numWares_ > 0);
+        numWares_--;
     }
 
     // ggf. anderen Trägern Bescheid sagen, aber nicht dem, der die Ware aufgehoben hat!
@@ -223,12 +252,6 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     return bestWare;
 }
 
-unsigned noFlag::GetNumWaresForRoad(const Direction dir) const
-{
-    const auto roadDir = toRoadPathDirection(dir);
-    return helpers::count_if(wares, [roadDir](const auto& ware) { return ware->GetNextDir() == roadDir; });
-}
-
 /**
  *  Gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine bestimmte
  *  Richtung noch transportiert werden müssen.
@@ -249,6 +272,27 @@ unsigned noFlag::GetPunishmentPoints(const Direction dir) const
         points += 500; // No carrier at all -> Large penalty
 
     return points;
+}
+
+void noFlag::ChangeWareDirection(Ware* ware, RoadPathDirection roadDir)
+{
+    RTTR_Assert(roadDir != ware->GetNextDir());
+
+    auto& old_wares_vec = wares_[ware->GetNextDir()];
+    int ware_index = -1;
+    for(unsigned i = 0; i < old_wares_vec.size(); ++i)
+    {
+        if(old_wares_vec[i].get() == ware)
+        {
+            ware_index = i;
+            break;
+        }
+    }
+
+    RTTR_Assert(ware_index >= 0);
+
+    wares_[roadDir].push_back(std::move(old_wares_vec[ware_index]));
+    old_wares_vec.erase(old_wares_vec.begin() + ware_index);
 }
 
 /**
@@ -287,12 +331,16 @@ void noFlag::Capture(const unsigned char new_owner)
     }
 
     // Waren vernichten
-    for(auto& ware : wares)
+    for(auto& ware_vec : wares_)
     {
-        ware->WareLost(player);
-        ware->Destroy();
+        for(auto& ware : ware_vec)
+        {
+            ware->SetFlag(nullptr);
+            ware->WareLost(player);
+            ware->Destroy();
+        }
+        ware_vec.clear();
     }
-    wares.clear();
 
     // Unregister this flag in the players flags
     world->GetPlayer(player).FlagDestroyed(this);
