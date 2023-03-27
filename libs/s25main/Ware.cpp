@@ -92,9 +92,9 @@ void Ware::RecalcRoute()
 {
     // Nächste Richtung nehmen
     if(location && goal)
-        next_dir = world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor);
+        SetNextDir(world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor));
     else
-        next_dir = RoadPathDirection::None;
+        SetNextDir(RoadPathDirection::None);
 
     // Evtl gibts keinen Weg mehr? Dann wieder zurück ins Lagerhaus (wenns vorher überhaupt zu nem Ziel ging)
     if(next_dir == RoadPathDirection::None && goal)
@@ -126,6 +126,13 @@ void Ware::RecalcRoute()
             static_cast<nobHarborBuilding*>(location)->WareDontWantToTravelByShip(this);
         }
     }
+}
+
+void Ware::SetNextDir(RoadPathDirection newNextDir)
+{
+    if(flag_ && newNextDir != next_dir)
+        flag_->ChangeWareDirection(this, newNextDir);
+    next_dir = newNextDir;
 }
 
 void Ware::GoalDestroyed()
@@ -174,7 +181,7 @@ void Ware::GoalDestroyed()
                    // destroyed...
             {
                 goal = nullptr;
-                next_dir = RoadPathDirection::None;
+                SetNextDir(RoadPathDirection::None);
             }
         }
         // Wenn sie an einer Flagge liegt, muss der Weg neu berechnet werden und dem Träger Bescheid gesagt werden
@@ -255,7 +262,7 @@ void Ware::NotifyGoalAboutLostWare()
     {
         goal->WareLost(*this);
         goal = nullptr;
-        next_dir = RoadPathDirection::None;
+        SetNextDir(RoadPathDirection::None);
     }
 }
 
@@ -314,15 +321,15 @@ bool Ware::FindRouteToWarehouse()
         if(state != State::Carried)
         {
             if(location == goal)
-                next_dir = RoadPathDirection::None; // Warehouse will detect this
+                SetNextDir(RoadPathDirection::None); // Warehouse will detect this
             else
             {
-                next_dir = world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor);
+                SetNextDir(world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor));
                 RTTR_Assert(next_dir != RoadPathDirection::None);
             }
         }
     } else
-        next_dir = RoadPathDirection::None; // Make sure we are not going anywhere
+        SetNextDir(RoadPathDirection::None); // Make sure we are not going anywhere
     return goal != nullptr;
 }
 
@@ -371,7 +378,7 @@ void Ware::SetNewGoalForLostWare(noBaseBuilding* newgoal)
     const auto newDir = CalcPathToGoal(*newgoal).dir;
     if(newDir != RoadPathDirection::None) // there is a valid path to the goal? -> ordered!
     {
-        next_dir = newDir;
+        SetNextDir(newDir);
         SetGoal(newgoal);
         CallCarrier();
     }

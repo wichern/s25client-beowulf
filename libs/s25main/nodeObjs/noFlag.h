@@ -40,20 +40,16 @@ public:
     /// Legt eine Ware an der Flagge ab.
     void AddWare(std::unique_ptr<Ware> ware) override;
     /// Gibt die Anzahl der Waren zurück, die an der Flagge liegen.
-    unsigned GetNumWares() const {
-        unsigned count = 0;
-        for (const auto& vec : wares_)
-            count += vec.size();
-        return count;
-    }
+    inline unsigned GetNumWares() const { return numWares_; }
     /// Wählt eine Ware von einer Flagge aus (anhand der Transportreihenfolge), entfernt sie von der Flagge und gibt sie
     /// zurück.
     std::unique_ptr<Ware> SelectWare(Direction roadDir, bool swap_wares, const noFigure* carrier);
     /// Prüft, ob es Waren gibt, die auf den Weg in Richtung dir getragen werden müssen.
-    unsigned GetNumWaresForRoad(Direction dir) const;
+    inline unsigned GetNumWaresForRoad(Direction dir) const { return wares_[toRoadPathDirection(dir)].size(); }
     /// Gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine bestimmte Richtung noch transportiert werden
     /// müssen.
     unsigned GetPunishmentPoints(Direction dir) const override;
+    void ChangeWareDirection(Ware* ware, RoadPathDirection roadDir);
     /// Zerstört evtl. vorhandenes Gebäude bzw. Baustelle vor der Flagge.
     void DestroyAttachedBuilding();
     /// Baut normale Flaggen zu "gloriösen" aus bei Eselstraßen.
@@ -71,6 +67,7 @@ private:
 
     /// Die Waren, die an dieser Flagge liegen
     helpers::EnumArray<boost::container::static_vector<std::unique_ptr<Ware>, 8>, RoadPathDirection> wares_;
+    unsigned numWares_ = 0;
 
     /// Wieviele BWU-Teile es maximal geben soll, also wieviele abgebrannte Lagerhausgruppen
     /// gleichzeitig die Flagge als nicht begehbar deklarieren können.

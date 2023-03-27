@@ -45,6 +45,7 @@ private:
     noBaseBuilding* goal;
     /// Nächster Hafenpunkt, der ggf. angesteuert werden soll
     MapPoint next_harbor;
+    noFlag* flag_ = nullptr;
 
 public:
     Ware(GoodType type, noBaseBuilding* goal, noRoadNode* location);
@@ -66,8 +67,8 @@ public:
     /// Berechnet den Weg neu zu ihrem Ziel
     void RecalcRoute();
     /// set new next dir
-    void SetNextDir(RoadPathDirection newNextDir) { next_dir = newNextDir; }
-    void SetNextDir(Direction newNextDir) { next_dir = toRoadPathDirection(newNextDir); }
+    void SetNextDir(RoadPathDirection newNextDir);
+    void SetNextDir(Direction newNextDir) { SetNextDir(toRoadPathDirection(newNextDir)); }
     /// Wird aufgerufen, wenn es das Ziel der Ware nicht mehr gibt und sie wieder "nach Hause" getragen werden muss
     void GoalDestroyed();
     /// Changes the state of the ware
@@ -105,6 +106,8 @@ public:
     void ShipJorneyEnded(nobHarborBuilding* hb);
     /// Beginnt damit auf ein Schiff im Hafen zu warten
     void WaitForShip(nobHarborBuilding* hb);
+
+    void SetFlag(noFlag* flag) { flag_ = flag; }
 
     std::string ToString() const override;
 

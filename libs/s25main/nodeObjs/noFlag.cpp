@@ -53,14 +53,20 @@ noFlag::noFlag(SerializedGameData& sgd, const unsigned obj_id)
         {
             auto* ware = sgd.PopObject<Ware>(GO_Type::Ware);
             if(ware)
+            {
                 wares_[ware->GetNextDir()].emplace_back(ware);
+                numWares_++;
+            }
         }
     } else
     {
         boost::container::static_vector<std::unique_ptr<Ware>, 8> wares;
         sgd.PopObjectContainer(wares, GO_Type::Ware);
         for(auto& w : wares)
+        {
             wares_[w->GetNextDir()].push_back(std::move(w));
+            numWares_++;
+        }
     }
 
     // BWUs laden
@@ -81,14 +87,16 @@ void noFlag::Destroy()
     // Waren vernichten
     for(auto& ware_vec : wares_)
     {
-        for (auto& ware : ware_vec)
+        for(auto& ware : ware_vec)
         {
             // Inventur entsprechend verringern
+            ware->SetFlag(nullptr);
             ware->WareLost(player);
             ware->Destroy();
         }
         ware_vec.clear();
     }
+    numWares_ = 0;
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
     world->GetPlayer(player).FlagDestroyed(this);
@@ -102,7 +110,7 @@ void noFlag::Serialize(SerializedGameData& sgd) const
 
     sgd.PushEnum<uint8_t>(flagtype);
     sgd.PushVarSize(GetNumWares());
-    for (const auto& ware_vec : wares_)
+    for(const auto& ware_vec : wares_)
         for(const auto& ware : ware_vec)
             sgd.PushObject(ware, true);
 
@@ -129,9 +137,10 @@ void noFlag::Draw(DrawPoint drawPt)
     int i = 0;
     for(auto& ware_vec : wares_)
     {
-        for (auto& ware : ware_vec)
+        for(auto& ware : ware_vec)
         {
-            LOADER.GetMapTexture(WARE_STACK_TEX_MAP_OFFSET + rttr::enum_cast(ware->type))->DrawFull(drawPt + WARES_POS[i - 1]);
+            LOADER.GetMapTexture(WARE_STACK_TEX_MAP_OFFSET + rttr::enum_cast(ware->type))
+              ->DrawFull(drawPt + WARES_POS[i - 1]);
             i++;
         }
     }
@@ -152,9 +161,13 @@ std::unique_ptr<FOWObject> noFlag::CreateFOWObject() const
  */
 void noFlag::AddWare(std::unique_ptr<Ware> ware)
 {
+    RTTR_Assert(numWares_ < 8);
+
     // First add ware, then tell carrier. So get the info from the ware first
     const RoadPathDirection nextDir = ware->GetNextDir();
+    ware->SetFlag(this);
     wares_[nextDir].push_back(std::move(ware));
+    numWares_++;
 
     if(nextDir != RoadPathDirection::None)
         GetRoute(toDirection(nextDir))->AddWareJob(this);
@@ -173,13 +186,13 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     int best_ware_index = -1;
 
     // Die mit der niedrigsten, d.h. höchsten Priorität wird als erstes transportiert
-    auto& vares_vec = wares_[toRoadPathDirection(roadDir)];
-    for (int i = 0; i < static_cast<int>(vares_vec.size()); ++i)
+    auto& wares_vec = wares_[toRoadPathDirection(roadDir)];
+    for(unsigned i = 0; i < wares_vec.size(); ++i)
     {
         if(best_ware_index >= 0)
         {
-            if(world->GetPlayer(player).GetTransportPriority(vares_vec[i]->type)
-            < world->GetPlayer(player).GetTransportPriority(vares_vec[best_ware_index]->type))
+            if(world->GetPlayer(player).GetTransportPriority(wares_vec[i]->type)
+               < world->GetPlayer(player).GetTransportPriority(wares_vec[best_ware_index]->type))
             {
                 best_ware_index = i;
             }
@@ -191,8 +204,11 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     std::unique_ptr<Ware> bestWare;
     if(best_ware_index >= 0)
     {
-        bestWare = std::move(vares_vec[best_ware_index]);
-        vares_vec.erase(vares_vec.begin() + best_ware_index);
+        bestWare = std::move(wares_vec[best_ware_index]);
+        wares_vec.erase(wares_vec.begin() + best_ware_index);
+        bestWare->SetFlag(nullptr);
+        RTTR_Assert(numWares_ > 0);
+        numWares_--;
     }
 
     // ggf. anderen Trägern Bescheid sagen, aber nicht dem, der die Ware aufgehoben hat!
@@ -236,13 +252,6 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     return bestWare;
 }
 
-unsigned noFlag::GetNumWaresForRoad(const Direction dir) const
-{
-    const auto roadDir = toRoadPathDirection(dir);
-    return wares_[roadDir].size();
-    // return helpers::count_if(wares, [roadDir](const auto& ware) { return ware->GetNextDir() == roadDir; });
-}
-
 /**
  *  Gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine bestimmte
  *  Richtung noch transportiert werden müssen.
@@ -263,6 +272,27 @@ unsigned noFlag::GetPunishmentPoints(const Direction dir) const
         points += 500; // No carrier at all -> Large penalty
 
     return points;
+}
+
+void noFlag::ChangeWareDirection(Ware* ware, RoadPathDirection roadDir)
+{
+    RTTR_Assert(roadDir != ware->GetNextDir());
+
+    auto& old_wares_vec = wares_[ware->GetNextDir()];
+    int ware_index = -1;
+    for(unsigned i = 0; i < old_wares_vec.size(); ++i)
+    {
+        if(old_wares_vec[i].get() == ware)
+        {
+            ware_index = i;
+            break;
+        }
+    }
+
+    RTTR_Assert(ware_index >= 0);
+
+    wares_[roadDir].push_back(std::move(old_wares_vec[ware_index]));
+    old_wares_vec.erase(old_wares_vec.begin() + ware_index);
 }
 
 /**
