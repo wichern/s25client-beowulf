@@ -181,7 +181,7 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
             return true;
         }
 
-        const helpers::EnumArray<RoadSegment*, Direction> routes = best.getRoutes();
+        const helpers::EnumArray<RoadSegment*, Direction>& routes = best.getRoutes();
         const noRoadNode* prevNode = best.prev;
 
         // Nachbarflagge bzw. Wege in allen 6 Richtungen verfolgen
