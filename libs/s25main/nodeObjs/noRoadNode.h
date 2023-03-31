@@ -9,6 +9,7 @@
 #include "noCoordBase.h"
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
+#include "pathfinding/OpenListVector.h"
 
 class Ware;
 class SerializedGameData;
@@ -34,6 +35,10 @@ public:
     mutable const noRoadNode* prev; //-V730_NOINIT
     /// Direction to previous node, includes SHIP_DIR
     mutable RoadPathDirection dir_; //-V730_NOINIT
+
+#ifdef PATHFINDING_RADIXHEAP
+    mutable unsigned bucket_ = 0;
+#endif
 
     noRoadNode(NodalObjectType nop, MapPoint pos, unsigned char player);
     noRoadNode(SerializedGameData& sgd, unsigned obj_id);

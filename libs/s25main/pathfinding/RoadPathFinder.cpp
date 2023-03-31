@@ -4,12 +4,13 @@
 
 #include "RoadPathFinder.h"
 #include "EventManager.h"
+#include "PairingHeap.h"
 #include "RttrForeachPt.h"
 #include "buildings/nobHarborBuilding.h"
 #include "pathfinding/OpenListPrioQueue.h"
 #include "pathfinding/OpenListVector.h"
+#include "pathfinding/RadixHeap.h"
 #include "world/GameWorldBase.h"
-#include "nodeObjs/noRoadNode.h"
 #include "gameData/GameConsts.h"
 #include "s25util/Log.h"
 
@@ -29,9 +30,9 @@ struct RoadNodeComperatorGreater
     }
 };
 
+#define DEBUG_QUEUE
+
 using QueueImpl = OpenListPrioQueue<const noRoadNode*, RoadNodeComperatorGreater>;
-using VecImpl = OpenListVector<const noRoadNode*>;
-VecImpl todo;
 
 // Namespace with all functors usable as additional cost functors
 namespace AdditonalCosts {
@@ -127,6 +128,10 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     // increase current_visit_on_roads, so we don't have to clear the visited-states at every run
     currentVisit++;
 
+#ifdef DEBUG_QUEUE
+    std::cout << "Run: " << currentVisit << std::endl;
+#endif
+
     // if the counter reaches its maximum, tidy up
     if(currentVisit == std::numeric_limits<unsigned>::max())
     {
@@ -139,8 +144,14 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
         currentVisit = 1;
     }
 
+    static RadixHeap todo;
+#ifdef DEBUG_QUEUE
+    OpenListVector<const noRoadNode*> todo_cmp;
+#endif
+
     // Add start node
     todo.clear();
+    todo_cmp.clear();
 
     const MapPoint goalPos = goal.GetPos();
     start.targetDistance = gwb_.CalcDistance(start.GetPos(), goalPos);
@@ -149,13 +160,27 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     start.prev = nullptr;
     start.cost = 0;
     start.dir_ = RoadPathDirection::None;
+    std::cout << "insert " << start.estimate << std::endl;
 
-    todo.push(&start);
+    todo.insert(&start);
+#ifdef DEBUG_QUEUE
+    todo_cmp.insert(&start);
+#endif
 
     while(!todo.empty())
     {
+#ifdef DEBUG_QUEUE
+        RTTR_Assert(!todo_cmp.empty());
+#endif
+
         // Get node with current least estimate
-        const noRoadNode& best = *todo.pop();
+        const noRoadNode& best = *todo.delete_min();
+#ifdef DEBUG_QUEUE
+        const noRoadNode& best_cmp = *todo_cmp.delete_min();
+        std::cout << "extract " << best.estimate << std::endl;
+        //RTTR_Assert(&best == &best_cmp);
+        RTTR_Assert(best.estimate == best_cmp.estimate);
+#endif
 
         // Reached goal
         if(&best == &goal)
@@ -229,7 +254,12 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                     neighbour->estimate = neighbour->targetDistance + cost;
                     neighbour->prev = &best;
                     neighbour->dir_ = toRoadPathDirection(dir);
-                    todo.rearrange(neighbour);
+
+                    std::cout << "decrease " << neighbour->estimate << std::endl;
+                    todo.decrease_key(neighbour);
+#ifdef DEBUG_QUEUE
+                    todo_cmp.decrease_key(neighbour);
+#endif
                 }
             } else
             {
@@ -241,7 +271,11 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                 neighbour->prev = &best;
                 neighbour->dir_ = toRoadPathDirection(dir);
 
-                todo.push(neighbour);
+                std::cout << "insert " << neighbour->estimate << std::endl;
+                todo.insert(neighbour);
+#ifdef DEBUG_QUEUE
+                todo_cmp.insert(neighbour);
+#endif
             }
         }
 
@@ -266,7 +300,10 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                     dest.estimate = dest.targetDistance + cost;
                     dest.prev = &best;
                     dest.dir_ = RoadPathDirection::Ship;
-                    todo.rearrange(&dest);
+                    todo.decrease_key(&dest);
+#ifdef DEBUG_QUEUE
+                    todo_cmp.decrease_key(&dest);
+#endif
                 }
             } else
             {
@@ -278,7 +315,12 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                 dest.prev = &best;
                 dest.dir_ = RoadPathDirection::Ship;
 
-                todo.push(&dest);
+                std::cout << "insert " << dest.estimate << std::endl;
+
+                todo.insert(&dest);
+#ifdef DEBUG_QUEUE
+                todo_cmp.insert(&dest);
+#endif
             }
         }
     }

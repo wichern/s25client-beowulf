@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
+#include <limits>
 #include <vector>
+
+//#define PATHFINDING_OPENLIST
+#define PATHFINDING_RADIXHEAP
+//#define PATHFINDING_PAIRINGHEAP
+
+class noRoadNode;
 
 struct GetEstimateFromPtr
 {
@@ -26,7 +35,7 @@ class OpenListVector
 public:
     OpenListVector() { elements.reserve(255); }
 
-    T pop()
+    T delete_min()
     {
         RTTR_Assert(!empty());
         const int size = static_cast<int>(elements.size());
@@ -59,11 +68,9 @@ public:
 
     void clear() { elements.clear(); }
 
-    bool empty() { return elements.empty(); }
+    bool empty() const { return elements.empty(); }
 
-    void push(T el) { elements.push_back(el); }
+    void insert(T el) { elements.push_back(el); }
 
-    size_t size() const { return elements.size(); }
-
-    void rearrange(const T& /*target*/) {}
+    void decrease_key(T /*el*/) {}
 };
