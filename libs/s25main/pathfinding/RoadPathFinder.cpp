@@ -129,8 +129,8 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     currentVisit++;
 
 #ifdef DEBUG_QUEUE
-    std::cout << "###########################################################" << std::endl;
-    std::cout << "Run: " << currentVisit << std::endl;
+    // std::cout << "###########################################################" << std::endl;
+    // std::cout << "Run: " << currentVisit << std::endl;
 #endif
 
     // if the counter reaches its maximum, tidy up

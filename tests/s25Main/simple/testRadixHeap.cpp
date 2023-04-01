@@ -54,6 +54,29 @@ BOOST_AUTO_TEST_CASE(SingleElement42)
     BOOST_TEST_REQUIRE(heap.empty());
 }
 
+// This is an error in Pathfinding: It's not allowed to add a key with bigger estimate than the previous!
+BOOST_AUTO_TEST_CASE(SingleElementError_29)
+{
+    RadixHeap heap;
+
+    BOOST_TEST_REQUIRE(heap.empty());
+
+    Node n1(2);
+    heap.insert(&n1);
+    BOOST_TEST_REQUIRE(heap.delete_min()->estimate == 2);
+    heap.insert(&n1);
+    BOOST_TEST_REQUIRE(heap.delete_min()->estimate == 2);
+
+    Node n2(5);
+    heap.insert(&n2);
+    Node n3(4);
+    heap.insert(&n3);
+    BOOST_TEST_REQUIRE(heap.delete_min()->estimate == 4);
+
+    n1.estimate = 4;
+    heap.insert(&n1);
+}
+
 BOOST_AUTO_TEST_CASE(SingleElementError_103)
 {
     RadixHeap heap;
@@ -71,7 +94,7 @@ BOOST_AUTO_TEST_CASE(SingleElementError_103)
     n1.estimate = 7;
     heap.insert(&n1);
     Node n2(6);
-    heap.insert(&n1);
+    heap.insert(&n2);
     BOOST_TEST_REQUIRE(heap.delete_min()->estimate == 6);
 }
 
