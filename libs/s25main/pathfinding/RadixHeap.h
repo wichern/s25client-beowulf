@@ -35,9 +35,21 @@ public:
 private:
     inline unsigned get_bucket(unsigned key, unsigned start = 32) const
     {
+        // @todo: Can we start search from i=0?
+        //        Most items land in the first buckets.
         unsigned i = start;
         while(u[i] > key)
             i--;
         return i;
     }
+
+    inline unsigned get_first_non_empty_bucket(unsigned start = 0) const
+    {
+        unsigned i = start;
+        while(b[i].empty())
+            i++;
+        return i;
+    }
+
+    const noRoadNode* extract_min(unsigned bucket_idx);
 };

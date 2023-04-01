@@ -129,6 +129,7 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     currentVisit++;
 
 #ifdef DEBUG_QUEUE
+    std::cout << "###########################################################" << std::endl;
     std::cout << "Run: " << currentVisit << std::endl;
 #endif
 
@@ -145,22 +146,22 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     }
 
     static RadixHeap todo;
-#ifdef DEBUG_QUEUE
-    OpenListVector<const noRoadNode*> todo_cmp;
-#endif
-
     // Add start node
     todo.clear();
+
+#ifdef DEBUG_QUEUE
+    OpenListVector<const noRoadNode*> todo_cmp;
     todo_cmp.clear();
+#endif
 
     const MapPoint goalPos = goal.GetPos();
+    //std::cout << "Goal: " << goalPos.x << ":" << goalPos.y << std::endl;
     start.targetDistance = gwb_.CalcDistance(start.GetPos(), goalPos);
     start.estimate = start.targetDistance;
     start.last_visit = currentVisit;
     start.prev = nullptr;
     start.cost = 0;
     start.dir_ = RoadPathDirection::None;
-    std::cout << "insert " << start.estimate << std::endl;
 
     todo.insert(&start);
 #ifdef DEBUG_QUEUE
@@ -177,7 +178,6 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
         const noRoadNode& best = *todo.delete_min();
 #ifdef DEBUG_QUEUE
         const noRoadNode& best_cmp = *todo_cmp.delete_min();
-        std::cout << "extract " << best.estimate << std::endl;
         //RTTR_Assert(&best == &best_cmp);
         RTTR_Assert(best.estimate == best_cmp.estimate);
 #endif
@@ -210,6 +210,7 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
         const noRoadNode* prevNode = best.prev;
 
         // Nachbarflagge bzw. Wege in allen 6 Richtungen verfolgen
+        //std::cout << "Check neighbours of " << best.GetPos().x << ":" << best.GetPos().y << std::endl;
         for(const auto dir : helpers::EnumRange<Direction>{})
         {
             const auto* route = routes[dir];
@@ -238,8 +239,11 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
             if(!isSegmentAllowed(*route))
                 continue;
 
+
             unsigned cost = best.cost + route->GetLength();
+            //std::cout << "COST ... cur-best: " << best.cost << ", +routelen: " << cost;
             cost += addCosts(best, dir);
+            //std::cout << ", +wares: " << cost << std::endl;
 
             if(cost > max)
                 continue;
@@ -255,7 +259,6 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                     neighbour->prev = &best;
                     neighbour->dir_ = toRoadPathDirection(dir);
 
-                    std::cout << "decrease " << neighbour->estimate << std::endl;
                     todo.decrease_key(neighbour);
 #ifdef DEBUG_QUEUE
                     todo_cmp.decrease_key(neighbour);
@@ -271,7 +274,8 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                 neighbour->prev = &best;
                 neighbour->dir_ = toRoadPathDirection(dir);
 
-                std::cout << "insert " << neighbour->estimate << std::endl;
+                //std::cout << "insert with cost = targetDistance(" << neighbour->targetDistance << ") + cost(" << cost << ") = " << neighbour->estimate << std::endl;
+
                 todo.insert(neighbour);
 #ifdef DEBUG_QUEUE
                 todo_cmp.insert(neighbour);
@@ -314,8 +318,6 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
                 dest.last_visit = currentVisit;
                 dest.prev = &best;
                 dest.dir_ = RoadPathDirection::Ship;
-
-                std::cout << "insert " << dest.estimate << std::endl;
 
                 todo.insert(&dest);
 #ifdef DEBUG_QUEUE
