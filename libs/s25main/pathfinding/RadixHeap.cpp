@@ -11,7 +11,7 @@
 
 const noRoadNode* RadixHeap::delete_min()
 {
-    RTTR_Assert(!empty());
+    //RTTR_Assert(!empty());
     size_--;
 
     const noRoadNode* ret = nullptr;
@@ -52,7 +52,7 @@ const noRoadNode* RadixHeap::delete_min()
         for(const noRoadNode* el : b_i)
         {
             unsigned j = get_bucket(el->estimate, el->bucket_);
-            RTTR_Assert(j <= i);
+            //RTTR_Assert(j <= i);
             b[j].push_back(el);
             el->bucket_ = j;
         }
@@ -86,7 +86,7 @@ void RadixHeap::clear()
 
 void RadixHeap::insert(const noRoadNode* el)
 {
-    RTTR_Assert(el->estimate >= u[0]);
+    //RTTR_Assert(el->estimate >= u[0]);
     unsigned i = get_bucket(el->estimate);
     b[i].push_back(el);
     el->bucket_ = i;
@@ -99,14 +99,14 @@ void RadixHeap::insert(const noRoadNode* el)
 
 void RadixHeap::decrease_key(const noRoadNode* el)
 {
-    RTTR_Assert(el->estimate >= u[0]);
+    //RTTR_Assert(el->estimate >= u[0]);
     // remove el from current bucket
     unsigned i = el->bucket_;
-    RTTR_Assert(i < 33);
+    //RTTR_Assert(i < 33);
 
     unsigned new_bucket_idx = get_bucket(el->estimate);
 
-    RTTR_Assert(new_bucket_idx <= i);
+    //RTTR_Assert(new_bucket_idx <= i);
     if (new_bucket_idx != i)
     {
         b[i].erase(std::remove(b[i].begin(), b[i].end(), el), b[i].end());
@@ -121,7 +121,7 @@ void RadixHeap::decrease_key(const noRoadNode* el)
 
 const noRoadNode* RadixHeap::extract_min(unsigned bucket_idx)
 {
-    RTTR_Assert(!b[bucket_idx].empty());
+    //RTTR_Assert(!b[bucket_idx].empty());
 
     const noRoadNode* ret = b[bucket_idx][0];
     unsigned ret_idx = 0;

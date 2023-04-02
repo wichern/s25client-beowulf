@@ -6,88 +6,63 @@
 
 #include <vector>
 
-template<class KEY, class VALUE>
-class PairingHeap
+#include "nodeObjs/noRoadNode.h"
+#include "pathfinding/heap.h"
+
+class PairingHeap : public PriorityHeap
 {
 public:
-    struct Node
-    {
-        inline Node(KEY key, const VALUE& value) : key_(key), value_(value) {}
-
-        inline const VALUE& value() const { return value_; }
-        inline KEY key() const { return key_; }
-
-        KEY key_;
-        VALUE value_;
-
-        Node* child_ = nullptr;
-        Node* parent_ = nullptr;
-        Node* right_ = nullptr;
-    };
-
     PairingHeap() = default;
-    inline ~PairingHeap()
-    {
-        while(!freeList_.empty())
-        {
-            delete freeList_.back();
-            freeList_.pop_back();
-        }
-    }
 
-    inline Node* insert(KEY key, const VALUE& value)
+    inline void insert(const noRoadNode* node) override
     {
-        Node* node = alloc(key, value);
+        node->child_ = nullptr;
+        node->right_ = nullptr;
 
         if(root_)
             root_ = pair(root_, node);
-        else
+        else {
+            node->parent_ = nullptr;
             root_ = node;
-
-        size_++;
-        return node;
-    }
-
-    inline VALUE extract_min(KEY* key = nullptr)
-    {
-        RTTR_Assert(root_);
-        RTTR_Assert(size_ > 0);
-
-        VALUE val = root_->value();
-        if(key)
-            *key = root_->key();
-
-        Node* h = root_->child_;
-
-        if(0 == h)
-        {
-            free(root_);
-            root_ = 0;
-            --size_;
-            return val;
         }
 
-        h->parent_ = 0;
+        // size_++;
+    }
 
-        root_->child_ = 0;
-        free(root_);
+    inline const noRoadNode* delete_min() override
+    {
+        RTTR_Assert(root_);
+        // RTTR_Assert(size_ > 0);
 
-        // First: Merge subtrees in pairs form left to right:
-        Node* firstStep = 0;
-        Node* h1 = h;
-        Node* h2 = h1->right_;
+        const noRoadNode* ret = root_;
+
+        const noRoadNode* h = root_->child_;
+
+        if(!h)
+        {
+            root_ = nullptr;
+            // --size_;
+            return ret;
+        }
+
+        h->parent_ = nullptr;
+        root_->child_ = nullptr;
+
+        const noRoadNode* firstStep = nullptr;
+        const noRoadNode* h1 = h;
+        const noRoadNode* h2 = h1->right_;
         while(h2)
         {
             h = h2->right_;
             if(firstStep)
             {
-                Node* l_res = pair(h1, h2);
-                l_res->right_ = firstStep;
-                firstStep = l_res;
+                const noRoadNode* res = pair(h1, h2);
+                res->right_ = firstStep;
+                firstStep = res;
             } else
             {
                 firstStep = pair(h1, h2);
-                firstStep->right_ = 0;
+                firstStep->right_ = nullptr;
             }
 
             if(h)
@@ -97,12 +72,11 @@ public:
                     h2 = h->right_;
                     h1 = h;
                 } else
-                    h2 = 0;
+                    h2 = nullptr;
             } else
-                h2 = 0;
+                h2 = nullptr;
         }
 
-        // Second: merge resulting heaps from right to left
         if(h)
         {
             root_ = h;
@@ -118,24 +92,22 @@ public:
         while(h2)
         {
             h = h->right_;
-            h2->right_ = 0;
+            h2->right_ = nullptr;
             root_ = pair(root_, h2);
             h2 = h;
         }
 
-        --size_;
+        // --size_;
 
-        return val;
+        return ret;
     }
 
     /// Change priority to given key.
-    inline void decrease_key(Node* node, KEY key)
+    inline void decrease_key(const noRoadNode* node) override
     {
         RTTR_Assert(root_);
         RTTR_Assert(node);
-        RTTR_Assert(key < node->key());
 
-        node->key_ = key;
         if(node != root_)
         {
             if(node->right_)
@@ -145,55 +117,24 @@ public:
             else
                 node->parent_->right_ = node->right_;
 
-            node->right_ = 0;
+            node->right_ = nullptr;
 
             root_ = pair(root_, node);
         }
     }
 
-    inline bool empty() const { return size_ == 0; }
+    inline bool empty() const override { return /*size_ == 0*/ nullptr == root_; }
 
-    inline void clear()
+    inline void clear() override
     {
-        if(root_)
-            clear(root_);
         root_ = nullptr;
-        size_ = 0;
+        // size_ = 0;
     }
 
 private:
-    inline Node* alloc(KEY key, VALUE value)
+    inline const noRoadNode* pair(const noRoadNode* left, const noRoadNode* right)
     {
-        if(freeList_.empty())
-        {
-            return new Node(key, value);
-        } else
-        {
-            Node* ret = freeList_.back();
-            freeList_.pop_back();
-            new(ret) Node(key, value);
-            return ret;
-        }
-    }
-
-    inline void free(Node* obj)
-    {
-        obj->~Node();
-        freeList_.push_back(obj);
-    }
-
-    inline void clear(Node* obj)
-    {
-        if(obj->child_)
-            clear(obj->child_);
-        if(obj->right_)
-            clear(obj->right_);
-        free(obj);
-    }
-
-    inline Node* pair(Node* left, Node* right)
-    {
-        if(right->key() < left->key())
+        if(right->estimate < left->estimate)
         {
             right->parent_ = left->parent_;
             left->parent_ = right;
@@ -216,7 +157,6 @@ private:
         }
     }
 
-    Node* root_ = nullptr;
-    unsigned size_ = 0;
-    std::vector<Node*> freeList_;
+    const noRoadNode* root_ = nullptr;
+    // unsigned size_ = 0;
 };

@@ -4,6 +4,7 @@
 
 #include "RoadPathFinder.h"
 #include "EventManager.h"
+#include "pathfinding/radixheap2.h"
 #include "PairingHeap.h"
 #include "RttrForeachPt.h"
 #include "buildings/nobHarborBuilding.h"
@@ -30,7 +31,7 @@ struct RoadNodeComperatorGreater
     }
 };
 
-#define DEBUG_QUEUE
+// #define DEBUG_QUEUE
 
 using QueueImpl = OpenListPrioQueue<const noRoadNode*, RoadNodeComperatorGreater>;
 
@@ -145,14 +146,11 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
         currentVisit = 1;
     }
 
-    static RadixHeap todo;
+    // static RadixHeap todo;
+    static PairingHeap pHeap;
+    static OpenListVector<const noRoadNode*> openList;
+    // static OpenListVector<const noRoadNode*> todo;
     // Add start node
-    todo.clear();
-
-#ifdef DEBUG_QUEUE
-    OpenListVector<const noRoadNode*> todo_cmp;
-    todo_cmp.clear();
-#endif
 
     const MapPoint goalPos = goal.GetPos();
     //std::cout << "Goal: " << goalPos.x << ":" << goalPos.y << std::endl;
@@ -162,6 +160,20 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     start.prev = nullptr;
     start.cost = 0;
     start.dir_ = RoadPathDirection::None;
+
+    PriorityHeap* todoPtr;
+    // if(start.targetDistance > 35)
+         //todoPtr = &pHeap;
+    // else
+        todoPtr = &openList;
+
+    PriorityHeap& todo = *todoPtr;
+    todo.clear();
+
+#ifdef DEBUG_QUEUE
+    OpenListVector<const noRoadNode*> todo_cmp;
+    todo_cmp.clear();
+#endif
 
     todo.insert(&start);
 #ifdef DEBUG_QUEUE

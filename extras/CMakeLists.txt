@@ -9,6 +9,7 @@ add_custom_target(drivers)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
+add_subdirectory(ai-battle)
 add_subdirectory(audioDrivers)
 add_subdirectory(videoDrivers)
 if(RTTR_BUNDLE AND APPLE)

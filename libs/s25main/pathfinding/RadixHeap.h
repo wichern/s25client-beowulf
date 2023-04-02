@@ -33,10 +33,29 @@ public:
     void decrease_key(const noRoadNode* el);
 
 private:
-    inline unsigned get_bucket(unsigned key, unsigned start = 32) const
+    inline unsigned get_bucket(unsigned key) const
     {
         // @todo: Can we start search from i=0?
         //        Most items land in the first buckets.
+
+        // start from end:
+        // unsigned i = start;
+        // while(u[i] > key)
+        //     i--;
+        // return i;
+
+        // start from beginning
+        unsigned i = 0;
+        while(u[i+1] < key)
+            i++;
+        return i;
+    }
+    inline unsigned get_bucket(unsigned key, unsigned start) const
+    {
+        // @todo: Can we start search from i=0?
+        //        Most items land in the first buckets.
+
+        // start from end:
         unsigned i = start;
         while(u[i] > key)
             i--;

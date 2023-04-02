@@ -9,7 +9,9 @@
 #include "noCoordBase.h"
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
-#include "pathfinding/OpenListVector.h"
+// #include "pathfinding/OpenListVector.h"
+// #include "pathfinding/PairingHeap.h"
+
 
 class Ware;
 class SerializedGameData;
@@ -37,8 +39,11 @@ public:
     mutable RoadPathDirection dir_; //-V730_NOINIT
 
 #ifdef PATHFINDING_RADIXHEAP
-    mutable unsigned bucket_ = 0;
 #endif
+    mutable unsigned bucket_ = 0;
+    mutable const noRoadNode* child_ = nullptr;
+    mutable const noRoadNode* parent_ = nullptr;
+    mutable const noRoadNode* right_ = nullptr;
 
     noRoadNode(NodalObjectType nop, MapPoint pos, unsigned char player);
     noRoadNode(SerializedGameData& sgd, unsigned obj_id);

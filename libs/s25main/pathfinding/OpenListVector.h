@@ -9,6 +9,9 @@
 #include <limits>
 #include <vector>
 
+
+#include "pathfinding/heap.h"
+
 //#define PATHFINDING_OPENLIST
 #define PATHFINDING_RADIXHEAP
 //#define PATHFINDING_PAIRINGHEAP
@@ -28,14 +31,14 @@ struct GetEstimateFromPtr
 /// Requires a policy that returns the value on which elements should be ordered from the element
 /// Note: Order of elements with same value is determined by push/pop operations
 template<class T, class T_GetOrderValue = GetEstimateFromPtr>
-class OpenListVector
+class OpenListVector : public PriorityHeap
 {
     std::vector<T> elements;
 
 public:
     OpenListVector() { elements.reserve(255); }
 
-    T delete_min()
+    T delete_min() override
     {
         RTTR_Assert(!empty());
         const int size = static_cast<int>(elements.size());
@@ -66,11 +69,11 @@ public:
         return best;
     }
 
-    void clear() { elements.clear(); }
+    void clear() override { elements.clear(); }
 
-    bool empty() const { return elements.empty(); }
+    bool empty() const override { return elements.empty(); }
 
-    void insert(T el) { elements.push_back(el); }
+    void insert(T el) override { elements.push_back(el); }
 
-    void decrease_key(T /*el*/) {}
+    void decrease_key(T /*el*/) override {}
 };

@@ -1,0 +1,216 @@
+// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+#include "AIGameManager.h"
+
+#include "EventManager.h"
+#include "RttrConfig.h"
+#include "ai/AIPlayer.h"
+#include "factories/AIFactory.h"
+#include "files.h"
+#include "helpers/format.hpp"
+#include "network/PlayerGameCommands.h"
+#include "random/Random.h"
+#include "world/MapLoader.h"
+#include "gameTypes/MapInfo.h"
+#include "gameData/GameConsts.h"
+#include "Savegame.h"
+
+#include <boost/filesystem.hpp>
+#include <boost/nowide/args.hpp>
+#include <boost/nowide/iostream.hpp>
+
+#include <chrono>
+#include <iomanip>
+
+namespace bfs = boost::filesystem;
+namespace bnw = boost::nowide;
+
+AIGameManager::AIGameManager(bool createReplay, const std::vector<PlayerInfo>&& playerInfos)
+    : playerInfos_(playerInfos), game_(GlobalGameSettings(), 0 /* start-frame */, playerInfos_)
+{
+    if(createReplay)
+    {
+        replayInfo_ = std::make_unique<ReplayInfo>();
+    }
+
+    filename_ = s25util::Time::FormatTime("%Y-%m-%d_%H-%i-%s");
+}
+
+bool AIGameManager::Start(std::string& mapPath)
+{
+    // Initialize random generator
+    uint64_t random_init = static_cast<uint64_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    RANDOM.Init(random_init);
+
+    if(!RTTRCONFIG.Init())
+    {
+        bnw::cerr << "RTTRCONFIG.Init() failed\n";
+        return EXIT_FAILURE;
+    }
+
+    MapLoader mapLoader(game_.world_);
+    if(!mapLoader.Load(mapPath))
+    {
+        bnw::cerr << "Could not load map: " << mapPath << "\n";
+        return false;
+    }
+
+    for(unsigned i = 0; i < playerInfos_.size(); ++i)
+        game_.AddAIPlayer(AIFactory::Create(playerInfos_[i].aiInfo, i, game_.world_));
+
+    game_.Start(false /* startFromSave */);
+
+    return InitReplay(mapPath, random_init);
+}
+
+bool AIGameManager::InitReplay(std::string& mapPath, uint64_t random_init)
+{
+    if(replayInfo_)
+    {
+        replayInfo_->filename = "ai-battle " + filename_ + ".rpl";
+        replayInfo_->replay.random_init = random_init;
+        replayInfo_->replay.ggs = game_.ggs_;
+        for(const auto& pi : playerInfos_)
+            replayInfo_->replay.AddPlayer(pi);
+
+        MapInfo mapInfo;
+        mapInfo.type = MapType::OldMap;
+        mapInfo.title = "AI Battle";
+        mapInfo.filepath = mapPath;
+
+        if(!mapInfo.mapData.CompressFromFile(mapInfo.filepath, &mapInfo.mapChecksum))
+        {
+            bnw::cerr << "Could not load map data from " << mapPath << "\n";
+            return false;
+        }
+
+        bfs::path luaFilePath = bfs::path(mapInfo.filepath).replace_extension("lua");
+        if(bfs::is_regular_file(luaFilePath))
+        {
+            if(!mapInfo.luaData.CompressFromFile(luaFilePath, &mapInfo.luaChecksum))
+            {
+                bnw::cerr << "Could not load lua data from " << mapPath << "\n";
+                return false;
+            }
+            mapInfo.luaFilepath = luaFilePath;
+        }
+
+        if(!mapInfo.verifySize())
+        {
+            bnw::cerr << "Map is too large: " << mapPath << "\n";
+            return false;
+        }
+
+        if(!replayInfo_->replay.StartRecording(RTTRCONFIG.ExpandPath(s25::folders::replays) / replayInfo_->filename,
+                                               mapInfo))
+        {
+            bnw::cerr << "Could not start recording replay\n";
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool AIGameManager::Run(unsigned gflimit)
+{
+    if(game_.IsGameFinished())
+        return false;
+    if (game_.em_->GetCurrentGF() > gflimit)
+        return false;
+
+    bool isnwf = (game_.em_->GetCurrentGF() % 5 == 0);
+    for(unsigned player = 0; player < playerInfos_.size(); ++player)
+    {
+        game_.GetAIPlayer(player)->RunGF(game_.em_->GetCurrentGF(), isnwf);
+
+        auto gcs = game_.GetAIPlayer(player)->FetchGameCommands();
+        for(gc::GameCommandPtr& gc : gcs)
+            gc->Execute(game_.world_, player);
+        if(replayInfo_ && !gcs.empty() && replayInfo_->replay.IsRecording())
+        {
+            PlayerGameCommands playergcs;
+            playergcs.gcs = gcs;
+            replayInfo_->replay.AddGameCommand(game_.em_->GetCurrentGF(), player, playergcs);
+        }
+    }
+
+    game_.RunGF();
+
+    if(game_.em_->GetCurrentGF() % 2000 == 0)
+    {
+        bnw::cout << "GF " << game_.em_->GetCurrentGF() << " (" << FormatGFTime(game_.em_->GetCurrentGF()) << ")\n";
+        for(unsigned i = 0; i < playerInfos_.size(); ++i)
+            bnw::cout << playerInfos_[i].name << ": Country: " << std::setw(5)
+                      << game_.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Country)
+                      << ", Buildings: " << std::setw(3)
+                      << game_.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Buildings)
+                      << ", Military: " << std::setw(3)
+                      << game_.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Military)
+                      << ", Gold: " << std::setw(3)
+                      << game_.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Gold)
+                      << ", Productivity: " << std::setw(2)
+                      << game_.GetAIPlayer(i)->player.GetStatisticCurrentValue(StatisticType::Productivity) << "\n";
+    }
+
+    return true;
+}
+
+void AIGameManager::Stop(bool createSavegame)
+{
+    if(replayInfo_)
+    {
+        if(replayInfo_->replay.IsRecording())
+        {
+            replayInfo_->replay.UpdateLastGF(game_.em_->GetCurrentGF());
+            replayInfo_->replay.StopRecording();
+        }
+        replayInfo_->replay.Close();
+        bnw::cout << "Replay written to " << replayInfo_->filename << "\n";
+        replayInfo_.reset();
+    }
+
+    if (createSavegame)
+    {
+        Savegame save;
+        for(unsigned i = 0; i < game_.world_.GetNumPlayers(); ++i)
+            save.AddPlayer(game_.world_.GetPlayer(i));
+        save.ggs = game_.ggs_;
+        save.start_gf = game_.em_->GetCurrentGF();
+        save.sgd.debugMode = true;
+
+        try
+        {
+            save.sgd.MakeSnapshot(game_);
+            save.Save(RTTRCONFIG.ExpandPath(s25::folders::save) / ("ai-battle" + filename_ + ".sav"), "AI Battle");
+        } catch(std::exception& e)
+        {
+            bnw::cerr << "Error during saving: " << e.what() << "\n";
+        }
+    }
+}
+
+std::string AIGameManager::FormatGFTime(const unsigned gf) const
+{
+    using seconds = std::chrono::duration<uint32_t, std::chrono::seconds::period>;
+    using hours = std::chrono::duration<uint32_t, std::chrono::hours::period>;
+    using minutes = std::chrono::duration<uint32_t, std::chrono::minutes::period>;
+    using std::chrono::duration_cast;
+
+    // In Sekunden umrechnen
+    seconds numSeconds = duration_cast<seconds>(gf * SPEED_GF_LENGTHS[referenceSpeed]);
+
+    // Angaben rausfiltern
+    hours numHours = duration_cast<hours>(numSeconds);
+    numSeconds -= numHours;
+    minutes numMinutes = duration_cast<minutes>(numSeconds);
+    numSeconds -= numMinutes;
+
+    // ganze Stunden mit dabei? Dann entsprechend anderes format, ansonsten ignorieren wir die einfach
+    if(numHours.count())
+        return helpers::format("%u:%02u:%02u", numHours.count(), numMinutes.count(), numSeconds.count());
+    else
+        return helpers::format("%02u:%02u", numMinutes.count(), numSeconds.count());
+}
