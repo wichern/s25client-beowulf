@@ -55,6 +55,7 @@ void Ware::Serialize(SerializedGameData& sgd) const
     sgd.PushEnum<uint8_t>(state);
     sgd.PushObject(location);
     sgd.PushEnum<uint8_t>(type);
+    sgd.PushObject(flag_);
     sgd.PushObject(goal);
     helpers::pushPoint(sgd, next_harbor);
 }
@@ -77,7 +78,7 @@ static RoadPathDirection PopRoadPathDirection(SerializedGameData& sgd)
 
 Ware::Ware(SerializedGameData& sgd, const unsigned obj_id)
     : GameObject(sgd, obj_id), next_dir(PopRoadPathDirection(sgd)), state(sgd.Pop<State>()),
-      location(sgd.PopObject<noRoadNode>()), type(sgd.Pop<GoodType>()), goal(sgd.PopObject<noBaseBuilding>()),
+      location(sgd.PopObject<noRoadNode>()), type(sgd.Pop<GoodType>()), flag_(sgd.PopObject<noFlag>()), goal(sgd.PopObject<noBaseBuilding>()),
       next_harbor(sgd.PopMapPoint())
 {}
 
@@ -92,9 +93,9 @@ void Ware::RecalcRoute()
 {
     // Nächste Richtung nehmen
     if(location && goal)
-        next_dir = world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor);
+        SetNextDir(world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor));
     else
-        next_dir = RoadPathDirection::None;
+        SetNextDir(RoadPathDirection::None);
 
     // Evtl gibts keinen Weg mehr? Dann wieder zurück ins Lagerhaus (wenns vorher überhaupt zu nem Ziel ging)
     if(next_dir == RoadPathDirection::None && goal)
@@ -174,7 +175,7 @@ void Ware::GoalDestroyed()
                    // destroyed...
             {
                 goal = nullptr;
-                next_dir = RoadPathDirection::None;
+                SetNextDir(RoadPathDirection::None);
             }
         }
         // Wenn sie an einer Flagge liegt, muss der Weg neu berechnet werden und dem Träger Bescheid gesagt werden
@@ -255,7 +256,7 @@ void Ware::NotifyGoalAboutLostWare()
     {
         goal->WareLost(*this);
         goal = nullptr;
-        next_dir = RoadPathDirection::None;
+        SetNextDir(RoadPathDirection::None);
     }
 }
 
@@ -314,15 +315,15 @@ bool Ware::FindRouteToWarehouse()
         if(state != State::Carried)
         {
             if(location == goal)
-                next_dir = RoadPathDirection::None; // Warehouse will detect this
+                SetNextDir(RoadPathDirection::None); // Warehouse will detect this
             else
             {
-                next_dir = world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor);
+                SetNextDir(world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor));
                 RTTR_Assert(next_dir != RoadPathDirection::None);
             }
         }
     } else
-        next_dir = RoadPathDirection::None; // Make sure we are not going anywhere
+        SetNextDir(RoadPathDirection::None); // Make sure we are not going anywhere
     return goal != nullptr;
 }
 
@@ -371,7 +372,7 @@ void Ware::SetNewGoalForLostWare(noBaseBuilding* newgoal)
     const auto newDir = CalcPathToGoal(*newgoal).dir;
     if(newDir != RoadPathDirection::None) // there is a valid path to the goal? -> ordered!
     {
-        next_dir = newDir;
+        SetNextDir(newDir);
         SetGoal(newgoal);
         CallCarrier();
     }
@@ -416,4 +417,15 @@ std::string Ware::ToString() const
     s << "Ware(" << GetObjId() << "): type=" << GoodType2String(type) << ", location=" << location->GetX() << ","
       << location->GetY();
     return s.str();
+}
+
+void Ware::SetNextDir(RoadPathDirection newNextDir) {
+    if (flag_) {
+        RTTR_Assert(flag_->wareCounts_[next_dir] > 0);
+        RTTR_Assert(flag_->wareCounts_[next_dir] > 0);
+        flag_->wareCounts_[next_dir]--;
+        flag_->wareCounts_[newNextDir]++;
+        RTTR_Assert(flag_->wareCounts_[newNextDir] <= 8);
+    }
+    next_dir = newNextDir;
 }

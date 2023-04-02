@@ -45,7 +45,7 @@ public:
     /// zurück.
     std::unique_ptr<Ware> SelectWare(Direction roadDir, bool swap_wares, const noFigure* carrier);
     /// Prüft, ob es Waren gibt, die auf den Weg in Richtung dir getragen werden müssen.
-    unsigned GetNumWaresForRoad(Direction dir) const;
+    unsigned GetNumWaresForRoad(Direction dir) const { return wareCounts_[toRoadPathDirection(dir)]; }
     /// Gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine bestimmte Richtung noch transportiert werden
     /// müssen.
     unsigned GetPunishmentPoints(Direction dir) const override;
@@ -78,4 +78,9 @@ private:
         unsigned last_gf; /// letzter TÜV, ob man auch nicht hinkommt, in GF
     };
     std::array<BurnedWarehouseUnit, MAX_BWU> bwus;
+
+public:
+    /// Number of wares at this flag sorted by direction.
+    /// @todo: Optimize further by using Direction as key (save conversion in GetNumWares)
+    helpers::EnumArray<unsigned, RoadPathDirection> wareCounts_;
 };

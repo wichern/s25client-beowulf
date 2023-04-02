@@ -30,6 +30,8 @@ noFlag::noFlag(const MapPoint pos, const unsigned char player)
         bwu.last_gf = 0;
     }
 
+    std::fill(wareCounts_.begin(), wareCounts_.end(), 0u);
+
     // Gucken, ob die Flagge auf einen bereits bestehenden Weg gesetzt wurde
     Direction dir;
     noFlag* flag = world->GetRoadFlag(pos, dir);
@@ -47,13 +49,19 @@ noFlag::noFlag(const MapPoint pos, const unsigned char player)
 noFlag::noFlag(SerializedGameData& sgd, const unsigned obj_id)
     : noRoadNode(sgd, obj_id), ani_offset(rand() % 20000), flagtype(sgd.Pop<FlagType>())
 {
+    std::fill(wareCounts_.begin(), wareCounts_.end(), 0u);
+
     if(sgd.GetGameDataVersion() < 8)
     {
         for(unsigned i = 0; i < wares.max_size(); i++)
         {
             auto* ware = sgd.PopObject<Ware>(GO_Type::Ware);
-            if(ware)
+            if(ware) {
                 wares.emplace_back(ware);
+                ware->flag_ = this;
+                wareCounts_[ware->GetNextDir()]++;
+                RTTR_Assert(wareCounts_[ware->GetNextDir()] <= 8);
+            }
         }
     } else
         sgd.PopObjectContainer(wares, GO_Type::Ware);
@@ -81,6 +89,7 @@ void noFlag::Destroy()
         ware->Destroy();
     }
     wares.clear();
+    std::fill(wareCounts_.begin(), wareCounts_.end(), 0u);
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
     world->GetPlayer(player).FlagDestroyed(this);
@@ -139,6 +148,9 @@ void noFlag::AddWare(std::unique_ptr<Ware> ware)
 {
     // First add ware, then tell carrier. So get the info from the ware first
     const RoadPathDirection nextDir = ware->GetNextDir();
+    wareCounts_[nextDir]++;
+    RTTR_Assert(wareCounts_[nextDir] <= 8);
+    ware->flag_ = this;
     wares.push_back(std::move(ware));
 
     if(nextDir != RoadPathDirection::None)
@@ -179,6 +191,9 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     if(best_ware_index >= 0)
     {
         bestWare = std::move(wares[best_ware_index]);
+        RTTR_Assert(wareCounts_[bestWare->GetNextDir()] > 0);
+        wareCounts_[bestWare->GetNextDir()]--;
+        bestWare->flag_ = nullptr;
         wares.erase(wares.begin() + best_ware_index);
     }
 
@@ -223,11 +238,14 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     return bestWare;
 }
 
-unsigned noFlag::GetNumWaresForRoad(const Direction dir) const
-{
-    const auto roadDir = toRoadPathDirection(dir);
-    return helpers::count_if(wares, [roadDir](const auto& ware) { return ware->GetNextDir() == roadDir; });
-}
+// unsigned noFlag::GetNumWaresForRoad(const Direction dir) const
+// {
+//     unsigned a = wareCounts_[toRoadPathDirection(dir)];
+//     const auto roadDir = toRoadPathDirection(dir);
+//     unsigned b = helpers::count_if(wares, [roadDir](const auto& ware) { return ware->GetNextDir() == roadDir; });
+//     RTTR_Assert(a == b);
+//     return a;
+// }
 
 /**
  *  Gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine bestimmte
@@ -293,6 +311,7 @@ void noFlag::Capture(const unsigned char new_owner)
         ware->Destroy();
     }
     wares.clear();
+    std::fill(wareCounts_.begin(), wareCounts_.end(), 0u);
 
     // Unregister this flag in the players flags
     world->GetPlayer(player).FlagDestroyed(this);
