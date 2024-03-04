@@ -1,4 +1,9 @@
+# Copyright (C) 2005 - 2024 Settlers Freaks <sf-team at siedler25.org>
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
 
-add_executable(beowulf-trainer main.cpp)
-target_link_libraries(beowulf-trainer PRIVATE s25Main)
-#s25util::common 
+add_executable(beowulf-trainer
+    main.cpp
+    TrainingEventManager.cpp
+    TrainingGame.cpp)
+target_link_libraries(beowulf-trainer PRIVATE s25Main Boost::program_options Boost::nowide)
