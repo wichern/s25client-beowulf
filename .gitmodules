@@ -38,3 +38,7 @@
 [submodule "data/RTTR/MAPS"]
 	path = data/RTTR/MAPS
 	url = https://github.com/Return-To-The-Roots/s25maps.git
+[submodule "external/pybind11"]
+	path = external/pybind11
+	url = https://github.com/pybind/pybind11.git
+	branch = stable
