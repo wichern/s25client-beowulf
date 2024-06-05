@@ -2,18 +2,54 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# Get python suffix
+execute_process(
+    COMMAND python3-config --extension-suffix
+    OUTPUT_VARIABLE PYTHON3_SUFFIX
+    RESULT_VARIABLE COMMAND_RESULT
+    ERROR_VARIABLE COMMAND_ERROR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(NOT COMMAND_RESULT EQUAL 0)
+    message(WARNING "Command failed with error code: ${COMMAND_RESULT}")
+    message(FATAL_ERROR "Error output: ${COMMAND_ERROR}")
+endif()
+
+# Get python include dir
+execute_process(
+    COMMAND python3-config --includes
+    OUTPUT_VARIABLE PYTHON3_INCLUDES
+    RESULT_VARIABLE COMMAND_RESULT
+    ERROR_VARIABLE COMMAND_ERROR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(NOT COMMAND_RESULT EQUAL 0)
+    message(WARNING "Command failed with error code: ${COMMAND_RESULT}")
+    message(FATAL_ERROR "Error output: ${COMMAND_ERROR}")
+endif()
+
+# Split the output into a list
+string(REGEX MATCHALL "-I[^ ]+" PYTHON3_INCLUDES_LIST "${PYTHON3_INCLUDES}")
+
+# Create a new list without the '-I' prefix
+set(PYTHON3_INCLUDES)
+foreach(item IN LISTS PYTHON3_INCLUDES_LIST)
+    string(REPLACE "-I" "" item "${item}")
+    list(APPEND PYTHON3_INCLUDES "${item}")
+endforeach()
+
 add_library(s25py SHARED s25py.cpp HeadlessGame.cpp)
 set_target_properties(s25py PROPERTIES PREFIX "")
-set_target_properties(s25py PROPERTIES SUFFIX ".cpython-311-x86_64-linux-gnu.so") # see python3-config --extension-suffix
+set_target_properties(s25py PROPERTIES SUFFIX "${PYTHON3_SUFFIX}")
 target_link_libraries(s25py PRIVATE s25Main Boost::nowide)
 set_property(TARGET s25py PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_target_properties(s25py PROPERTIES C_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 target_include_directories(s25py PRIVATE 
     ${PROJECT_SOURCE_DIR}/external/pybind11/include
-    /usr/include/python3.11) # see python3-config --includes
+    ${PYTHON3_INCLUDES})
 
-# TODO: use execute_process instead of fixed path to python3.11
-# TODO: use execute_process for extension suffix
 
 add_executable(ai-battle main.cpp HeadlessGame.cpp)
 target_link_libraries(ai-battle PRIVATE s25Main Boost::program_options Boost::nowide)

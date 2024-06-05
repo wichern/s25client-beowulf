@@ -48,19 +48,34 @@ void Game::Stop()
 {
 }
 
+Player::Player(const std::string& name)
+{
+    (void)name;
+}
+
+Player::~Player()
+{
+
+}
+
+PlayerAIJH::PlayerAIJH(const std::string& name)
+: Player(name)
+{
+
+}
+
+PlayerAIJH::~PlayerAIJH()
+{
+
+}
+
 }  // namespace s25py
 
 PYBIND11_MODULE(s25py, m) {
     m.doc() = "python plugin for s25 AI battles";
 
-    py::class_<s25py::Game>(m, "Game")
-        .def(py::init<const std::string &>())
-        .def_property("objective", &s25py::Game::getObjective, &s25py::Game::setObjective)
-        .def_readwrite("save_replay", &s25py::Game::saveReplay_)
-        .def("Start", &s25py::Game::Start)
-        .def("Step", &s25py::Game::Step)
-        .def("Stop", &s25py::Game::Stop);
-
+    //-------------------------------------------------------------------------
+    // General Types
 
     py::enum_<GameObjective>(m, "GameObjective")
         .value("None", GameObjective::None)
@@ -73,4 +88,18 @@ PYBIND11_MODULE(s25py, m) {
         .value("Tournament4", GameObjective::Tournament4)
         .value("Tournament5", GameObjective::Tournament5)
         .export_values();
+
+    //-------------------------------------------------------------------------
+    // s25py Classes
+
+    py::class_<s25py::Game>(m, "Game")
+        .def(py::init<const std::string &>())
+        .def_property("objective", &s25py::Game::getObjective, &s25py::Game::setObjective)
+        .def_readwrite("save_replay", &s25py::Game::saveReplay_)
+        .def("Start", &s25py::Game::Start)
+        .def("Step", &s25py::Game::Step)
+        .def("Stop", &s25py::Game::Stop);
+
+    py::class_<s25py::Player>(m, "Player")
+        .def(py::init<const std::string &>());
 }

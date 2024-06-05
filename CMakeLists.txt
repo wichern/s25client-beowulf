@@ -69,6 +69,9 @@ if(RTTR_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
     set(STABLE_PARAM "--stable")
 endif()
 
+# We need to use fPIC in order to create the s25py.so that we use in the python API.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 if(checkSubmodules)
     include(CheckGitSubmodules)
     check_git_submodules()

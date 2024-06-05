@@ -49,4 +49,11 @@ public:
     ~Player();
 };
 
+class PlayerAIJH : public Player
+{
+public:
+    PlayerAIJH(const std::string& name);
+    ~PlayerAIJH();
+};
+
 }  // namespace s25py

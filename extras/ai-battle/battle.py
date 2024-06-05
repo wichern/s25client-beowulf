@@ -11,6 +11,6 @@ game.objective = s25py.GameObjective.TotalDomination
 
 print(game.save_replay)
 
-player_1 = s25py.Player("AIJH", )
-game.AddPlayer()
+player_1 = s25py.Player("AIJH")
+#game.AddPlayer()
 
