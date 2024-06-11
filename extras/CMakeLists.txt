@@ -15,6 +15,7 @@ add_subdirectory(ai-battle)
 if(RTTR_BUNDLE AND APPLE)
     add_subdirectory(macosLauncher)
 endif()
+add_subdirectory(s25py)
 
 if(MSVC)
   option(RTTR_ENABLE_VLD "Enable use of Visual Leak Detector" OFF)
