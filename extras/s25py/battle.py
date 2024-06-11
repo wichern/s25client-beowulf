@@ -12,7 +12,6 @@ game.objective = s25py.GameObjective.TotalDomination
 class MyAI(s25py.Player):
     def __init__(self, name):
         super(MyAI, self).__init__(name)
-        pass
 
     def on_gameframe(self, gfisnwf):
         if gfisnwf:

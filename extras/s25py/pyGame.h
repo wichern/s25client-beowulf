@@ -41,4 +41,5 @@ private:
     GlobalGameSettings ggs_;
     Game* game_ = nullptr;
 };
+
 }  // namespace s25py
