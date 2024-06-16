@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <string>
 #include <limits>
+#include <string>
 
-namespace s25py
-{
+class AIPlayer;
+
+namespace s25py {
 
 class PyGame;
 
@@ -20,14 +21,15 @@ public:
     PyPlayer(const std::string& name);
     ~PyPlayer();
 
-    virtual void on_gameframe(bool gfisnwf);
+    virtual void RunGF(unsigned gf, bool gfisnwf);
 
 protected:
     std::string name_;
     unsigned id_ = std::numeric_limits<unsigned>::max();
     PyGame* game_ = nullptr;
+    AIPlayer* player_ = nullptr;
 
     friend class PyGame;
 };
 
-}  // namespace s25py
+} // namespace s25py

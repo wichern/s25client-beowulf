@@ -4,42 +4,50 @@
 
 #pragma once
 
-#include "GlobalGameSettings.h"
+#include "Replay.h"
+#include "gameTypes/GameSettingTypes.h"
+
+// Disable some warnings thrown by pybind11
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+#pragma GCC diagnostic ignored "-Wnoexcept"
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+#pragma GCC diagnostic error "-Wredundant-decls"
+#pragma GCC diagnostic error "-Wnoexcept"
 
 #include <string>
+#include <vector>
 
 class Game;
 
-namespace s25py
-{
+namespace s25py {
 
 class PyPlayer;
 
 class PyGame
 {
 public:
-    PyGame(const std::string& map);
+    PyGame(const std::string& mapPath, std::string replayPath, GameObjective objective, unsigned maxGF,
+           unsigned randomSeed, unsigned nwfInterval);
     ~PyGame();
 
-    void AddPlayer(PyPlayer* player);
+    void AddPlayer(py::object player);
 
-    GameObjective getObjective() { return ggs_.objective; }
-    void setObjective(GameObjective objective) { ggs_.objective = objective; }
-    
-    void ActivateReplay(bool activate);
-
-    void Start();
-    void Step();
-    void Stop();
-
-    bool saveReplay_ = false;
+    bool Step();
 
 private:
-    std::string map_;
-    std::vector<PyPlayer*> players_;
+    void Start();
 
-    GlobalGameSettings ggs_;
+    std::string mapPath_;
+    std::string replayPath_;
+    GameObjective objective_;
+    unsigned maxGF_;
+    unsigned randomSeed_;
+    unsigned nwfInterval_;
+
+    std::vector<py::object> players_;
+    Replay replay_;
     Game* game_ = nullptr;
 };
 
-}  // namespace s25py
+} // namespace s25py

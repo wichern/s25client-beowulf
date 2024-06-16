@@ -1,29 +1,15 @@
 #!/bin/env python3
 
-import os
-import sys
+from s25py import Game, Player
 
-sys.path.append(os.path.dirname(__file__) + "/../../build/lib")
-import s25py
 
-game = s25py.Game("<RTTR_RTTR>/MAPS/OTHER/Bergschlumpf.swd")
-game.objective = s25py.GameObjective.TotalDomination
+class AwesomeAI(Player):
+    def run_gameframe(self, gameframe, is_networkframe):
+        pass
 
-class MyAI(s25py.Player):
-    def __init__(self, name):
-        super(MyAI, self).__init__(name)
+game = Game("<RTTR_RTTR>/MAPS/OTHER/Bergschlumpf.swd", replay="bergschlumpf.rpl")
 
-    def on_gameframe(self, gfisnwf):
-        if gfisnwf:
-            print('on gameframe (gfisnwf)')
-        else:
-            print('on gameframe')
+game.add_player(Player("dummy"))
 
-player = MyAI("Player X")
-game.add_player(player)
-
-game.start()
-for i in range(0, 10):
-    game.step()
-
-game.stop()
+while game.next_gameframe():
+    print(f'GF : {game.current_gf}')

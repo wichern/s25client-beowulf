@@ -4,20 +4,19 @@
 
 #pragma once
 
-#include "pyPlayer.h"
 #include "pyGame.h"
+#include "pyPlayer.h"
 
-namespace s25py
-{
+namespace s25py {
 
 // Trampoline class to support overriding virtual methods.
 class PlayerTrampoline : public PyPlayer
 {
 public:
-    using PyPlayer::PyPlayer;  // Inherit the constructors
-    void on_gameframe(bool gfisnwf) override;
+    using PyPlayer::PyPlayer; // Inherit the constructors
+    void RunGF(unsigned gf, bool gfisnwf) override;
 };
 
 std::string version();
 
-}  // namespace s25py
+} // namespace s25py
