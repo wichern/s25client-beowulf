@@ -12,6 +12,7 @@
 #include "PlayerInfo.h"
 #include "RttrConfig.h"
 #include "ai/AIPlayer.h"
+#include "factories/AIFactory.h"
 #include "files.h"
 #include "network/PlayerGameCommands.h"
 #include "random/Random.h"
@@ -42,7 +43,6 @@ PyGame::PyGame(const std::string& mapPath, std::string replayPath, GameObjective
 
 PyGame::~PyGame()
 {
-    bnw::cout << "~PyGame()" << std::endl;
     if(game_)
     {
         if(replay_.IsRecording())
@@ -57,7 +57,7 @@ PyGame::~PyGame()
     }
 }
 
-void PyGame::AddPlayer(PyPlayer* player)
+void PyGame::AddPlayer(std::shared_ptr<PyPlayer> player)
 {
     if(!player)
         return;
@@ -71,11 +71,12 @@ void PyGame::Start()
     RANDOM.Init(randomSeed_);
 
     std::vector<PlayerInfo> playerInfos;
-    for(auto* player : players_)
+    for(const auto& player : players_)
     {
         PlayerInfo pi;
         pi.ps = PlayerState::Occupied;
-        pi.aiInfo = {AI::Type::Default, AI::Level::Hard};
+        // pi.aiInfo = {player->type_, AI::Level::Medium};
+        pi.aiInfo = {AI::Type::Default, AI::Level::Medium};
         pi.name = player->name_;
         pi.nation = Nation::Romans;
         pi.team = Team::None;
@@ -92,7 +93,14 @@ void PyGame::Start()
     if(!loader.Load(mapPath))
         throw std::runtime_error("Could not load " + mapPath.string());
 
+    for(unsigned playerId = 0; playerId < game_->world_.GetNumPlayers(); ++playerId)
+    {
+        auto ai_player = AIFactory::Create(playerInfos[playerId].aiInfo, playerId, game_->world_);
+        game_->AddAIPlayer(std::move(ai_player));
+    }
+
     game_->world_.InitAfterLoad();
+
     game_->Start(false);
 
     // Assign AIPlayer objects to PyPlayer objects
@@ -142,7 +150,7 @@ bool PyGame::Step()
 
         for(unsigned playerId = 0; playerId < game_->world_.GetNumPlayers(); ++playerId)
         {
-            PyPlayer* player = players_[playerId];
+            auto& player = players_[playerId];
             PlayerGameCommands cmds;
             cmds.gcs = player->player_->FetchGameCommands();
 
@@ -166,6 +174,11 @@ bool PyGame::Step()
         replay_.UpdateLastGF(game_->em_->GetCurrentGF());
 
     return true;
+}
+
+unsigned PyGame::getCurrentGF() const
+{
+    return game_->em_->GetCurrentGF();
 }
 
 } // namespace s25py

@@ -69,7 +69,8 @@ bfs::path RttrConfig::GetPrefixPath()
         }
     }
 
-    if(!prefixPath.empty())
+    // Ignore this warning if we set the prefix path for s25py. In that case the exe path will point to python.
+    if(!prefixPath.empty() && fullExeFilepath.filename().string().compare(0, 6, "python"))
     {
         bfs::path exePath =
           (rttrBinDir.is_absolute() ? rttrBinDir : prefixPath / rttrBinDir) / fullExeFilepath.filename();

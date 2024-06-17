@@ -9,15 +9,9 @@ namespace bnw = boost::nowide;
 
 namespace s25py {
 
-PyPlayer::PyPlayer(const std::string& name) : name_(name)
-{
-    bnw::cout << "PyPlayer(" << name << ")" << std::endl;
-}
+PyPlayer::PyPlayer(const std::string& name) : name_(name) {}
 
-PyPlayer::~PyPlayer()
-{
-    bnw::cout << "~PyPlayer(" << name_ << ")" << std::endl;
-}
+PyPlayer::~PyPlayer() {}
 
 void PyPlayer::RunGF(unsigned /*gf*/, bool /*gfisnwf*/) {}
 

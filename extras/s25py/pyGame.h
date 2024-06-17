@@ -6,15 +6,7 @@
 
 #include "Replay.h"
 #include "gameTypes/GameSettingTypes.h"
-
-// Disable some warnings thrown by pybind11
-#pragma GCC diagnostic ignored "-Wredundant-decls"
-#pragma GCC diagnostic ignored "-Wnoexcept"
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-#pragma GCC diagnostic error "-Wredundant-decls"
-#pragma GCC diagnostic error "-Wnoexcept"
-
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -31,9 +23,11 @@ public:
            unsigned randomSeed, unsigned nwfInterval);
     ~PyGame();
 
-    void AddPlayer(py::object player);
+    void AddPlayer(std::shared_ptr<PyPlayer> player);
 
     bool Step();
+
+    unsigned getCurrentGF() const;
 
 private:
     void Start();
@@ -45,7 +39,7 @@ private:
     unsigned randomSeed_;
     unsigned nwfInterval_;
 
-    std::vector<py::object> players_;
+    std::vector<std::shared_ptr<PyPlayer>> players_;
     Replay replay_;
     Game* game_ = nullptr;
 };

@@ -62,11 +62,14 @@ PYBIND11_MODULE(s25py, m)
            py::arg("max_gameframe") = std::numeric_limits<unsigned>::max(), py::arg("random_seed") = 0,
            py::arg("networkframe_interval") = 20)
       .def("add_player", &s25py::PyGame::AddPlayer)
-      .def("next_gameframe", &s25py::PyGame::Step);
+      .def("next_gameframe", &s25py::PyGame::Step)
+      .def_property_readonly("current_gf", &s25py::PyGame::getCurrentGF);
 
-    py::class_<s25py::PyPlayer, s25py::PlayerTrampoline>(m, "Player")
+    // We have to use a trampoline class for PyPlayer in order for python to create subclasses.
+    // We have to use shared_ptr encapsulation in order to allow passing ownership to PyGame.
+    py::class_<s25py::PyPlayer, s25py::PlayerTrampoline, std::shared_ptr<s25py::PyPlayer>>(m, "Player")
       .def(py::init<const std::string&>())
-      .def("RunGF", &s25py::PyPlayer::RunGF);
+      .def("next_gameframe", &s25py::PyPlayer::RunGF);
 
     py::enum_<AI::Level>(m, "AILevel")
       .value("Easy", AI::Level::Easy)
