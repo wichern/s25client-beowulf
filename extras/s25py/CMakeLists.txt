@@ -41,6 +41,7 @@ if(NOT COMMAND_RESULT EQUAL 0)
 endif()
 
 add_library(s25py SHARED
+    pyBuilding.cpp
     pyGame.cpp
     pyPlayer.cpp
     pyPlayerAIJH.cpp

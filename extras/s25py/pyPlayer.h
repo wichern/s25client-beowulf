@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include "pyBuilding.h"
+
 #include <limits>
 #include <string>
+#include <vector>
 
 class AIPlayer;
 
@@ -22,6 +25,8 @@ public:
     ~PyPlayer();
 
     virtual void RunGF(unsigned gf, bool gfisnwf);
+
+    std::vector<PyBuilding> GetHeadquaters() const;
 
 protected:
     std::string name_;
