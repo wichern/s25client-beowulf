@@ -6,10 +6,12 @@
 #pragma GCC diagnostic ignored "-Wredundant-decls"
 #pragma GCC diagnostic ignored "-Wnoexcept"
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 namespace py = pybind11;
 #pragma GCC diagnostic error "-Wredundant-decls"
 #pragma GCC diagnostic error "-Wnoexcept"
 
+#include "pyPlayerAIJH.h"
 #include "s25py.h"
 
 #include "RTTR_Version.h"
@@ -63,11 +65,16 @@ PYBIND11_MODULE(s25py, m)
            py::arg("networkframe_interval") = 20)
       .def("add_player", &s25py::PyGame::AddPlayer)
       .def("next_gameframe", &s25py::PyGame::Step)
-      .def_property_readonly("current_gf", &s25py::PyGame::getCurrentGF);
+      .def_property_readonly("current_gf", &s25py::PyGame::getCurrentGF)
+      .def_property_readonly("statistic_buildings", &s25py::PyGame::getPlayerBuildings);
 
     // We have to use a trampoline class for PyPlayer in order for python to create subclasses.
     // We have to use shared_ptr encapsulation in order to allow passing ownership to PyGame.
     py::class_<s25py::PyPlayer, s25py::PlayerTrampoline, std::shared_ptr<s25py::PyPlayer>>(m, "Player")
+      .def(py::init<const std::string&>())
+      .def("next_gameframe", &s25py::PyPlayer::RunGF);
+
+    py::class_<s25py::PyPlayerAIJH, std::shared_ptr<s25py::PyPlayerAIJH>, s25py::PyPlayer>(m, "PlayerAIJH")
       .def(py::init<const std::string&>())
       .def("next_gameframe", &s25py::PyPlayer::RunGF);
 

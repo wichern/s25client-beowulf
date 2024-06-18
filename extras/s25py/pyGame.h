@@ -28,6 +28,7 @@ public:
     bool Step();
 
     unsigned getCurrentGF() const;
+    std::vector<unsigned> getPlayerBuildings() const;
 
 private:
     void Start();

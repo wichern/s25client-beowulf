@@ -27,6 +27,8 @@ protected:
     std::string name_;
     unsigned id_ = std::numeric_limits<unsigned>::max();
     PyGame* game_ = nullptr;
+
+    // Pointer to the in-game AI player object
     AIPlayer* player_ = nullptr;
 
     friend class PyGame;

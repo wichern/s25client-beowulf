@@ -181,4 +181,18 @@ unsigned PyGame::getCurrentGF() const
     return game_->em_->GetCurrentGF();
 }
 
+std::vector<unsigned> PyGame::getPlayerBuildings() const
+{
+    std::vector<unsigned> ret;
+    ret.reserve(game_->world_.GetNumPlayers());
+
+    for(unsigned playerId = 0; playerId < game_->world_.GetNumPlayers(); ++playerId)
+    {
+        const GamePlayer& player = game_->world_.GetPlayer(playerId);
+        ret.push_back(player.GetStatisticCurrentValue(StatisticType::Buildings));
+    }
+
+    return ret;
+}
+
 } // namespace s25py

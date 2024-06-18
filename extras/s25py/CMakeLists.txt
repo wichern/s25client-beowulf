@@ -43,14 +43,14 @@ endif()
 add_library(s25py SHARED
     pyGame.cpp
     pyPlayer.cpp
+    pyPlayerAIJH.cpp
     s25py.cpp)
 
 set_target_properties(s25py PROPERTIES PREFIX "")
 set_target_properties(s25py PROPERTIES SUFFIX "${PYTHON3_SUFFIX}")
+set_target_properties(s25py PROPERTIES C_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
 target_link_libraries(s25py PRIVATE s25Main Boost::nowide)
-
-set_target_properties(s25py PROPERTIES C_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 
 target_include_directories(s25py PRIVATE 
     ${PROJECT_SOURCE_DIR}/external/pybind11/include
