@@ -13,18 +13,33 @@
 #include "world/MapLoader.h"
 #include "gameTypes/MapInfo.h"
 #include "gameData/GameConsts.h"
-
 #include <boost/nowide/iostream.hpp>
-
 #include <chrono>
+#include <cstdio>
 #include <sstream>
+#ifdef WIN32
+#    include "Windows.h"
+#endif
 
 std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais);
 std::string ToString(const std::chrono::milliseconds& time);
 std::string HumanReadableNumber(unsigned num);
 
-namespace bfs = bfs;
+namespace bfs = boost::filesystem;
+namespace bnw = boost::nowide;
 using bfs::canonical;
+
+#ifdef WIN32
+HANDLE setupStdOut();
+#endif
+
+#if defined(__MINGW32__) && !defined(__clang__)
+void printConsole(const char* fmt, ...) __attribute__((format(gnu_printf, 1, 2)));
+#elif defined __GNUC__
+void printConsole(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+#else
+void printConsole(const char* fmt, ...);
+#endif
 
 HeadlessGame::HeadlessGame(const GlobalGameSettings& ggs, const bfs::path& map, const std::vector<AI::Info>& ais)
     : map_(map), game_(ggs, std::make_unique<EventManager>(0), GeneratePlayerInfo(ais)), world_(game_.world_),
@@ -100,18 +115,18 @@ void HeadlessGame::Run(unsigned maxGF)
 
 void HeadlessGame::Close()
 {
-    printf("\n");
+    bnw::cout << '\n';
 
     if(replay_.IsRecording())
     {
         replay_.StopRecording();
-        printf("Replay written to %s\n", canonical(replayPath_).c_str());
+        bnw::cout << "Replay written to " << canonical(replayPath_) << '\n';
     }
 
     replay_.Close();
 }
 
-void HeadlessGame::StartReplay(const bfs::path& path, unsigned random_init)
+void HeadlessGame::RecordReplay(const bfs::path& path, unsigned random_init)
 {
     // Remove old replay
     bfs::remove(path);
@@ -145,16 +160,16 @@ void HeadlessGame::SaveGame(const bfs::path& path) const
     save.sgd.MakeSnapshot(game_);
     save.Save(path, "AI Battle");
 
-    printf("Savegame written to %s\n", canonical(path).c_str());
+    bnw::cout << "Savegame written to " << canonical(path) << '\n';
 }
 
 std::string ToString(const std::chrono::milliseconds& time)
 {
     char buffer[90];
-    auto hours = std::chrono::duration_cast<std::chrono::hours>(time);
-    auto minutes = std::chrono::duration_cast<std::chrono::minutes>(time % std::chrono::hours(1));
-    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(time % std::chrono::minutes(1));
-    snprintf(buffer, 90, "%03ld:%02ld:%02ld", static_cast<long int>(hours.count()),
+    const auto hours = std::chrono::duration_cast<std::chrono::hours>(time);
+    const auto minutes = std::chrono::duration_cast<std::chrono::minutes>(time % std::chrono::hours(1));
+    const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(time % std::chrono::minutes(1));
+    snprintf(buffer, std::size(buffer), "%03ld:%02ld:%02ld", static_cast<long int>(hours.count()),
              static_cast<long int>(minutes.count()), static_cast<long int>(seconds.count()));
     return std::string(buffer);
 }
@@ -173,31 +188,31 @@ void HeadlessGame::PrintState()
     if(first_run)
         first_run = false;
     else
-        printf("\x1b[%dA", 8 + world_.GetNumPlayers()); // Move cursor back up
+        printConsole("\x1b[%dA", 8 + world_.GetNumPlayers()); // Move cursor back up
 
-    printf("┌───────────────┬───────────────────────┬───────────────────────┬────────────────┐\n");
-    printf(
+    printConsole("┌───────────────┬───────────────────────┬───────────────────────┬────────────────┐\n");
+    printConsole(
       "│ GF %10s │ Game Clock  %s │ Wall Clock  %s │ %7s GF/sec │\n", HumanReadableNumber(em_.GetCurrentGF()).c_str(),
       ToString(SPEED_GF_LENGTHS[GameSpeed::Normal] * em_.GetCurrentGF()).c_str(), // elapsed time
       ToString(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - gameStartTime_))
         .c_str(),                                                       // wall clock
       HumanReadableNumber(em_.GetCurrentGF() - lastReportGf_).c_str()); // GF per second
-    printf("└───────────────┴───────────────────────┴───────────────────────┴────────────────┘\n");
-    printf("\n");
-    printf("┌────────────────────────┬─────────────────┬─────────────┬───────────┬───────────┐\n");
-    printf("│ Player                 │ Country         │ Buildings   │ Military  │ Gold      │\n");
-    printf("├────────────────────────┼─────────────────┼─────────────┼───────────┼───────────┤\n");
+    printConsole("└───────────────┴───────────────────────┴───────────────────────┴────────────────┘\n");
+    printConsole("\n");
+    printConsole("┌────────────────────────┬─────────────────┬─────────────┬───────────┬───────────┐\n");
+    printConsole("│ Player                 │ Country         │ Buildings   │ Military  │ Gold      │\n");
+    printConsole("├────────────────────────┼─────────────────┼─────────────┼───────────┼───────────┤\n");
     for(unsigned playerId = 0; playerId < world_.GetNumPlayers(); ++playerId)
     {
         const GamePlayer& player = world_.GetPlayer(playerId);
-        printf("│ %s%-22s%s │ %15s │ %11s │ %9s │ %9s │\n", player.IsDefeated() ? "\x1b[9m" : "", player.name.c_str(),
-               player.IsDefeated() ? "\x1b[29m" : "",
-               HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Country)).c_str(),
-               HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Buildings)).c_str(),
-               HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Military)).c_str(),
-               HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Gold)).c_str());
+        printConsole("│ %s%-22s%s │ %15s │ %11s │ %9s │ %9s │\n", player.IsDefeated() ? "\x1b[9m" : "",
+                     player.name.c_str(), player.IsDefeated() ? "\x1b[29m" : "",
+                     HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Country)).c_str(),
+                     HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Buildings)).c_str(),
+                     HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Military)).c_str(),
+                     HumanReadableNumber(player.GetStatisticCurrentValue(StatisticType::Gold)).c_str());
     }
-    printf("└────────────────────────┴─────────────────┴─────────────┴───────────┴───────────┘\n");
+    printConsole("└────────────────────────┴─────────────────┴─────────────┴───────────┴───────────┘\n");
 
     lastReportGf_ = em_.GetCurrentGF();
 }
@@ -221,4 +236,32 @@ std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais)
         ret.push_back(pi);
     }
     return ret;
+}
+
+#ifdef WIN32
+HANDLE setupStdOut()
+{
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleMode(h, ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    SetConsoleOutputCP(65001);
+    return h;
+}
+#endif
+
+void printConsole(const char* fmt, ...)
+{
+    char buffer[512];
+    va_list args;
+    va_start(args, fmt);
+    const int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    if(len > 0 && (size_t)len < sizeof(buffer))
+    {
+#ifdef WIN32
+        static auto h = setupStdOut();
+        WriteConsoleA(h, buffer, len, 0, 0);
+#else
+        bnw::cout << buffer;
+#endif
+    }
 }
