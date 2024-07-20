@@ -48,4 +48,9 @@ private:
     bool FindPathImpl(const noRoadNode& start, const noRoadNode& goal, unsigned max, T_AdditionalCosts addCosts,
                       T_SegmentConstraints isSegmentAllowed, unsigned* length = nullptr,
                       RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
+
+    template<class T_AdditionalCosts, class T_SegmentConstraints>
+    bool FindPathImplDStarLite(const noRoadNode& start, const noRoadNode& goal, unsigned max, T_AdditionalCosts addCosts,
+                      T_SegmentConstraints isSegmentAllowed, unsigned* length = nullptr,
+                      RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
 };

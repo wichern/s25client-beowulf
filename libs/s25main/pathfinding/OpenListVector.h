@@ -15,10 +15,19 @@ struct GetEstimateFromPtr
     }
 };
 
+struct GetKeyFromSecond
+{
+    template<typename T>
+    static inline noRoadNode::DStarNode::Key GetValue(const T& el)
+    {
+        return el.second;
+    }
+};
+
 /// A priority queue based on an unsorted vector with same interface as OpenListPrioQueue
 /// Requires a policy that returns the value on which elements should be ordered from the element
 /// Note: Order of elements with same value is determined by push/pop operations
-template<class T, class T_GetOrderValue = GetEstimateFromPtr>
+template<class T, class T_Key = unsigned, class T_GetOrderValue = GetEstimateFromPtr>
 class OpenListVector
 {
     std::vector<T> elements;
@@ -37,14 +46,14 @@ public:
             return best;
         }
         int bestIdx = 0;
-        unsigned bestEstimate = T_GetOrderValue::GetValue(elements.front());
+        T_Key bestEstimate = T_GetOrderValue::GetValue(elements.front());
         for(int i = 1; i < size; i++)
         {
             // Note that this check does not consider nodes with the same value
             // However this is a) correct (same estimate = same quality so no preference from the algorithm)
             // and b) still fully deterministic as the entries are NOT sorted and the insertion-extraction-pattern
             // is completely pre-determined by the graph-structur
-            const unsigned estimate = T_GetOrderValue::GetValue(elements[i]);
+            const T_Key estimate = T_GetOrderValue::GetValue(elements[i]);
             if(estimate < bestEstimate)
             {
                 bestEstimate = estimate;
