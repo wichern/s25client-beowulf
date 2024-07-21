@@ -10,6 +10,19 @@
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
 
+namespace dstarlite {
+struct Node
+{
+    MapPoint goalPos;
+    unsigned g;        // estimate of the distance to dest
+    unsigned rhs;      // one step lookahead of g (g + edgeCost(this, neighbour))
+    unsigned k_m;      // @todo: what is this?
+    unsigned visit_gf; // required for LRU removal
+
+    bool isLocallyConsistend() const { return g == rhs; }
+};
+} // namespace dstarlite
+
 class Ware;
 class SerializedGameData;
 
@@ -35,38 +48,7 @@ public:
     /// Direction to previous node, includes SHIP_DIR
     mutable RoadPathDirection dir_; //-V730_NOINIT
 
-    // Datastructure for D*-lite
-    struct DStarNode {
-        // Destination for which the g and lhs values are-
-        MapPoint dest;
-        unsigned g;  // estimate of the distance to dest
-        unsigned rhs;  // one step lookahead of g (g + edgeCost(this, neighbour))
-        unsigned k_m;
-        unsigned visit_gf; // required for LRU removal
-        struct Key {
-            unsigned k1;    // heuristic (this node to start)
-            unsigned k2;    // ?
-            bool operator<(const Key& other) const
-            {
-                if (k1 < other.k1)
-                    return true;
-                if (k1 == other.k2)
-                    return k2 < other.k2;
-                return false;
-            }
-        } /* k */;
-
-        inline Key CalculateKey(unsigned h) const {
-            // @todo: h is constant. we could buffer the value or calculate it at the beginning
-            //        Also: h is the same for all nodes in this RoadNode. Check how expensive it is to calculate.
-            unsigned k2 = std::min(g, rhs);
-            unsigned k1 = k2 + h + k_m;
-            return { k1, k2 };
-        }
-
-        inline bool locally_consistend() { return g == rhs; }
-    };
-    mutable std::vector<DStarNode> dstar_;
+    mutable std::vector<dstarlite::Node> dstar_;
 
     noRoadNode(NodalObjectType nop, MapPoint pos, unsigned char player);
     noRoadNode(SerializedGameData& sgd, unsigned obj_id);

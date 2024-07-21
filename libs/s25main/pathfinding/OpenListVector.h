@@ -15,15 +15,6 @@ struct GetEstimateFromPtr
     }
 };
 
-struct GetKeyFromSecond
-{
-    template<typename T>
-    static inline noRoadNode::DStarNode::Key GetValue(const T& el)
-    {
-        return el.second;
-    }
-};
-
 /// A priority queue based on an unsorted vector with same interface as OpenListPrioQueue
 /// Requires a policy that returns the value on which elements should be ordered from the element
 /// Note: Order of elements with same value is determined by push/pop operations
