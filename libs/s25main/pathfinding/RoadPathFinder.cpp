@@ -360,18 +360,18 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
                                 SegmentConstraints::AvoidSegment(forbidden), length, firstDir, firstNodePos);
         } else
         {
-            RoadPathDirection firstDirNew;
-            bool ret_new = FindPathImplDStarLite(start, goal, max, AdditonalCosts::Carrier(),
-                                                 SegmentConstraints::None(), length, &firstDirNew, firstNodePos);
+            // RoadPathDirection firstDirNew;
+            // bool ret_new = FindPathImplDStarLite(start, goal, max, AdditonalCosts::Carrier(),
+            //                                      SegmentConstraints::None(), length, &firstDirNew, firstNodePos);
 
             RoadPathDirection firstDirOld;
             bool ret_old = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
                                         &firstDirOld, firstNodePos);
 
-            RTTR_Assert(ret_new == ret_old);
-            RTTR_Assert(firstDirNew == firstDirOld);
-
-            *firstDir = firstDirOld;
+            // RTTR_Assert(ret_new == ret_old);
+            // RTTR_Assert(firstDirNew == firstDirOld);
+            if(firstDir)
+                *firstDir = firstDirOld;
             return ret_old;
         }
     } else

@@ -144,7 +144,7 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
         }
     }
 
-    return true;
+    return startDnode.g <= maxCost;
 }
 
 template<class T_AdditionalCosts, class T_SegmentConstraints>
