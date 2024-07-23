@@ -334,14 +334,14 @@ public:
 
     static BuildOrders GetStandardBuildOrder();
 
+    /// Lister aller Straßen von dem Spieler
+    std::list<RoadSegment*> roads;
+
 private:
     /// Access to the world
     GameWorld& world;
     /// List of all buildings
     BuildingRegister buildings; //-V730_NOINIT
-
-    /// Lister aller Straßen von dem Spieler
-    std::list<RoadSegment*> roads;
 
     struct JobNeeded
     {

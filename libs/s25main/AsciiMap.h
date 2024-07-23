@@ -61,12 +61,13 @@ public:
     void drawRoad(const MapPoint& pt, RoadDir dir, bool fat = false);
     void draw(const World& world, bool includeAnticipated);
     void drawPlayer(unsigned playerId);
+    void drawDStar(unsigned playerId, const MapPoint& goal);
 
     void clear();
     void write(std::ostream& out = std::cout) const;
 
 private:
-    typedef Position AsciiPosition;
+    using AsciiPosition = Position;
     static const unsigned char c_margin_left_ = 4;
     static const unsigned char c_margin_top_ = 2;
 
@@ -95,18 +96,17 @@ constexpr helpers::EnumArray<const char*, BuildingType> SHORT_BLD_NAMES = {
    "Loo", "",    "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre",  "Arm", "Met", "Iro", "Cha",
    "Pig", "Sto", "",    "Mil", "Bak", "Saw", "Min", "Wel", "Shi", "Far",  "Don", "Har"}};
 
-AsciiMap::AsciiMap(const GameWorldBase& gwb, unsigned short scale) : gwb_(gwb), scale_(scale), offset_({0, 0})
+inline AsciiMap::AsciiMap(const GameWorldBase& gwb, unsigned short scale) : gwb_(gwb), scale_(scale), offset_({0, 0})
 {
     init(gwb_.GetSize());
 }
 
-AsciiMap::~AsciiMap()
+inline AsciiMap::~AsciiMap()
 {
-    if(map_)
-        delete[] map_;
+    delete[] map_;
 }
 
-void AsciiMap::draw(const MapPoint& pt, char c)
+inline void AsciiMap::draw(const MapPoint& pt, char c)
 {
     if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
@@ -116,7 +116,7 @@ void AsciiMap::draw(const MapPoint& pt, char c)
     set(getPos(ptS), c);
 }
 
-void AsciiMap::draw(const MapPoint& pt, const std::string& str)
+inline void AsciiMap::draw(const MapPoint& pt, const std::string& str)
 {
     if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
@@ -126,7 +126,7 @@ void AsciiMap::draw(const MapPoint& pt, const std::string& str)
     set(getPos(ptS), str);
 }
 
-void AsciiMap::drawRoad(const MapPoint& pt, RoadDir dir, bool fat)
+inline void AsciiMap::drawRoad(const MapPoint& pt, RoadDir dir, bool fat)
 {
     if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
         return;
@@ -192,7 +192,7 @@ void AsciiMap::drawRoad(const MapPoint& pt, RoadDir dir, bool fat)
     }
 }
 
-void AsciiMap::drawPlayer(unsigned playerId)
+inline void AsciiMap::drawPlayer(unsigned playerId)
 {
     RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
     {
@@ -202,7 +202,7 @@ void AsciiMap::drawPlayer(unsigned playerId)
 
     RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
     {
-        const noFlag* flagObj = gwb_.GetSpecObj<noFlag>(pt);
+        const auto* flagObj = gwb_.GetSpecObj<noFlag>(pt);
         if(flagObj && flagObj->GetPlayer() == playerId)
             draw(pt, 'f');
 
@@ -234,7 +234,38 @@ void AsciiMap::drawPlayer(unsigned playerId)
         draw(building->GetPos(), std::string("(") + SHORT_BLD_NAMES[building->GetBuildingType()] + ")");
 }
 
-void AsciiMap::clear()
+inline void AsciiMap::drawDStar(unsigned playerId, const MapPoint& goal)
+{
+    // make "roads" in GamePlayer public first
+    const GamePlayer& player = gwb_.GetPlayer(playerId);
+    for(const RoadSegment* roadSeg : player.roads)
+    {
+        const noRoadNode* f1 = roadSeg->GetF1();
+        for(const dstarlite::Node& n : f1->dstar_)
+        {
+            if(n.goalPos == goal)
+            {
+                std::string g_str = n.g == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.g);
+                std::string rhs_str = n.rhs == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.rhs);
+                draw(f1->GetPos(), g_str.append(",").append(rhs_str));
+                break;
+            }
+        }
+        const noRoadNode* f2 = roadSeg->GetF1();
+        for(const dstarlite::Node& n : f2->dstar_)
+        {
+            if(n.goalPos == goal)
+            {
+                std::string g_str = n.g == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.g);
+                std::string rhs_str = n.rhs == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.rhs);
+                draw(f1->GetPos(), g_str.append(",").append(rhs_str));
+                break;
+            }
+        }
+    }
+}
+
+inline void AsciiMap::clear()
 {
     // Fill with spaces.
     memset(map_, ' ', map_buffer_len_ - 1);
@@ -260,7 +291,7 @@ void AsciiMap::clear()
     map_[map_buffer_len_ - 1] = 0;
 }
 
-void AsciiMap::init(const MapExtent& size)
+inline void AsciiMap::init(const MapExtent& size)
 {
     map_size_ = size;
 
@@ -270,35 +301,35 @@ void AsciiMap::init(const MapExtent& size)
     w_ = (size.x * scale_w_) + c_margin_left_ - scale_ + 1u; // +1 for '\n'
     h_ = (size.y * scale_h_) + c_margin_top_;
 
-    map_buffer_len_ = static_cast<size_t>((w_ * h_) + 1); // +1 for null terminator
+    map_buffer_len_ = static_cast<size_t>((w_ * h_) + 1U); // +1 for null terminator
     map_ = new char[map_buffer_len_];
 
     clear();
 }
 
-AsciiMap::AsciiPosition AsciiMap::getPos(const MapPoint& pt) const
+inline AsciiMap::AsciiPosition AsciiMap::getPos(const MapPoint& pt) const
 {
     AsciiPosition ret;
     ret.x = c_margin_left_;
     ret.x += static_cast<AsciiPosition::ElementType>(pt.x) * scale_w_;
-    ret.x += ((pt.y + offset_.y) & 1) ? scale_h_ : 0; // offset on every second row
+    ret.x += ((pt.y + offset_.y) & 1) ? scale_h_ : 0U; // offset on every second row
     ret.y = c_margin_top_ + (pt.y * scale_h_);
     return ret;
 }
 
-size_t AsciiMap::getIdx(const AsciiPosition& pos) const
+inline size_t AsciiMap::getIdx(const AsciiPosition& pos) const
 {
     return static_cast<size_t>(pos.y * w_ + pos.x);
 }
 
-void AsciiMap::set(const AsciiPosition& pos, char c)
+inline void AsciiMap::set(const AsciiPosition& pos, char c)
 {
     size_t idx = getIdx(pos);
-    assert(idx < (map_buffer_len_ - 1)); // bounds check
+    assert(idx < (map_buffer_len_ - 1U)); // bounds check
     map_[idx] = c;
 }
 
-void AsciiMap::set(AsciiMap::AsciiPosition pos, const std::string& str)
+inline void AsciiMap::set(AsciiMap::AsciiPosition pos, const std::string& str)
 {
     for(std::string::size_type i = 0; i < str.length() && onMap(pos); ++i)
     {
@@ -306,12 +337,12 @@ void AsciiMap::set(AsciiMap::AsciiPosition pos, const std::string& str)
         pos.x++;
     }
 }
-bool AsciiMap::onMap(const AsciiPosition& pos) const
+inline bool AsciiMap::onMap(const AsciiPosition& pos) const
 {
     return pos.x >= 0 && (pos.x + 1) < w_ && pos.y >= 0 && pos.y < h_;
 }
 
-void AsciiMap::write(std::ostream& out) const
+inline void AsciiMap::write(std::ostream& out) const
 {
     assert(map_[map_buffer_len_ - 1] == 0); // Check for null terminator.
     out << map_ << std::flush;

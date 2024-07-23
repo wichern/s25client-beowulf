@@ -6,12 +6,13 @@
 
 #include "helpers/EnumRange.h"
 #include "pathfinding/OpenListVector.h"
-#include "world/MapBase.h"
+#include "world/GameWorldBase.h"
 #include "nodeObjs/noRoadNode.h"
 #include "gameTypes/MapCoordinates.h"
+#include <iostream>
 #include <utility>
 
-class MapBase;
+#include "AsciiMap.h"
 
 namespace dstarlite {
 
@@ -20,8 +21,8 @@ static const unsigned g_dstarNodeAgeLimit = 1000U; // how old can a node be?
 
 struct Key
 {
-    unsigned k1; // heuristic (this node to start)
-    unsigned k2; // ?
+    unsigned k1; // f = g + h ... same as in A* we use this value to find the next best node
+    unsigned k2; // g         ... in case k1 is the same for two nodes, we take the one with the better g value
 };
 
 bool operator<(const Key& l, const Key& r);
@@ -40,14 +41,14 @@ struct GetKeyFromSecond
 template<class T_AdditionalCosts, class T_SegmentConstraints>
 class Search
 {
-    const MapBase& map_;
+    const GameWorldBase& map_;
     const noRoadNode& goal_;
     const unsigned gf_;
     const T_AdditionalCosts& addCosts_;
     const T_SegmentConstraints& isSegmentAllowed_;
 
 public:
-    Search(const MapBase& map, const noRoadNode& goal, unsigned gf, const T_AdditionalCosts addCosts,
+    Search(const GameWorldBase& map, const noRoadNode& goal, unsigned gf, const T_AdditionalCosts addCosts,
            const T_SegmentConstraints isSegmentAllowed)
         : map_(map), goal_(goal), gf_(gf), addCosts_(addCosts), isSegmentAllowed_(isSegmentAllowed)
     {}
@@ -66,56 +67,87 @@ private:
     void VisitNeighbours(const noRoadNode& node, T_Callback cb);
 };
 
+#define TRACE_DSTAR
+
 template<class T_AdditionalCosts, class T_SegmentConstraints>
 bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const noRoadNode& start, unsigned maxCost)
 {
+#ifdef TRACE_DSTAR
+    AsciiMap debugMap(map_);
+#endif
     static_cast<void>(maxCost); // @todo: abort early
 
     static OpenListVector<std::pair<const noRoadNode*, Key>, Key, GetKeyFromSecond> todo;
     todo.clear();
 
     // Insert goal as first node into the queue
-    const Key goalKey = {Heuristic(start), 0U};
+    Node& goalDnode = GetNode(goal_);
+    goalDnode.rhs = 0;
+
+    const Key goalKey = {Heuristic(goal_), 0U};
     todo.push({&goal_, goalKey});
+#ifdef TRACE_DSTAR
+    std::cout << "push(" << goal_.GetPos().x << ":" << goal_.GetPos().y << " [" << goalKey.k1 << "," << goalKey.k2
+              << "])" << std::endl;
+#endif
 
     Node& startDnode = GetNode(start);
-    const Key startKey = CalculateKey(startDnode, Heuristic(start));
+    // const Key startKey = CalculateKey(startDnode, Heuristic(start));
 
     while(!todo.empty())
     {
+#ifdef TRACE_DSTAR
+        debugMap.clear();
+        debugMap.drawPlayer(0);
+        debugMap.drawDStar(0, goal_.GetPos());
+        debugMap.write();
+#endif
+
         auto bestTuple = todo.pop();
         const noRoadNode& best = *bestTuple.first;
         Key bestKey = bestTuple.second;
 
+#ifdef TRACE_DSTAR
+        std::cout << "pop(" << best.GetPos().x << "," << best.GetPos().y << " [" << bestKey.k1 << "," << bestKey.k2
+                  << "])" << std::endl;
+#endif
+
         // @todo: Explain abort conditions
-        if(!(bestKey < startKey || startDnode.rhs > startDnode.g))
+        if(!(bestKey < CalculateKey(startDnode, Heuristic(start)) || startDnode.rhs > startDnode.g))
             break;
 
         // recalc key of best node
         Node& bestDnode = GetNode(best);
-        Key bestKeyNew = CalculateKey(bestDnode, Heuristic(start));
+        Key bestKeyNew = CalculateKey(bestDnode, Heuristic(best));
 
         if(bestKey < bestKeyNew)
         {
             todo.push({&best, bestKeyNew});
+#ifdef TRACE_DSTAR
+            std::cout << "push(" << best.GetPos().x << ":" << best.GetPos().y << " [" << bestKeyNew.k1 << ","
+                      << bestKeyNew.k2 << "])" << std::endl;
+#endif
         } else if(bestDnode.g > bestDnode.rhs)
         {
             bestDnode.g = bestDnode.rhs;
 
             VisitNeighbours(
-              best, [this, &best, &bestDnode](const noRoadNode& neighbour, const RoadSegment& route, Direction dir) {
+              best, [this, &best, &bestDnode](const noRoadNode& neighbour, const RoadSegment& /*route*/, Direction /*dir*/) {
                   auto& neighbourDnode = GetNode(neighbour);
 
-                  if(&neighbour != &goal_)
-                  {
-                      const unsigned cost = route.GetLength() + addCosts_(best, dir);
-                      neighbourDnode.rhs = std::min(neighbourDnode.rhs, cost + bestDnode.g);
+                  // UpdateVertex
+                  if (&neighbour != &goal_) {
+                    neighbourDnode.rhs = GetMinCostSuccessor(neighbour);
                   }
 
-                  // UpdateVertex
                   if(neighbourDnode.g != neighbourDnode.rhs)
                   {
-                      todo.push({&neighbour, CalculateKey(neighbourDnode, Heuristic(neighbour))});
+                      Key key = CalculateKey(neighbourDnode, Heuristic(neighbour));
+                      todo.push({&neighbour, key});
+#ifdef TRACE_DSTAR
+                      std::cout << "push(" << neighbour.GetPos().x << ":" << neighbour.GetPos().y << " [" << key.k1
+                                << "," << key.k2 << "])" << std::endl;
+#endif
                   }
               });
         } else
@@ -138,12 +170,20 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
                 // UpdateVertex
                 if(neighbourDnode.g != neighbourDnode.rhs)
                 {
-                    todo.push({&neighbour, CalculateKey(neighbourDnode, Heuristic(neighbour))});
+                    Key key = CalculateKey(neighbourDnode, Heuristic(neighbour));
+                    todo.push({&neighbour, key});
+#ifdef TRACE_DSTAR
+                    std::cout << "push(" << neighbour.GetPos().x << ":" << neighbour.GetPos().y << " [" << key.k1 << ","
+                              << key.k2 << "])" << std::endl;
+#endif
                 }
             });
         }
     }
 
+#ifdef TRACE_DSTAR
+        std::cout << "startDnode.g == " << startDnode.g << " (max: " << maxCost << ")" << std::endl;
+#endif
     return startDnode.g <= maxCost;
 }
 

@@ -28,9 +28,9 @@ BOOST_FIXTURE_TEST_CASE(GetShortestPath_NotAvailable, WorldWithGCExecution1P)
 {
     this->SetBuildingSite({2, 2}, BuildingType::Farm);
 
-    AsciiMap debugMap(world);
-    debugMap.drawPlayer(0);
-    debugMap.write();
+    // AsciiMap debugMap(world);
+    // debugMap.drawPlayer(0);
+    // debugMap.write();
 
     // start from HQ
     nobBaseWarehouse* start = world.GetSpecObj<nobBaseWarehouse>(world.GetPlayer(0).GetHQPos());
@@ -65,9 +65,9 @@ BOOST_FIXTURE_TEST_CASE(GetShortestPath_Simple, WorldWithGCExecution1P)
                     {Direction::SouthEast, Direction::SouthEast, Direction::SouthEast, Direction::East, Direction::East,
                      Direction::East});
 
-    AsciiMap debugMap(world);
-    debugMap.drawPlayer(0);
-    debugMap.write();
+    // AsciiMap debugMap(world);
+    // debugMap.drawPlayer(0);
+    // debugMap.write();
 
     dstarlite::Search search = {world, *goal, world.GetEvMgr().GetCurrentGF(), CostsNone(),
                                 AvoidRoadType<RoadType::Water>()};
