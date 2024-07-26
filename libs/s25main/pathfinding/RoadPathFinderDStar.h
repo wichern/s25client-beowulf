@@ -42,19 +42,19 @@ template<class T_AdditionalCosts, class T_SegmentConstraints>
 class Search
 {
     const GameWorldBase& map_;
+    const noRoadNode& start_;
     const noRoadNode& goal_;
     const unsigned gf_;
     const T_AdditionalCosts& addCosts_;
     const T_SegmentConstraints& isSegmentAllowed_;
 
 public:
-    Search(const GameWorldBase& map, const noRoadNode& goal, unsigned gf, const T_AdditionalCosts addCosts,
+    Search(const GameWorldBase& map, const noRoadNode& start, const noRoadNode& goal, unsigned gf, const T_AdditionalCosts addCosts,
            const T_SegmentConstraints isSegmentAllowed)
-        : map_(map), goal_(goal), gf_(gf), addCosts_(addCosts), isSegmentAllowed_(isSegmentAllowed)
+        : map_(map), start_(start), goal_(goal), gf_(gf), addCosts_(addCosts), isSegmentAllowed_(isSegmentAllowed)
     {}
 
-    bool ComputeShortestPath(const noRoadNode& start, unsigned maxCost);
-    // std::pair<const noRoadNode*, RoadPathDirection> GetMinCostSuccessor(const noRoadNode& node);
+    bool ComputeShortestPath(unsigned maxCost);
 
     unsigned GetMinCostSuccessor(const noRoadNode& node, const noRoadNode** nextNode = nullptr,
                                  Direction* nextDir = nullptr);
@@ -69,10 +69,18 @@ private:
 
 #define TRACE_DSTAR
 
+#ifdef TRACE_DSTAR
+inline std::string to_string(const MapPoint& pos)
+{
+    return pos.x + ":" + pos.y;
+}
+#endif
+
 template<class T_AdditionalCosts, class T_SegmentConstraints>
-bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const noRoadNode& start, unsigned maxCost)
+bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(unsigned maxCost)
 {
 #ifdef TRACE_DSTAR
+    std::cout << "ComputeShortestPath(" << to_string(start_.GetPos()) << ", " << to_string(goal_.GetPos()) << ", " << maxCost << ")" << std::endl;
     AsciiMap debugMap(map_);
 #endif
     static_cast<void>(maxCost); // @todo: abort early
@@ -91,8 +99,7 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
               << "])" << std::endl;
 #endif
 
-    Node& startDnode = GetNode(start);
-    // const Key startKey = CalculateKey(startDnode, Heuristic(start));
+    Node& startDnode = GetNode(start_);
 
     while(!todo.empty())
     {
@@ -108,12 +115,10 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
         Key bestKey = bestTuple.second;
 
 #ifdef TRACE_DSTAR
-        std::cout << "pop(" << best.GetPos().x << "," << best.GetPos().y << " [" << bestKey.k1 << "," << bestKey.k2
-                  << "])" << std::endl;
+        std::cout << "best = pop(" << to_string(best.GetPos()) << " [" << bestKey.k1 << "," << bestKey.k2 << "])" << std::endl;
 #endif
 
-        // @todo: Explain abort conditions
-        if(!(bestKey < CalculateKey(startDnode, Heuristic(start)) || startDnode.rhs > startDnode.g))
+        if(!(bestKey < CalculateKey(startDnode, Heuristic(start_)) || startDnode.rhs > startDnode.g))
             break;
 
         // recalc key of best node
@@ -124,20 +129,21 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
         {
             todo.push({&best, bestKeyNew});
 #ifdef TRACE_DSTAR
-            std::cout << "push(" << best.GetPos().x << ":" << best.GetPos().y << " [" << bestKeyNew.k1 << ","
-                      << bestKeyNew.k2 << "])" << std::endl;
+            std::cout << "bestKey < bestKeyNew" << std::endl;
+            std::cout << "push(" << to_string(best.GetPos()) << " [" << bestKeyNew.k1 << "," << bestKeyNew.k2 << "])" << std::endl;
 #endif
         } else if(bestDnode.g > bestDnode.rhs)
         {
             bestDnode.g = bestDnode.rhs;
 
             VisitNeighbours(
-              best, [this, &best, &bestDnode](const noRoadNode& neighbour, const RoadSegment& /*route*/, Direction /*dir*/) {
+              best, [this, &best, &bestDnode](const noRoadNode& neighbour, const RoadSegment& route, Direction dir) {
                   auto& neighbourDnode = GetNode(neighbour);
 
                   // UpdateVertex
                   if (&neighbour != &goal_) {
-                    neighbourDnode.rhs = GetMinCostSuccessor(neighbour);
+                    unsigned cost = route.GetLength() + addCosts_(best, dir);
+                    neighbourDnode.rhs = std::min(neighbourDnode.rhs, cost + bestDnode.g);
                   }
 
                   if(neighbourDnode.g != neighbourDnode.rhs)
@@ -145,8 +151,7 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
                       Key key = CalculateKey(neighbourDnode, Heuristic(neighbour));
                       todo.push({&neighbour, key});
 #ifdef TRACE_DSTAR
-                      std::cout << "push(" << neighbour.GetPos().x << ":" << neighbour.GetPos().y << " [" << key.k1
-                                << "," << key.k2 << "])" << std::endl;
+                      std::cout << "push(" << to_string(neighbour.GetPos()) << " [" << key.k1 << "," << key.k2 << "])" << std::endl;
 #endif
                   }
               });
@@ -173,8 +178,7 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
                     Key key = CalculateKey(neighbourDnode, Heuristic(neighbour));
                     todo.push({&neighbour, key});
 #ifdef TRACE_DSTAR
-                    std::cout << "push(" << neighbour.GetPos().x << ":" << neighbour.GetPos().y << " [" << key.k1 << ","
-                              << key.k2 << "])" << std::endl;
+                    std::cout << "push(" << to_string(neighbour.GetPos()) << " [" << key.k1 << "," << key.k2 << "])" << std::endl;
 #endif
                 }
             });
@@ -182,9 +186,9 @@ bool Search<T_AdditionalCosts, T_SegmentConstraints>::ComputeShortestPath(const 
     }
 
 #ifdef TRACE_DSTAR
-        std::cout << "startDnode.g == " << startDnode.g << " (max: " << maxCost << ")" << std::endl;
+        std::cout << "startDnode.rhs == " << startDnode.rhs << " (max: " << maxCost << ")" << std::endl;
 #endif
-    return startDnode.g <= maxCost;
+    return startDnode.rhs <= maxCost;
 }
 
 template<class T_AdditionalCosts, class T_SegmentConstraints>
@@ -205,7 +209,7 @@ void Search<T_AdditionalCosts, T_SegmentConstraints>::VisitNeighbours(const noRo
             neighbour = route->GetF2();
 
         // No paths over buildings (except if it is the goal)
-        if(dir == Direction::NorthWest && neighbour != &goal_)
+        if(dir == Direction::NorthWest && neighbour != &start_)
         {
             // Flags and harbors are allowed
             const GO_Type got = neighbour->GetGOT();
@@ -294,7 +298,7 @@ Node& Search<T_AdditionalCosts, T_SegmentConstraints>::GetNode(const noRoadNode&
 template<class T_AdditionalCosts, class T_SegmentConstraints>
 unsigned Search<T_AdditionalCosts, T_SegmentConstraints>::Heuristic(const noRoadNode& node) const
 {
-    return map_.CalcDistance(node.GetPos(), goal_.GetPos());
+    return map_.CalcDistance(node.GetPos(), start_.GetPos());
 }
 
 } // namespace dstarlite

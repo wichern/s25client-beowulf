@@ -79,6 +79,8 @@ private:
     void set(AsciiPosition pos, const std::string& str);
     bool onMap(const AsciiPosition& pos) const;
 
+    void drawDStarNode(const noRoadNode* roadNode, const MapPoint& dest);
+
     // void drawBQ(const MapPoint& pt, BuildingQuality bq);
 
     MapExtent map_size_;
@@ -240,28 +242,8 @@ inline void AsciiMap::drawDStar(unsigned playerId, const MapPoint& goal)
     const GamePlayer& player = gwb_.GetPlayer(playerId);
     for(const RoadSegment* roadSeg : player.roads)
     {
-        const noRoadNode* f1 = roadSeg->GetF1();
-        for(const dstarlite::Node& n : f1->dstar_)
-        {
-            if(n.goalPos == goal)
-            {
-                std::string g_str = n.g == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.g);
-                std::string rhs_str = n.rhs == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.rhs);
-                draw(f1->GetPos(), g_str.append(",").append(rhs_str));
-                break;
-            }
-        }
-        const noRoadNode* f2 = roadSeg->GetF1();
-        for(const dstarlite::Node& n : f2->dstar_)
-        {
-            if(n.goalPos == goal)
-            {
-                std::string g_str = n.g == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.g);
-                std::string rhs_str = n.rhs == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.rhs);
-                draw(f1->GetPos(), g_str.append(",").append(rhs_str));
-                break;
-            }
-        }
+        drawDStarNode(roadSeg->GetF1(), goal);
+        drawDStarNode(roadSeg->GetF2(), goal);
     }
 }
 
@@ -346,4 +328,20 @@ inline void AsciiMap::write(std::ostream& out) const
 {
     assert(map_[map_buffer_len_ - 1] == 0); // Check for null terminator.
     out << map_ << std::flush;
+}
+
+inline void AsciiMap::drawDStarNode(const noRoadNode* roadNode, const MapPoint& goal)
+{
+    for(const dstarlite::Node& n : roadNode->dstar_)
+    {
+        if(n.goalPos == goal)
+        {
+            std::string g_str = n.g == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.g);
+            std::string rhs_str = n.rhs == std::numeric_limits<unsigned>::max() ? "o" : std::to_string(n.rhs);
+            draw(roadNode->GetPos(), g_str.append(",").append(rhs_str));
+            return;
+        }
+    }
+
+    draw(roadNode->GetPos(), "?,?");
 }

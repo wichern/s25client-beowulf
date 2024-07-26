@@ -40,12 +40,12 @@ BOOST_FIXTURE_TEST_CASE(GetShortestPath_NotAvailable, WorldWithGCExecution1P)
     noBuildingSite* goal = world.GetSpecObj<noBuildingSite>({2, 2});
     BOOST_TEST_REQUIRE(goal != nullptr);
 
-    dstarlite::Search search = {world, *goal, world.GetEvMgr().GetCurrentGF(), CostsNone(),
+    dstarlite::Search search = {world, *start, *goal, world.GetEvMgr().GetCurrentGF(), CostsNone(),
                                 AvoidRoadType<RoadType::Water>()};
     dstarlite::Node& startDNode = search.GetNode(*start);
 
     BOOST_TEST_REQUIRE(startDNode.rhs == std::numeric_limits<unsigned>::max());
-    BOOST_TEST_REQUIRE(search.ComputeShortestPath(*start, 42) == false);
+    BOOST_TEST_REQUIRE(search.ComputeShortestPath(42) == false);
 }
 
 BOOST_FIXTURE_TEST_CASE(GetShortestPath_Simple, WorldWithGCExecution1P)
@@ -69,11 +69,11 @@ BOOST_FIXTURE_TEST_CASE(GetShortestPath_Simple, WorldWithGCExecution1P)
     // debugMap.drawPlayer(0);
     // debugMap.write();
 
-    dstarlite::Search search = {world, *goal, world.GetEvMgr().GetCurrentGF(), CostsNone(),
+    dstarlite::Search search = {world, *start, *goal, world.GetEvMgr().GetCurrentGF(), CostsNone(),
                                 AvoidRoadType<RoadType::Water>()};
     // dstarlite::Node& startDNode = search.GetNode(*start);
 
-    BOOST_TEST_REQUIRE(search.ComputeShortestPath(*start, 42));
+    BOOST_TEST_REQUIRE(search.ComputeShortestPath(42));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
