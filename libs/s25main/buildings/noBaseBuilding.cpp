@@ -45,6 +45,9 @@ noBaseBuilding::noBaseBuilding(const NodalObjectType nop, const BuildingType typ
         auto* rs = new RoadSegment(RoadType::Normal, world->GetSpecObj<noRoadNode>(flagPt), this, route);
         world->GetSpecObj<noRoadNode>(flagPt)->SetRoute(Direction::NorthWest, rs); // der Flagge
         SetRoute(Direction::SouthEast, rs);                                        // dem Gebäude
+
+        // world->GetSpecObj<noRoadNode>(flagPt)->UpdateVirtualRoadSegment(Direction::NorthWest);
+        // UpdateVirtualRoadSegment(Direction::SouthEast);
     } else
     {
         // vorhandene Straße der Flagge nutzen
