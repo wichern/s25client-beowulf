@@ -22,6 +22,7 @@ BOOST_AUTO_TEST_SUITE(Pathfinding)
 BOOST_FIXTURE_TEST_CASE(VirtualRoadSegments, WorldWithGCExecution1P)
 {
     SetupInitialRoadNetwork(world);
+
     AsciiMap debug(world);
     debug.drawPlayer(0);
     debug.write();

@@ -1,0 +1,74 @@
+Ignore intermediate Nodes during A*
+
+[ ] How do we handle attached Buildings? Ignore for now.
+
+
+When is a set of noRoadNode only one road?
+    Every noRoadNode, that has exactly two connected routes is an intermediate node.
+    With only one route, it is a building or end flag
+    With more than two routes, it is a junction
+
+
+ [ ] The route's cost must include the cost of all subroutes
+
+
+
+
+ A noRoadNote has "routes"
+ It stores a RoadSegement for every direction (or null)
+
+ -> We could also store VritualRoadSegments for every direction.
+
+ A route is set when:
+    * A building is added at that flag
+    * A road is destroyed (nullptr)
+    * A road is built
+    * A game state is deserialized
+
+
+Logic to build VirtualRoadSegments:
+
+A building is added:
+    roads(flag) == 2:
+        if has_virtual_segment:
+            parts = split(virtual_segment(flag))
+            if parts[0] > 2:
+                f1.set_virtual_segment(parts[0])
+            if parts[1] > 2:
+                f2.set_virtual_segment(parts[1])
+    roads(flag) == 1:
+        # Create virtual_segment
+    roads(flag) > 2:
+        # nothing. Is a junction
+
+ALgorithms for VirtualRoadSegments
+==================================
+
+UpdateVirtualSegments(node, dir)
+--------------------------------
+
+if |routes| > 2:
+    if has virtual-segment in dir:
+        # probably only has to be added to the new flag on an existing road
+    if is inside a virtual_segment:
+        split(virtual_segment)
+if |routes| == 2:
+    if not has virtual_segment:
+        involved_flags = []
+        f1, involved_flags = LastFlagIn(dir1)
+        f2, involved_flags = LastFlagIn(dir2)
+        for f in involved_flags:
+            f.virtual_segment = [f1, f2]
+    if is end of virtual_segment:
+        extend virtual_segment into dir
+if |routes| == 1:
+    # if this would have a virtual segment, it would be set by the case above
+if |routes| == 0:
+    # pass
+
+
+
+
+Use-cases:
+
+1. Create a construction site without connection

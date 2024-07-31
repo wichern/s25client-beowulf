@@ -9,9 +9,16 @@
 #include "noCoordBase.h"
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
+#include <memory>
 
 class Ware;
 class SerializedGameData;
+
+struct VirtualRoadSegment
+{
+    const noRoadNode* f1 = nullptr;
+    const noRoadNode* f2 = nullptr;
+};
 
 // Basisklasse für Gebäude und Flagge (alles, was als "Straßenknoten" dient
 class noRoadNode : public noCoordBase
@@ -21,6 +28,7 @@ protected:
 
 private:
     helpers::EnumArray<RoadSegment*, Direction> routes;
+    helpers::EnumArray<std::shared_ptr<VirtualRoadSegment>, Direction> vroutes;
 
 public:
     // For Pathfinding
@@ -47,6 +55,8 @@ public:
     const auto& getRoutes() const { return routes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
+    void UpdateVirtualRoadSegment(const Direction dir);
+
     void DestroyRoad(Direction dir);
     void UpgradeRoad(Direction dir) const;
     /// Vernichtet Alle Straße um diesen Knoten
@@ -60,6 +70,9 @@ public:
     /// Nur für Flagge, Gebäude können 0 zurückgeben, gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine
     /// bestimmte Richtung noch transportiert werden müssen
     virtual unsigned GetPunishmentPoints(Direction) const { return 0; }
+
+private:
+    noRoadNode* FollowVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
 };
 
 inline noRoadNode* noRoadNode::GetNeighbour(const Direction dir) const
