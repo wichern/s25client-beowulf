@@ -61,6 +61,7 @@ public:
     void drawRoad(const MapPoint& pt, RoadDir dir, bool fat = false);
     void draw(const World& world, bool includeAnticipated);
     void drawPlayer(unsigned playerId);
+    void drawVroutes(unsigned playerId);
 
     void clear();
     void write(std::ostream& out = std::cout) const;
@@ -231,6 +232,41 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
 
     for(const noBuildingSite* building : buildings.GetBuildingSites())
         draw(building->GetPos(), std::string("(") + SHORT_BLD_NAMES[building->GetBuildingType()] + ")");
+}
+
+inline void AsciiMap::drawVroutes(unsigned playerId)
+{
+    RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
+    {
+        const noRoadNode* node = gwb_.GetSpecObj<noRoadNode>(pt);
+        if(node == nullptr)
+            continue;
+        if(node->GetPlayer() != playerId)
+            continue;
+
+        for(const Direction dir : helpers::EnumRange<Direction>{})
+        {
+            const auto vroute = node->getVRoutes()[dir];
+            if(vroute == nullptr)
+                continue;
+
+            const auto* route = node->GetRoute(dir);
+            MapPoint pos = route->GetF1()->GetPos();
+            for(unsigned i = 0; i < route->GetLength(); ++i)
+            {
+                const Direction d = route->GetRoute(i);
+                MapPoint roadPos = pos;
+                RoadDir rdir = gwb_.toRoadDir(roadPos, d);
+                drawRoad(roadPos, rdir, true);
+
+                pos = gwb_.GetNeighbour(pos, d);
+            }
+        }
+
+        // for(const auto rdir : helpers::EnumRange<RoadDir>{})
+        //     if (node->getVRoutes()[toDirection(rdir)])
+        //         drawRoad(pt, rdir, true);
+    }
 }
 
 inline void AsciiMap::clear()

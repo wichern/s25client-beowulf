@@ -5,6 +5,7 @@
 #include "gameTypes/GameTypesOutput.h"
 #include <boost/test/unit_test.hpp>
 
+#if 0
 static void SetupInitialRoadNetwork(GameWorld& world)
 {
     world.BuildRoad(0, false, MapPoint(7, 6), {Direction::West, Direction::West});
@@ -16,15 +17,18 @@ static void SetupInitialRoadNetwork(GameWorld& world)
     world.BuildRoad(0, false, MapPoint(3, 2), {Direction::East, Direction::NorthEast});
     world.SetBuildingSite(BuildingType::Farm, MapPoint(1, 2), 0);
 }
+#endif
 
 BOOST_AUTO_TEST_SUITE(Pathfinding)
 
 BOOST_FIXTURE_TEST_CASE(VirtualRoadSegments, WorldWithGCExecution1P)
 {
-    SetupInitialRoadNetwork(world);
+    // SetupInitialRoadNetwork(world);
+    world.BuildRoad(0, false, MapPoint(7, 6), {Direction::West, Direction::West});
 
     AsciiMap debug(world);
     debug.drawPlayer(0);
+    debug.drawVroutes(0);
     debug.write();
 }
 

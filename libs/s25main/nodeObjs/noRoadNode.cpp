@@ -122,7 +122,7 @@ void noRoadNode::DestroyAllRoads()
 
 void noRoadNode::UpdateVirtualRoadSegment(const Direction dir)
 {
-    std::cout << "UpdateVirtualRoadSegment(" << GetPos() << ", " << dir << ")" << std::endl;
+    // std::cout << "UpdateVirtualRoadSegment(" << GetPos() << ", " << dir << ")" << std::endl;
 
     unsigned num_routes = 0;
     for(const auto d : helpers::EnumRange<Direction>{})
@@ -151,7 +151,7 @@ void noRoadNode::UpdateVirtualRoadSegment(const Direction dir)
             Direction otherDir = dir;
             for(const auto d : helpers::EnumRange<Direction>{})
             {
-                if(d != dir)
+                if(routes[d] && d != dir)
                 {
                     otherDir = d;
                     break;
@@ -195,25 +195,43 @@ noRoadNode* noRoadNode::FollowVRoute(Direction dir, std::shared_ptr<VirtualRoadS
     // We have to go from this node into dir, until we reach a flag that has != 2 routes.
     // All flags on that path are part of the vroute
 
-    RoadSegment* segment = routes[dir];
-    noRoadNode* node = segment->GetF1() == this ? segment->GetF2() : segment->GetF1();
+    noRoadNode* prevNode = this;
+    noRoadNode* node = GetNeighbour(dir);
     while(true)
     {
         RTTR_Assert(node);
 
         unsigned num_routes = 0;
+        Direction dir2prev;
+        Direction dir2next;
+
         for(const auto d : helpers::EnumRange<Direction>{})
         {
-            if(routes[d])
+            RoadSegment* route = node->routes[d];
+            if(route)
+            {
                 num_routes++;
+                if(route->GetF1() == prevNode || route->GetF2() == prevNode)
+                {
+                    dir2prev = d;
+                } else
+                {
+                    dir2next = d;
+                }
+            }
         }
 
-        // @todo: Where do we have to place the roads?
+        std::cout << "(" << node->GetPos() << ", " << dir2prev << ")" << std::endl;
+        node->vroutes[dir2prev] = vroute;
 
         if(num_routes != 2)
         {
             break;
         }
+
+        node->vroutes[dir2next] = vroute;
+        prevNode = node;
+        node = node->GetNeighbour(dir2next);
     }
 
     return node;

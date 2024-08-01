@@ -187,6 +187,12 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
         // Nachbarflagge bzw. Wege in allen 6 Richtungen verfolgen
         for(const auto dir : helpers::EnumRange<Direction>{})
         {
+#if 0
+            const auto* vroute = vroutes[dir];
+            if (!vroute) {
+                // const auto* route = routes[dir];
+            }
+#endif
             const auto* route = routes[dir];
             if(!route)
                 continue;
@@ -210,6 +216,7 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
             }
 
             // evtl verboten?
+            // @todo: check on vroute as well
             if(!isSegmentAllowed(*route))
                 continue;
 
