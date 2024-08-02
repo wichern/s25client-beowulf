@@ -161,6 +161,7 @@ void noRoadNode::UpdateVirtualRoadSegment(const Direction dir)
             vroute->f2 = FollowVRoute(otherDir, vroute);
 
             vroutes[dir] = vroute;
+            vroutes[otherDir] = vroute;
             return;
         }
 
@@ -179,13 +180,16 @@ void noRoadNode::UpdateVirtualRoadSegment(const Direction dir)
     }
 
     // num_routes > 2
-
-    const std::shared_ptr<VirtualRoadSegment> vroute = vroutes[dir];
-    if(vroute)
-    {
-        if(vroute->f1 != this && vroute->f2 != this)
-        {
-            // split this virtual segment
+    for(const Direction d : helpers::EnumRange<Direction>{}) {
+        const std::shared_ptr<VirtualRoadSegment> vroute = vroutes[d];
+        if(vroute) {
+            // are we in the middle of a virtual route?
+            if(vroute->f1 != this && vroute->f2 != this)
+            {
+                // Split Route
+                RemoveVRoute(d, vroute);
+            }
+            GetNeighbour(d)->UpdateVirtualRoadSegment(d + 3u);
         }
     }
 }
@@ -236,3 +240,29 @@ noRoadNode* noRoadNode::FollowVRoute(Direction dir, std::shared_ptr<VirtualRoadS
 
     return node;
 }
+
+void noRoadNode::RemoveVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute)
+{
+    // In order to remove the VRoute, we walk till the end
+    noRoadNode* node = GetNeighbour(dir);
+    vroutes[dir] = nullptr;
+    noRoadNode* lastNode = this;
+    bool hasMore = true;
+    while(hasMore)
+    {
+        hasMore = false;
+        for (const Direction d : helpers::EnumRange<Direction>{}) {
+            if (node->vroutes[d] == vroute) {
+                node->vroutes[d] = nullptr;
+                noRoadNode* next = node->GetNeighbour(d);
+                if (next == lastNode)
+                    continue;
+                node = next;
+                hasMore = true;
+            }
+        }
+    }
+}
+
+
+

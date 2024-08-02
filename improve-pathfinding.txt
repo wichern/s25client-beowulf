@@ -67,6 +67,25 @@ if |routes| == 0:
     # pass
 
 
+WalkVRoute(node, dir, vroute_ptr)
+---------------------
+
+We have a start node and a start dir
+
+n = node
+lastNode = node
+while (true)
+    n->vroutes[dir] = x
+
+    // get the next node
+    n = n->GetNeighbour(dir)
+
+    // find the vroute, we came from
+    for (d : Directions)
+        if n->vroutes[d] == vroute_ptr
+            // call n->GetNeighbour to figure out whether we came from here or if this is the next node
+            
+
 
 
 Use-cases:

@@ -25,6 +25,13 @@ BOOST_FIXTURE_TEST_CASE(VirtualRoadSegments, WorldWithGCExecution1P)
 {
     // SetupInitialRoadNetwork(world);
     world.BuildRoad(0, false, MapPoint(7, 6), {Direction::West, Direction::West});
+    world.BuildRoad(0, false, MapPoint(7, 6), {Direction::NorthEast, Direction::NorthEast});
+    world.BuildRoad(0, false, MapPoint(7, 6), {Direction::SouthWest, Direction::SouthWest});
+    world.BuildRoad(0, false, MapPoint(5, 6),
+                    {Direction::NorthWest, Direction::NorthWest, Direction::NorthWest, Direction::NorthWest});
+    world.BuildRoad(0, false, MapPoint(3, 2), {Direction::SouthWest, Direction::West});
+    world.BuildRoad(0, false, MapPoint(3, 2), {Direction::East, Direction::NorthEast});
+    world.SetBuildingSite(BuildingType::Farm, MapPoint(1, 2), 0);   // error!
 
     AsciiMap debug(world);
     debug.drawPlayer(0);

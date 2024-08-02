@@ -74,6 +74,8 @@ public:
 
 private:
     noRoadNode* FollowVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
+    void CreateVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
+    void RemoveVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
 };
 
 inline noRoadNode* noRoadNode::GetNeighbour(const Direction dir) const
