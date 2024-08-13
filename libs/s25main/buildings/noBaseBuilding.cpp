@@ -46,8 +46,8 @@ noBaseBuilding::noBaseBuilding(const NodalObjectType nop, const BuildingType typ
         world->GetSpecObj<noRoadNode>(flagPt)->SetRoute(Direction::NorthWest, rs); // der Flagge
         SetRoute(Direction::SouthEast, rs);                                        // dem Gebäude
 
-        world->GetSpecObj<noRoadNode>(flagPt)->UpdateVirtualRoadSegment(Direction::NorthWest);
-        UpdateVirtualRoadSegment(Direction::SouthEast);
+        world->GetSpecObj<noRoadNode>(flagPt)->UpdateVirtualRoadSegment();
+        UpdateVirtualRoadSegment();
     } else
     {
         // vorhandene Straße der Flagge nutzen
@@ -56,7 +56,7 @@ noBaseBuilding::noBaseBuilding(const NodalObjectType nop, const BuildingType typ
         RTTR_Assert(flag->GetRoute(Direction::NorthWest));
         SetRoute(Direction::SouthEast, flag->GetRoute(Direction::NorthWest));
         GetRoute(Direction::SouthEast)->SetF2(this);
-        UpdateVirtualRoadSegment(Direction::SouthEast);
+        UpdateVirtualRoadSegment();
     }
 
     // Werde/Bin ich (mal) ein großes Schloss? Dann müssen die Anbauten gesetzt werden

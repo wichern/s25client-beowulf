@@ -56,7 +56,7 @@ public:
     const auto& getVRoutes() const { return vroutes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
-    void UpdateVirtualRoadSegment(const Direction dir);
+    void UpdateVirtualRoadSegment();
 
     void DestroyRoad(Direction dir);
     void UpgradeRoad(Direction dir) const;

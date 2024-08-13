@@ -151,11 +151,8 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
     splitflag->SetRoute(second->route.front(), second);
     second->f2->SetRoute(second->route.back() + 3u, second);
 
-    // Update virtual road segments
-    f1->UpdateVirtualRoadSegment(route.front());
-    splitflag->UpdateVirtualRoadSegment(route.back());
-    splitflag->UpdateVirtualRoadSegment(second->route.front());
-    second->f2->UpdateVirtualRoadSegment(second->route.back() + 3u);
+    // Update virtual road segment
+    splitflag->UpdateVirtualRoadSegment();
 
     // Notify all characters on the road
     t = f1->GetPos();
