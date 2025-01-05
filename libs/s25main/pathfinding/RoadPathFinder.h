@@ -35,6 +35,10 @@ public:
                   unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr,
                   unsigned* length = nullptr, RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
 
+    bool FindPathFast(const noRoadNode& start, const noRoadNode& goal, bool wareMode,
+                  unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr,
+                  unsigned* length = nullptr, RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
+
     /// Checks if there is ANY path from start to goal
     ///
     /// @param allowWaterRoads True to allow boat roads (mostly: Ware=true, Person=false)
@@ -46,6 +50,10 @@ public:
 private:
     template<class T_AdditionalCosts, class T_SegmentConstraints>
     bool FindPathImpl(const noRoadNode& start, const noRoadNode& goal, unsigned max, T_AdditionalCosts addCosts,
+                      T_SegmentConstraints isSegmentAllowed, unsigned* length = nullptr,
+                      RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
+    template<class T_AdditionalCosts, class T_SegmentConstraints>
+    bool FindPathImplFast(const noRoadNode& start, const noRoadNode& goal, unsigned max, T_AdditionalCosts addCosts,
                       T_SegmentConstraints isSegmentAllowed, unsigned* length = nullptr,
                       RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
 };

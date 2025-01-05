@@ -104,8 +104,15 @@ void noRoadNode::DestroyRoad(const Direction dir)
     route->Destroy();
     delete route;
 
-    if (neighbour)
+    if (neighbour) {
+        if (vroutes[dir]) {
+            if (vroutes[dir]->f1 == this)
+                vroutes[dir]->f1 = neighbour;
+            else if (vroutes[dir]->f2 == this)
+                vroutes[dir]->f2 = neighbour;
+        }
         neighbour->UpdateVirtualRoadSegment();
+    }
 
     // Spieler Bescheid sagen
     world->GetPlayer(player).RoadDestroyed();
@@ -147,17 +154,39 @@ void noRoadNode::UpdateVirtualRoadSegment()
 
     if(num_routes == 2)
     {
-        std::shared_ptr<VirtualRoadSegment> vroute; // = 
+        std::shared_ptr<VirtualRoadSegment> vroute;
+
+        // do we already have a vroute we can extend?
+        for(const Direction d : helpers::EnumRange<Direction>{}) {
+            if (vroutes[d]) {
+                vroute = vroutes[d];
+                break;
+            }
+        }
 
         for(const Direction d : helpers::EnumRange<Direction>{}) {
-            if (routes[d] && vroutes[d] == nullptr) {
-                if (vroute == nullptr) {
-                    vroute = std::make_shared<VirtualRoadSegment>();
-                    vroute->f1 = FollowVRoute(d, vroute);
-                } else {
-                    vroute->f2 = FollowVRoute(d, vroute);
+            if (routes[d]) {
+                if (vroutes[d] == nullptr) {
+                    if (vroute == nullptr) {
+                        vroute = std::make_shared<VirtualRoadSegment>();
+                        vroute->f1 = FollowVRoute(d, vroute);
+                    } else {
+                        if (vroute->f1 == this)
+                            vroute->f1 = FollowVRoute(d, vroute);
+                        else
+                            vroute->f2 = FollowVRoute(d, vroute);
+                    }
+                    vroutes[d] = vroute;
+                } else if (vroutes[d] != vroute) {
+                    // We have to merge two vroutes here
+                    RemoveVRoute(d, vroutes[d]);
+                    auto* end = FollowVRoute(d, vroute);
+                    vroutes[d] = vroute;
+                    if (vroute->f1 == this)
+                        vroute->f1 = end;
+                    else
+                        vroute->f2 = end;
                 }
-                vroutes[d] = vroute;
             }
         }
 
@@ -212,7 +241,7 @@ noRoadNode* noRoadNode::FollowVRoute(Direction dir, std::shared_ptr<VirtualRoadS
             }
         }
 
-        std::cout << "(" << node->GetPos() << ", " << dir2prev << ") (next: " << dir2next << ")" << std::endl;
+        // std::cout << "(" << node->GetPos() << ", " << dir2prev << ") (next: " << dir2next << ")" << std::endl;
         node->vroutes[dir2prev] = vroute;
 
         if(num_routes != 2)

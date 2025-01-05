@@ -52,7 +52,8 @@ public:
      * @param size          Size of a map.
      * @param scale         Scaling of the representation.
      */
-    AsciiMap(const GameWorldBase& gwb, unsigned short scale = 1);
+    explicit AsciiMap(const GameWorldBase& gwb, unsigned short scale = 1);
+    explicit AsciiMap(const GameWorldBase& gwb, const MapPoint& center, unsigned short radius, unsigned short scale = 1);
 
     ~AsciiMap();
 
@@ -99,6 +100,19 @@ constexpr helpers::EnumArray<const char*, BuildingType> SHORT_BLD_NAMES = {
 inline AsciiMap::AsciiMap(const GameWorldBase& gwb, unsigned short scale) : gwb_(gwb), scale_(scale), offset_({0, 0})
 {
     init(gwb_.GetSize());
+}
+
+inline AsciiMap::AsciiMap(const GameWorldBase& gwb,
+        const MapPoint& center,
+        unsigned short radius,
+        unsigned short scale)
+: gwb_(gwb), scale_(scale)
+{
+    const MapExtent& size = gwb_.GetSize();
+    offset_.x = std::max(center.x - radius, 0);
+    offset_.y = std::max(center.y - radius, 0);
+    unsigned short diameter = radius * 2;
+    init(MapPoint(std::min(diameter, size.x), std::min(diameter, size.y)));
 }
 
 inline AsciiMap::~AsciiMap()

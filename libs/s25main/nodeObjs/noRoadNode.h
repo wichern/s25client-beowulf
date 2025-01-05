@@ -9,6 +9,7 @@
 #include "noCoordBase.h"
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
+#include "helpers/EnumRange.h"
 #include <memory>
 
 class Ware;
@@ -16,8 +17,9 @@ class SerializedGameData;
 
 struct VirtualRoadSegment
 {
-    const noRoadNode* f1 = nullptr;
-    const noRoadNode* f2 = nullptr;
+    noRoadNode* f1 = nullptr;
+    noRoadNode* f2 = nullptr;
+    RoadType roadType = RoadType::Normal;  // @todo: set to water if any of the route elements is water
 };
 
 // Basisklasse für Gebäude und Flagge (alles, was als "Straßenknoten" dient
@@ -72,9 +74,81 @@ public:
     /// bestimmte Richtung noch transportiert werden müssen
     virtual unsigned GetPunishmentPoints(Direction) const { return 0; }
 
+    template<class T_AdditionalCosts>
+    unsigned GetVRouteLengthAndCosts(Direction dir, const T_AdditionalCosts addCosts) const
+    {
+        auto vroute = vroutes[dir];
+
+        RTTR_Assert(vroute);
+        RTTR_Assert(routes[dir]);
+
+        unsigned cost = routes[dir]->GetLength() + addCosts(*this, dir);
+        const noRoadNode* prev = this;
+        const noRoadNode* node = GetNeighbour(dir);
+        while(node != vroute->f1 && node != vroute->f2)
+        {
+            RTTR_Assert(node);
+
+            // find next node
+            for(const auto d : helpers::EnumRange<Direction>{})
+            {
+                auto vr = node->vroutes[d];
+                if (vr == vroute)
+                {
+                    auto r = node->routes[d];
+                    RTTR_Assert(r);
+
+                    // skip over routes, that go back to the start node
+                    if (r->GetF1() == prev || r->GetF2() == prev)
+                        continue;
+
+                    cost += r->GetLength() + addCosts(*node, d);
+                    prev = node;
+                    node = node->GetNeighbour(d);
+                    break;
+                }
+            }
+        }
+
+        return cost;
+    }
+
+    const noRoadNode* GetNeighbour(const Direction dir, std::shared_ptr<VirtualRoadSegment> vroute) const
+    {
+        RTTR_Assert(vroute);
+        RTTR_Assert(routes[dir]);
+
+        const noRoadNode* prev = this;
+        const noRoadNode* node = GetNeighbour(dir);
+        while(node != vroute->f1 && node != vroute->f2)
+        {
+            RTTR_Assert(node);
+
+            // find next node
+            for(const auto d : helpers::EnumRange<Direction>{})
+            {
+                auto vr = node->vroutes[d];
+                if (vr == vroute)
+                {
+                    auto r = node->routes[d];
+                    RTTR_Assert(r);
+
+                    // skip over routes, that go back to the start node
+                    if (r->GetF1() == prev || r->GetF2() == prev)
+                        continue;
+
+                    prev = node;
+                    node = node->GetNeighbour(d);
+                    break;
+                }
+            }
+        }
+
+        return node;
+    }
+
 private:
     noRoadNode* FollowVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
-    void CreateVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
     void RemoveVRoute(Direction dir, std::shared_ptr<VirtualRoadSegment> vroute);
 };
 
