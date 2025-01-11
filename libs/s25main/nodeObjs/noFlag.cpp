@@ -245,7 +245,19 @@ unsigned noFlag::GetPunishmentPoints(const Direction dir) const
         if(humanCarrier->GetCarrierState() == CarrierState::FigureWork && !routeInDir->hasCarrier(1))
             points += 50;
     } else if(!routeInDir->hasCarrier(1))
+    {
         points += 500; // No carrier at all -> Large penalty
+
+        // special case: the road from a building to its flag does not need a carrier
+        if(dir == Direction::NorthWest)
+        {
+            noBase* no = world->GetNO(world->GetNeighbour(pos, Direction::NorthWest));
+            if(no->GetType() == NodalObjectType::Buildingsite || no->GetType() == NodalObjectType::Building)
+            {
+                points -= 500;
+            }
+        }
+    }
 
     return points;
 }
