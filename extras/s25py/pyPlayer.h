@@ -7,10 +7,12 @@
 #include "pyBuilding.h"
 
 #include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
 class AIPlayer;
+class AIBuildLocations;
 
 namespace s25py {
 
@@ -35,6 +37,8 @@ protected:
 
     // Pointer to the in-game AI player object
     AIPlayer* player_ = nullptr;
+
+    std::shared_ptr<BuildLocations> buildLocations_;
 
     friend class PyGame;
 };

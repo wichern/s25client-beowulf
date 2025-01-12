@@ -13,6 +13,9 @@ class PyBuilding
 public:
     PyBuilding(const noBaseBuilding* building);
 
+    // Destroy()
+    // GetProductivity()
+
     BuildingType type;
     MapPoint pos;
     MapPoint flag_pos;

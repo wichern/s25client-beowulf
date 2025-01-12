@@ -1,5 +1,14 @@
 # Install py-battle
 
+## Todo
+
+[ ] Make AwesomeAI build a building
+[ ] Make AwesomeAI connect a building
+[ ] Create Make target to watch last replay
+
+[ ] Make s25client able to load python AIs
+[ ] Create documentation
+
 ## Prepare
 
 We need `python3-dev` and the `pybind11` package.
@@ -73,3 +82,106 @@ The `Game` class has a list of optional properties.
 ```sh
 RTTR_PREFIX_DIR=$(pwd) gdb --args python myscript.py
 ```
+
+
+# General s25client dev tips
+
+## Map/World Layers
+
+Inheritance hierarchy and important members:
+
+* `MapBase`: (`size_`)
+* `World`:
+** `nodes`
+*** `altitude`
+*** `t1`, `t2` of type `terrainDesc`
+*** `resources`
+*** `owner`
+*** `bq` (when recalculated?)
+*** `fow` by player
+*** `seaId`
+*** `harborId`
+*** `obj` object of type `noBase*` that is located at this position
+** `seas` Id and number of nodes containing the sea
+** `harbor_pos` List of harbor positions
+* `GameWorldBase`
+** `roadPathFinder`
+** `freePathFinder`
+** `notifications`
+** `players`
+** `gameSettings`
+** `em` EventManager
+
+## Pathfinding
+
+Ideas
+1. Improve API 
+2. Use Lifelong Planning A* or Bidirectionl A* to reduce search space
+
+### Road Path Finding
+
+Used for wares transport.
+
+performance ideas:
+
+  make this a reference in PathConditionReachable
+* reuse PathConditionReachable::IsEdgeOk in PathConditionHuman::IsEdgeOk
+* check if the order of condition checks is important.
+  e.g. call IsNodeOk of baseclass first
+* else if(t.Is(ETerrain::Walkable))
+                goodTerrainFound = true; 
+  in PathConditionReachable can be turned into
+  goodTerrainFound = t.Is(ETerrain::Walkable)
+
+AI ideas
+
+* Add condition where we leave space for farms (maybe cost is better here)
+* Add cost function to find a better than the shortest path
+* Add Condition that includes anticipated buildings
+
+### Other Path Finding
+
+* Path Conditions (Check edge and node)
+  `PathConditionReachable`
+  checks if node and edge are walkable (no unreachable terrain)
+* `PathConditionHuman` : `PathConditionReachable`
+  Checks for blocking manners
+* `PathConditionShip`
+  Checks that it is not too close to the shore
+* `PathConditionTrade` : `PathConditionHuman`
+  checks that the land belongs to player or an ally
+* `PathConditionRoad`
+  checks that the edge is in player territory and that a road can be placed (no blockingmanner, not on border, no other roads, )
+
+### Connect a flag to the road network (reuse existing roads)
+`AIInterface::FindFreePathForNewRoad`
+
+### Check if a road is possible (FloodFill)
+
+
+* `GameWorldWorld` bs `GameWorldViewer`: The `GameWorldViewer` has an additional indirection in order to get the `world` object.
+
+`FindPathForRoad(world, startPt, endPt, isBoatRoad, maxLen)`
+calls `GetFreePathFinder()` on the world object and calls `FindPath` with the condition `makePathConditionRoad(world, isBoatRoad)`.
+
+`DoesReachablePathExist(world, startPt, endPoint, maxLen)`
+calls `GetFreePathFinder()` on the world object and calls `FindPath` with the condition `PathConditionReachable(world)`.
+
+`FreePathFinder`
+* `FindPath`
+  A*, from start to dest.
+* `FindPathAlternatingConditions`
+  Uses two different conditions (abwehcseln, nicht gleichzeitig)
+* `CheckRoute`
+  Checks if given route<Direction> is still valid
+
+Methods take an object of `TNodeChecker` (`bool IsNodeOk(pt)` and `bool IsEdgeOk(pt, dirFromPrevPt)`)
+
+Path Conditions
+* `PathConditionReachable` .. generally walkable but does not respect BlockingManners (Building, Single, NothingAround)
+* `PathConditionHuman` .. a human can walk there (Woodcutter, Stonecutter, Scout, Soldier)
+* `PathConditionRoad` .. a road to that destination can be created
+* `PathConditionBoat`
+* `PathConditionTrade`
+
+`RoadPathFinder` .. Finds a path ON a road

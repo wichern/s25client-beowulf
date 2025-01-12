@@ -17,12 +17,16 @@ $(BUILD_DIR)/Makefile:
 $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME): $(BUILD_DIR)/lib/$(S25PY_FILENAME) build
 	cp $(BUILD_DIR)/lib/$(S25PY_FILENAME) $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 
-.PHONY: build
-build: $(BUILD_DIR)/Makefile
+# Since we have not set up all dependency correctly, this has to be phony
+.PHONY: $(BUILD_DIR)/lib/$(S25PY_FILENAME)
+$(BUILD_DIR)/lib/$(S25PY_FILENAME): $(BUILD_DIR)/Makefile
 	( \
 		cd $(BUILD_DIR) && \
 		make -j$(CPU_COUNT) s25py \
 	)
+
+.PHONY: build
+build: $(BUILD_DIR)/lib/$(S25PY_FILENAME)
 
 .PHONY: run
 run: $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)

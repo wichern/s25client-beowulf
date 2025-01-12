@@ -14,11 +14,12 @@ namespace py = pybind11;
 #include "pyPlayerAIJH.h"
 #include "s25py.h"
 
+#include "Point.h"
 #include "RTTR_Version.h"
+#include "ai/AIBuildLocations.h"
 #include "gameTypes/AIInfo.h"
 #include "gameTypes/BuildingQuality.h"
 #include "gameTypes/BuildingType.h"
-#include "Point.h"
 #include "s25util/System.h"
 
 #include <boost/nowide/iostream.hpp>
@@ -62,6 +63,8 @@ PYBIND11_MODULE(s25py, m)
       .value("Tournament5", GameObjective::Tournament5)
       .export_values();
 
+    py::class_<AIBuildLocations>(m, "BuildLocations").def("get_nearest", &AIBuildLocations::GetNearest);
+
     py::class_<s25py::PyGame>(m, "Game")
       .def(py::init<const std::string&, std::string, GameObjective, unsigned, unsigned, unsigned>(), py::arg("map"),
            py::arg("replay") = "", py::arg("objective") = GameObjective::TotalDomination,
@@ -77,19 +80,18 @@ PYBIND11_MODULE(s25py, m)
     py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>, s25py::PlayerTrampoline>(m, "Player")
       .def(py::init<const std::string&>())
       .def("next_gameframe", &s25py::PyPlayer::RunGF)
-      .def("get_headquaters", &s25py::PyPlayer::GetHeadquaters);
+      .def("get_headquaters", &s25py::PyPlayer::GetHeadquaters)
+      .def("build_locations", &s25py::PyPlayer::buildLocations_);
 
     py::class_<s25py::PyBuilding>(m, "Building")
       .def_readwrite("type", &s25py::PyBuilding::type)
       .def_readwrite("pos", &s25py::PyBuilding::pos)
       .def_readwrite("flag_pos", &s25py::PyBuilding::flag_pos);
 
-    py::class_<s25py::PyPlayerAIJH, std::shared_ptr<s25py::PyPlayerAIJH>, s25py::PyPlayer>(m, "PlayerAIJH")
-      .def(py::init<const std::string&>());
-
     py::class_<MapPoint>(m, "MapPoint")
       .def_readwrite("x", &MapPoint::x)
-      .def_readwrite("y", &MapPoint::y);
+      .def_readwrite("y", &MapPoint::y)
+      .def("__str__", [](const MapPoint& p) { return std::to_string(p.x) + ":" + std::to_string(p.y); });
 
     py::class_<s25py::PyPlayerAIJH, std::shared_ptr<s25py::PyPlayerAIJH>, s25py::PyPlayer>(m, "PlayerAIJH")
       .def(py::init<const std::string&>())
