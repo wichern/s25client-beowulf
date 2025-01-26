@@ -24,7 +24,6 @@ class GameMessage;
 class GameMessageWithPlayer;
 class GameMessage_GameCommand;
 class GameServerPlayer;
-struct AIServerPlayer;
 
 class GameServer :
     public Singleton<GameServer, SingletonPolicies::WithLongevity>,

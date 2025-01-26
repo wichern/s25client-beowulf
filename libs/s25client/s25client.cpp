@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "ai/AILoader.h"
 #include "Debug.h"
 #include "GameManager.h"
 #include "QuickStartGame.h"
@@ -372,8 +373,9 @@ bool InitDirectories()
 
     // Create all required/useful folders
     const std::array<std::string, 10> dirs = {
-      {s25::folders::config, s25::folders::logs, s25::folders::mapsOwn, s25::folders::mapsPlayed, s25::folders::replays,
-       s25::folders::save, s25::folders::assetsUserOverrides, s25::folders::screenshots, s25::folders::playlists}};
+      {s25::folders::ai, s25::folders::config, s25::folders::logs, s25::folders::mapsOwn, s25::folders::mapsPlayed,
+       s25::folders::replays, s25::folders::save, s25::folders::assetsUserOverrides, s25::folders::screenshots, 
+       s25::folders::playlists}};
 
     for(const std::string& rawDir : dirs)
     {
@@ -465,6 +467,9 @@ int RunProgram(po::variables_map& options)
             return 1;
         }
     }
+
+    // Load AI scripts
+    AILOADER.Load();
 
     SetGlobalInstanceWrapper<GameManager> gameManager(setGlobalGameManager, LOG, SETTINGS, VIDEODRIVER, AUDIODRIVER,
                                                       WINDOWMANAGER);

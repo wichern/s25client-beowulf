@@ -47,6 +47,7 @@ set(s25Main_SRCS
 
 add_library(s25Main STATIC ${s25Main_SRCS})
 target_include_directories(s25Main PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(s25Main PUBLIC pybind11::embed)
 set_target_properties(s25Main PROPERTIES CXX_EXTENSIONS OFF)
 target_compile_features(s25Main PUBLIC cxx_std_17)
 

@@ -13,6 +13,7 @@ RTTR_IGNORE_DIAGNOSTIC("-Wunused-variable")
 
 namespace s25 {
 namespace folders {
+    constexpr auto ai = "<RTTR_RTTR>/assets/ai";                     // AI scripts
     constexpr auto assetsAddons = "<RTTR_RTTR>/assets/addons";       // Addon specifc assets
     constexpr auto assetsBase = "<RTTR_RTTR>/assets/base";           // Assets introduced by rttr
     constexpr auto assetsNations = "<RTTR_RTTR>/assets/nations";     // Addon specific assets
