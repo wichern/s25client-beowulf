@@ -121,11 +121,10 @@ void PyGame::Start()
     mapInfo.mapData.CompressFromFile(mapInfo.filepath, &mapInfo.mapChecksum);
     mapInfo.type = MapType::OldMap;
 
-    replay_.random_init = randomSeed_;
     for(unsigned playerId = 0; playerId < game_->world_.GetNumPlayers(); ++playerId)
         replay_.AddPlayer(game_->world_.GetPlayer(playerId));
     replay_.ggs = game_->ggs_;
-    if(!replay_.StartRecording(replayPath_, mapInfo))
+    if(!replay_.StartRecording(replayPath_, mapInfo, randomSeed_))
         throw std::runtime_error("Replayfile could not be opened!");
 }
 

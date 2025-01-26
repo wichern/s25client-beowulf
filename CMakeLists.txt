@@ -243,8 +243,6 @@ if(HAVE_MEMCHECK_H)
     add_definitions(-DHAVE_MEMCHECK_H)
 endif()
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-
 # Code coverage
 include(RttrCoverageCfg)
 include(EnableSanitizers)
