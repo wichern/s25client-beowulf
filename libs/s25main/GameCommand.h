@@ -1,9 +1,10 @@
-// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2024 Settlers Freaks (sf-team at siedler25.org)
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
 
+#include "s25util/VersionedDeserializer.h"
 #include <boost/smart_ptr/intrusive_ptr.hpp>
 #include <RTTR_Assert.h>
 #include <cstdint>
@@ -13,6 +14,12 @@ class GameWorld;
 class GameCommandFactory;
 
 namespace gc {
+
+struct Deserializer : s25util::VersionedDeserializer<Deserializer>
+{
+    using s25util::VersionedDeserializer<Deserializer>::VersionedDeserializer;
+    static unsigned getCurrentVersion();
+};
 
 class GameCommand;
 // Use this for safely using Pointers to GameCommands
@@ -53,11 +60,12 @@ enum class GCType : uint8_t
     DestroyAll,
     UpgradeRoad,
     SetTroopLimit,
-    NotifyAlliesOfLocation
+    NotifyAlliesOfLocation,
+    SetTempleProductionMode,
 };
 constexpr auto maxEnumValue(GCType)
 {
-    return GCType::NotifyAlliesOfLocation;
+    return GCType::SetTempleProductionMode;
 }
 
 class GameCommand
@@ -82,7 +90,7 @@ public:
     }
 
     /// Builds a GameCommand depending on Type
-    static GameCommandPtr Deserialize(Serializer& ser);
+    static GameCommandPtr Deserialize(Deserializer& ser);
 
     /// Serializes this GameCommand
     virtual void Serialize(Serializer& ser) const;

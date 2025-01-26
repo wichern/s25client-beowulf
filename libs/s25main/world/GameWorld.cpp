@@ -1,4 +1,4 @@
-// Copyright (C) 2005 - 2021 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2024 Settlers Freaks (sf-team at siedler25.org)
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -287,7 +287,7 @@ bool GameWorld::HasRemovableObjForRoad(const MapPoint pt) const
 // When defined the game tries to remove "blocks" of border stones that look ugly (TODO: Example?)
 // DISABLED: This currently leads to bugs. If you enable/fix this, please add tests and document the conditions this
 // tries to fix
-//#define PREVENT_BORDER_STONE_BLOCKING
+// #define PREVENT_BORDER_STONE_BLOCKING
 
 void GameWorld::RecalcBorderStones(Position startPt, Extent areaSize)
 {
@@ -413,26 +413,20 @@ void GameWorld::RecalcTerritory(const noBaseBuilding& building, TerritoryChangeR
             sizeChanges[oldOwner - 1]--;
     }
 
-    std::set<MapPoint, MapPointLess> ptsHandled;
+    const std::vector<MapPoint> ptsToHandle = GetAllNeighboursUnion(ptsWithChangedOwners);
+
     // Destroy everything from old player on all nodes where the owner has changed
-    for(const MapPoint& curMapPt : ptsWithChangedOwners)
+    for(const MapPoint& curMapPt : ptsToHandle)
     {
-        // Destroy everything around this point as this is at best a border node where nothing should be around
         // Do not destroy the triggering building or its flag
-        // TODO: What about this point?
-        const uint8_t owner = GetNode(curMapPt).owner;
-        for(const MapPoint neighbourPt : GetNeighbours(curMapPt))
-        {
-            if(ptsHandled.insert(neighbourPt).second)
-                DestroyPlayerRests(neighbourPt, owner, &building);
-        }
+        DestroyPlayerRests(curMapPt, GetNode(curMapPt).owner, &building);
 
         if(gi)
             gi->GI_UpdateMinimap(curMapPt);
     }
 
-    // Destroy remaining roads going through non-owned territory
-    for(const MapPoint& curMapPt : ptsWithChangedOwners)
+    // Destroy remaining roads going through non-owned and border territory
+    for(const MapPoint& curMapPt : ptsToHandle)
     {
         // Skip if there is an object. We are looking only for roads going through, not ending here
         // (objects here are already destroyed and if the road ended there it would have been as well)
@@ -440,8 +434,14 @@ void GameWorld::RecalcTerritory(const noBaseBuilding& building, TerritoryChangeR
             continue;
         Direction dir;
         noFlag* flag = GetRoadFlag(curMapPt, dir);
-        if(!flag || flag->GetPlayer() + 1 == GetNode(curMapPt).owner)
+
+        if(!flag)
             continue;
+
+        const uint8_t owner = GetNode(curMapPt).owner;
+        if(flag->GetPlayer() + 1 == owner && IsPlayerTerritory(curMapPt, owner))
+            continue;
+
         flag->DestroyRoad(dir);
     }
 
@@ -449,7 +449,7 @@ void GameWorld::RecalcTerritory(const noBaseBuilding& building, TerritoryChangeR
     for(const MapPoint& curMapPt : ptsWithChangedOwners)
         GetNotifications().publish(NodeNote(NodeNote::Owner, curMapPt));
 
-    for(const MapPoint& pt : ptsHandled)
+    for(const MapPoint& pt : ptsToHandle)
     {
         // BQ neu berechnen
         RecalcBQ(pt);
@@ -574,30 +574,32 @@ void GameWorld::CleanTerritoryRegion(TerritoryRegion& region, TerritoryChangeRea
 {
     if(GetGGS().isEnabled(AddonId::NO_ALLIED_PUSH))
     {
-        const unsigned char ownerOfTriggerBld = GetNode(triggerBld.GetPos()).owner;
-        const unsigned char newOwnerOfTriggerBld = region.GetOwner(region.GetPosFromMapPos(triggerBld.GetPos()));
+        const bool isHq = triggerBld.GetBuildingType() == BuildingType::Headquarters;
+        const auto newOwnerOfTriggerBld = region.GetOwner(region.GetPosFromMapPos(triggerBld.GetPos()));
+        // An HQ can be placed independently of the current owner.
+        // So ensure the HQ position is always considered to belong to the HQ owner
+        const auto ownerOfTriggerBld = isHq ? newOwnerOfTriggerBld : GetNode(triggerBld.GetPos()).owner;
 
         RTTR_FOREACH_PT(Position, region.size)
         {
             const MapPoint curMapPt = MakeMapPoint(pt + region.startPt);
-            const unsigned char oldOwner = GetNode(curMapPt).owner;
-            const unsigned char newOwner = region.GetOwner(pt);
+            const auto oldOwner = GetNode(curMapPt).owner;
+            const auto newOwner = region.GetOwner(pt);
 
             // If nothing changed, there is nothing to do (ownerChanged was already initialized)
             if(oldOwner == newOwner)
                 continue;
 
-            // rule 1: only take territory from an ally if that ally loses a building - special case: headquarter can
-            // take territory
             const bool ownersAllied = oldOwner > 0 && newOwner > 0 && GetPlayer(oldOwner - 1).IsAlly(newOwner - 1);
-            if((ownersAllied && (ownerOfTriggerBld != oldOwner || reason == TerritoryChangeReason::Build)
-                && triggerBld.GetBuildingType() != BuildingType::Headquarters)
-               ||
-               // rule 2: do not gain territory when you lose a building (captured or destroyed)
-               (ownerOfTriggerBld == newOwner && reason != TerritoryChangeReason::Build) ||
-               // rule 3: do not lose territory when you gain a building (newBuilt or capture)
-               ((ownerOfTriggerBld == oldOwner && oldOwner > 0 && reason == TerritoryChangeReason::Build)
-                || (newOwnerOfTriggerBld == oldOwner && reason == TerritoryChangeReason::Captured)))
+            if(
+              // rule 1: only take territory from an ally if that ally loses a building
+              // special case: headquarter can take territory
+              (ownersAllied && (ownerOfTriggerBld != oldOwner || reason == TerritoryChangeReason::Build) && !isHq) ||
+              // rule 2: do not gain territory when you lose a building (captured or destroyed)
+              (ownerOfTriggerBld == newOwner && reason != TerritoryChangeReason::Build) ||
+              // rule 3: do not lose territory when you gain a building (newBuilt or capture)
+              ((ownerOfTriggerBld == oldOwner && oldOwner > 0 && reason == TerritoryChangeReason::Build)
+               || (newOwnerOfTriggerBld == oldOwner && reason == TerritoryChangeReason::Captured)))
             {
                 region.SetOwner(pt, oldOwner);
             }
@@ -670,8 +672,8 @@ void GameWorld::DestroyPlayerRests(const MapPoint pt, unsigned char newOwner, co
        && noType != NodalObjectType::Buildingsite)
         return;
 
-    // is the building on a node with a different owner?
-    if(static_cast<noRoadNode*>(no)->GetPlayer() + 1 == newOwner)
+    // is the building on a node with a different owner? Border is allways destroyed.
+    if(static_cast<noRoadNode*>(no)->GetPlayer() + 1 == newOwner && !IsBorderNode(pt, newOwner))
         return;
 
     // Do not destroy military buildings that hold territory on their own
