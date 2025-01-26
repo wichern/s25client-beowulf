@@ -35,41 +35,6 @@ public:
     /// Direction to previous node, includes SHIP_DIR
     mutable RoadPathDirection dir_; //-V730_NOINIT
 
-    // Datastructure for D*-lite
-    struct DStarNode
-    {
-        // Destination for which the g and lhs values are-
-        MapPoint dest;
-        unsigned g;   // estimate of the distance to dest
-        unsigned rhs; // one step lookahead of g (g + edgeCost(this, neighbour))
-        unsigned k_m;
-        unsigned visit_gf; // required for LRU removal
-        struct Key
-        {
-            unsigned k1;
-            unsigned k2;
-            bool operator<(const Key& other)
-            {
-                if(k1 < other.k1)
-                    return true;
-                if(k1 == other.k2)
-                    return k2 < other.k2;
-                return false;
-            }
-        } k;
-
-        inline void CalculateKey(unsigned h)
-        {
-            // @todo: h is constant. we could buffer the value or calculate it at the beginning
-            //        Also: h is the same for all nodes in this RoadNode. Check how expensive it is to calculate.
-            k.k2 = std::min(g, rhs);
-            k.k1 = k.k2 + h + k_m;
-        }
-
-        inline bool locally_consistend() { return g == rhs; }
-    };
-    mutable std::vector<DStarNode> dstar_;
-
     noRoadNode(NodalObjectType nop, MapPoint pos, unsigned char player);
     noRoadNode(SerializedGameData& sgd, unsigned obj_id);
     ~noRoadNode() override;

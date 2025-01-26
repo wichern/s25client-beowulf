@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include "helpers/EnumRange.h"
-#include "world/MapBase.h"
+#if 0
 
-#include <vector>
+#    include "helpers/EnumRange.h"
+#    include "world/MapBase.h"
+
+#    include <vector>
 
 /// @brief  Perform a simple breadth first search on a map.
 /// condition ... bool f(const MapPoint& pos, Direction dir)
@@ -43,3 +45,5 @@ void FloodFill(const MapBase& world, const MapPoint& start, Condition condition,
         }
     }
 }
+
+#endif

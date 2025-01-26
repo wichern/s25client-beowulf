@@ -11,7 +11,6 @@
 #include "GlobalGameSettings.h"
 #include "PlayerInfo.h"
 #include "RttrConfig.h"
-#include "ai/AIBuildLocations.h"
 #include "ai/AIPlayer.h"
 #include "factories/AIFactory.h"
 #include "files.h"
@@ -64,7 +63,6 @@ void PyGame::AddPlayer(std::shared_ptr<PyPlayer> player)
         return;
     player->id_ = players_.size();
     player->game_ = this;
-    player->buildLocations_ = std::make_shared<AIBuildLocations>(game_->world_);
     players_.push_back(player);
 }
 

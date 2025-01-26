@@ -6,6 +6,9 @@
 
 #include "pyBuilding.h"
 
+#include "ai/AIResource.h"
+#include "gameTypes/SettingsTypes.h"
+
 #include <limits>
 #include <memory>
 #include <string>
@@ -30,6 +33,10 @@ public:
 
     std::vector<PyBuilding> GetHeadquaters() const;
 
+    void ChangeDistribution(Distributions distributions);
+    void SetConstructionSite(const MapPoint& pos, BuildingType type);
+    unsigned GetResources(const MapPoint& pos, AIResource type);
+
 protected:
     std::string name_;
     unsigned id_ = std::numeric_limits<unsigned>::max();
@@ -37,8 +44,6 @@ protected:
 
     // Pointer to the in-game AI player object
     AIPlayer* player_ = nullptr;
-
-    std::shared_ptr<BuildLocations> buildLocations_;
 
     friend class PyGame;
 };
