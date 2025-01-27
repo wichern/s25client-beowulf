@@ -10,22 +10,21 @@
 
 namespace s25py {
 
-PyPlayer::PyPlayer(const std::string& name) : name_(name) {}
+PyPlayer::PyPlayer() {}
 
 PyPlayer::~PyPlayer() {}
 
-void PyPlayer::RunGF(unsigned /*gf*/, bool /*gfisnwf*/) {
-}
+void PyPlayer::RunGF(unsigned /*gf*/, bool /*gfisnwf*/) {}
 
 std::vector<PyBuilding> PyPlayer::GetHeadquaters() const
 {
     std::vector<PyBuilding> ret;
 
     const nobHQ* hq = player_->getAIInterface().GetHeadquarter();
-    if (hq)
+    if(hq)
         ret.push_back({hq});
 
-    for (const nobHarborBuilding* harbor : player_->getAIInterface().GetHarbors())
+    for(const nobHarborBuilding* harbor : player_->getAIInterface().GetHarbors())
         ret.push_back({harbor});
 
     return ret;

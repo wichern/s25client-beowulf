@@ -16,8 +16,18 @@ public:
 
     void Load();
 
+    unsigned Count() const { return ais_.size(); }
+    const std::string& GetName(unsigned idx) const { return ais_[idx].name; }
+
 private:
-    void Add(const bfs::path& dir);
+    struct PyPlayerData
+    {
+        std::string dir;
+        std::string name;
+    };
+
+    std::vector<PyPlayerData> ais_;
+    const bfs::path rootDir_;
 };
 
 ///////////////////////////////////////////////////////////////////////////////

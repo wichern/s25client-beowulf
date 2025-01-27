@@ -5,6 +5,7 @@
 #include "GameLobbyController.h"
 #include "GameLobby.h"
 #include "JoinPlayerInfo.h"
+#include "ai/AILoader.h"
 #include "network/GameMessages.h"
 #include "network/NetworkPlayer.h"
 #include <utility>
@@ -61,7 +62,20 @@ void GameLobbyController::TogglePlayerState(unsigned playerIdx)
                     {
                         case AI::Level::Easy: aiInfo.level = AI::Level::Medium; break;
                         case AI::Level::Medium: aiInfo.level = AI::Level::Hard; break;
-                        case AI::Level::Hard: aiInfo = AI::Info(AI::Type::Dummy); break;
+                        case AI::Level::Hard: aiInfo = AI::Info(AI::Type::Python); break;
+                    }
+                    break;
+                case AI::Type::Python:
+                    switch(aiInfo.level)
+                    {
+                        case AI::Level::Easy: aiInfo.level = AI::Level::Medium; break;
+                        case AI::Level::Medium: aiInfo.level = AI::Level::Hard; break;
+                        case AI::Level::Hard:
+                            aiInfo.pythonIdx++;
+                            aiInfo.level = AI::Level::Easy;
+                            if(aiInfo.pythonIdx >= AILOADER.Count())
+                                aiInfo = AI::Info(AI::Type::Dummy);
+                            break;
                     }
                     break;
                 case AI::Type::Dummy: newPs = PlayerState::Locked;

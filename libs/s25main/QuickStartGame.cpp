@@ -39,6 +39,7 @@ std::vector<AI::Info> ParseAIOptions(const std::vector<std::string>& aiOptions)
     for(const std::string& aiOption : aiOptions)
     {
         const auto aiOption_lower = s25util::toLower(aiOption);
+        // @todo: Add AI::Type::Python
         AI::Type type = AI::Type::Dummy;
         if(aiOption_lower == "aijh")
             type = AI::Type::Default;

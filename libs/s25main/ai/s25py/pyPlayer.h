@@ -26,7 +26,7 @@ class PyGame;
 class PyPlayer
 {
 public:
-    PyPlayer(const std::string& name);
+    PyPlayer();
     ~PyPlayer();
 
     virtual void RunGF(unsigned gf, bool gfisnwf);
@@ -38,7 +38,6 @@ public:
     unsigned GetResources(const MapPoint& pos, AIResource type);
 
 protected:
-    std::string name_;
     unsigned id_ = std::numeric_limits<unsigned>::max();
     PyGame* game_ = nullptr;
 

@@ -8,8 +8,6 @@ class AwesomeAI(Player):
             hqs = self.get_headquaters()
             build_locations = self.build_locations.get_nearest(hqs[0].flag_pos, BuildingQuality.House, 10)
 
-        pass
-
 game = Game("<RTTR_RTTR>/MAPS/OTHER/Bergschlumpf.swd", replay="bergschlumpf.rpl", max_gameframe=101)
 
 #game.add_player(Player("dummy"))

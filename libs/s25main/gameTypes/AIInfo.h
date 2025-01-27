@@ -22,18 +22,20 @@ constexpr auto maxEnumValue(Level)
 enum class Type : uint8_t
 {
     Dummy,
-    Default
+    Default,
+    Python
 };
 constexpr auto maxEnumValue(Type)
 {
-    return Type::Default;
+    return Type::Python;
 }
 
 struct Info
 {
     Type type;
     Level level;
-    Info(Type t = Type::Dummy, Level l = Level::Easy) : type(t), level(l) {}
+    unsigned pythonIdx;
+    Info(Type t = Type::Dummy, Level l = Level::Easy) : type(t), level(l), pythonIdx(0) {}
     Info(Serializer& ser);
     void serialize(Serializer& ser) const;
 

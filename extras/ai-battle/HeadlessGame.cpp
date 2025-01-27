@@ -224,6 +224,7 @@ std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais)
         PlayerInfo pi;
         pi.ps = PlayerState::Occupied;
         pi.aiInfo = ai;
+        // @todo: add AI::Type::Python
         switch(ai.type)
         {
             case AI::Type::Default: pi.name = "AIJH " + std::to_string(ret.size()); break;

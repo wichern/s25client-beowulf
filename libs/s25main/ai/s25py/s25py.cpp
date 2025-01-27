@@ -34,11 +34,11 @@ std::string version()
 
 void PlayerTrampoline::RunGF(unsigned gf, bool gfisnwf)
 {
-      PYBIND11_OVERRIDE_NAME(void,       /* Return type */
-                      PyPlayer,   /* Parent class */
-                      "next_gameframe",    /* Name of method in python */
-                      RunGF,      /* Name of function in C++ */
-                      gf, gfisnwf /* Argument(s) */
+    PYBIND11_OVERRIDE_NAME(void,             /* Return type */
+                           PyPlayer,         /* Parent class */
+                           "next_gameframe", /* Name of method in python */
+                           RunGF,            /* Name of function in C++ */
+                           gf, gfisnwf       /* Argument(s) */
     );
 }
 
@@ -75,7 +75,7 @@ PYBIND11_MODULE(s25py, m)
     // We have to use a trampoline class for PyPlayer in order for python to create subclasses.
     // We have to use shared_ptr encapsulation in order to allow passing ownership to PyGame.
     py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>, s25py::PlayerTrampoline>(m, "Player")
-      .def(py::init<const std::string&>())
+      .def(py::init<>())
       .def("next_gameframe", &s25py::PyPlayer::RunGF)
       .def("get_headquaters", &s25py::PyPlayer::GetHeadquaters);
 
@@ -90,7 +90,7 @@ PYBIND11_MODULE(s25py, m)
       .def("__str__", [](const MapPoint& p) { return std::to_string(p.x) + ":" + std::to_string(p.y); });
 
     py::class_<s25py::PyPlayerAIJH, std::shared_ptr<s25py::PyPlayerAIJH>, s25py::PyPlayer>(m, "PlayerAIJH")
-      .def(py::init<const std::string&>())
+      .def(py::init<>())
       .def("next_gameframe", &s25py::PyPlayer::RunGF);
 
     py::enum_<AI::Level>(m, "AILevel")

@@ -7,11 +7,7 @@
 namespace s25py {
 
 PyBuilding::PyBuilding(const noBaseBuilding* building)
-: type(building->GetBuildingType())
-, pos(building->GetPos())
-, flag_pos(building->GetFlagPos())
-{
-
-}
+    : type(building->GetBuildingType()), pos(building->GetPos()), flag_pos(building->GetFlagPos())
+{}
 
 } // namespace s25py

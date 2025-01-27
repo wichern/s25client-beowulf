@@ -77,7 +77,8 @@ void PyGame::Start()
         pi.ps = PlayerState::Occupied;
         // pi.aiInfo = {player->type_, AI::Level::Medium};
         pi.aiInfo = {AI::Type::Default, AI::Level::Medium};
-        pi.name = player->name_;
+        RTTR_UNUSED(player);
+        pi.name = "@todo"; // player.name;
         pi.nation = Nation::Romans;
         pi.team = Team::None;
         playerInfos.push_back(pi);

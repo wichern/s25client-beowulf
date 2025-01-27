@@ -4,6 +4,7 @@
 
 #include "JoinPlayerInfo.h"
 #include "RTTR_Assert.h"
+#include "ai/AILoader.h"
 #include "mygettext/mygettext.h"
 #include "s25util/Serializer.h"
 #include <boost/format.hpp>
@@ -46,11 +47,18 @@ void JoinPlayerInfo::SetAIName(unsigned playerId)
 
 std::string JoinPlayerInfo::MakeAIName(const AI::Info& aiInfo, unsigned playerId)
 {
-    std::string name =
-      (boost::format((aiInfo.type == AI::Type::Dummy) ? _("Dummy %u") : _("Computer %u")) % playerId).str();
-    name += _(" (AI)");
+    std::string name;
 
-    if(aiInfo.type == AI::Type::Default)
+    switch(aiInfo.type)
+    {
+        case AI::Type::Default: name = "Computer"; break;
+        case AI::Type::Dummy: name = "Dummy"; break;
+        case AI::Type::Python: name = AILOADER.GetName(aiInfo.pythonIdx); break;
+    }
+
+    name += (boost::format(" %u (AI)") % playerId).str();
+
+    if(aiInfo.type != AI::Type::Dummy)
     {
         switch(aiInfo.level)
         {

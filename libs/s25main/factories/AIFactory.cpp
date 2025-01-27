@@ -11,6 +11,8 @@ std::unique_ptr<AIPlayer> AIFactory::Create(const AI::Info& aiInfo, unsigned pla
 {
     switch(aiInfo.type)
     {
+// @todo: Add AI::Type::Python
+#error Add AI::Type::Python
         case AI::Type::Dummy: return std::make_unique<DummyAI>(playerId, world, aiInfo.level); break;
         case AI::Type::Default:
         default: return std::make_unique<AIJH::AIPlayerJH>(playerId, world, aiInfo.level); break;
