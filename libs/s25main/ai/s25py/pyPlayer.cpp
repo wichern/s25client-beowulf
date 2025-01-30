@@ -14,7 +14,18 @@ PyPlayer::PyPlayer() {}
 
 PyPlayer::~PyPlayer() {}
 
-void PyPlayer::RunGF(unsigned /*gf*/, bool /*gfisnwf*/) {}
+void PyPlayer::RunGF(unsigned gf, bool gfisnwf)
+{
+    RTTR_UNUSED(gf);
+    RTTR_UNUSED(gfisnwf);
+}
+
+void PyPlayer::OnChatMessage(unsigned sendPlayerId, ChatDestination dest, const std::string& msg)
+{
+    RTTR_UNUSED(sendPlayerId);
+    RTTR_UNUSED(dest);
+    RTTR_UNUSED(msg);
+}
 
 std::vector<PyBuilding> PyPlayer::GetHeadquaters() const
 {

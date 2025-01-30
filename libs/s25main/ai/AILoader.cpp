@@ -26,16 +26,18 @@ PYBIND11_EMBEDDED_MODULE(s25py, m)
       .def("get_headquaters", &s25py::PyPlayer::GetHeadquaters);
 }
 
-AILoader::AILoader() : rootDir_(RTTRCONFIG.ExpandPath(s25::folders::ai)) {}
+AILoader::AILoader() : rootDir_(RTTRCONFIG.ExpandPath(s25::folders::ai))
+{
+    py::initialize_interpreter();
+}
 
 AILoader::~AILoader()
 {
+    py::finalize_interpreter();
 }
 
 void AILoader::Load()
 {
-    py::scoped_interpreter guard{};
-
     // Add AI asset dir to python sys path.
     py::module sys = py::module_::import("sys");
     py::list sys_path = sys.attr("path");
@@ -62,4 +64,11 @@ void AILoader::Load()
             std::cerr << "Filesystem error: " << ex.what() << std::endl;
         }
     }
+}
+
+std::unique_ptr<AIPlayer> AILoader::Create(unsigned idx)
+{
+    py::object python_class = py::module_::import(ais_[idx].dir.c_str()).attr(ais_[idx].name);
+    py::object python_instance = python_class();
+    return std::move(python_instance);
 }

@@ -27,7 +27,7 @@ class PyPlayer
 {
 public:
     PyPlayer();
-    ~PyPlayer();
+    virtual ~PyPlayer();
 
     virtual void RunGF(unsigned gf, bool gfisnwf);
 
