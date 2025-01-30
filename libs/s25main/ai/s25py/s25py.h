@@ -4,19 +4,16 @@
 
 #pragma once
 
-#include "pyGame.h"
-#include "pyPlayer.h"
+// Disable some warnings thrown by pybind11
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+#pragma GCC diagnostic ignored "-Wnoexcept"
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+#pragma GCC diagnostic error "-Wredundant-decls"
+#pragma GCC diagnostic error "-Wnoexcept"
 
 namespace s25py {
 
-// Trampoline class to support overriding virtual methods.
-class PlayerTrampoline : public PyPlayer
-{
-public:
-    using PyPlayer::PyPlayer; // Inherit the constructors
-    void RunGF(unsigned gf, bool gfisnwf) override;
-};
-
-std::string version();
+void init_core(py::module_ &m);
 
 } // namespace s25py

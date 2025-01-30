@@ -51,6 +51,20 @@
 #    include <csignal>
 #endif
 
+// Disable some warnings thrown by pybind11
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+#pragma GCC diagnostic ignored "-Wnoexcept"
+#include <pybind11/embed.h>
+namespace py = pybind11;
+#pragma GCC diagnostic error "-Wredundant-decls"
+#pragma GCC diagnostic error "-Wnoexcept"
+
+PYBIND11_EMBEDDED_MODULE(s25py, m)
+{
+    py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>>(m, "Player")
+      .def(py::init<>());
+}
+
 namespace bfs = boost::filesystem;
 namespace bnw = boost::nowide;
 namespace po = boost::program_options;

@@ -32,12 +32,12 @@ build: $(BUILD_DIR)/lib/$(S25PY_FILENAME)
 run: $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 	( \
 		. $(VENV_DIR)/bin/activate && \
-		RTTR_PREFIX_DIR=$(shell pwd)/../.. ./battle.py \
+		RTTR_PREFIX_DIR=$(shell pwd)/../.. ./my_game.py \
 	)
 
 .PHONY: debug
 debug: $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 	( \
 		. $(VENV_DIR)/bin/activate && \
-		RTTR_PREFIX_DIR=$(shell pwd)/../.. gdb --args python ./battle.py \
+		RTTR_PREFIX_DIR=$(shell pwd)/../.. gdb --args python ./my_game.py \
 	)

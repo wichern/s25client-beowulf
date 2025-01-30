@@ -10,18 +10,25 @@ namespace s25py {
 
 AIPlayerPython::AIPlayerPython(const unsigned char playerId, const GameWorldBase& gwb, const AI::Level level, unsigned pythonIdx)
     : AIPlayer(playerId, gwb, level)
-    , py(AILOADER.create(pythonIdx))
+    , py_(AILOADER.Create(pythonIdx))
+{
+}
+
+AIPlayerPython::~AIPlayerPython()
 {
 }
 
 void AIPlayerPython::RunGF(unsigned gf, bool gfisnwf)
 {
-    py
+    if (py::hasattr(py_, "run_gf"))
+        py_.attr("run_gf")(gf, gfisnwf);
 }
 
 void AIPlayerPython::OnChatMessage(unsigned sendPlayerId, ChatDestination, const std::string& msg)
 {
-
+    if (py::hasattr(py_, "on_chat_message"))
+        py_.attr("on_chat_message")(sendPlayerId, msg);
 }
+
 
 } // namespace s25py

@@ -29,8 +29,6 @@ public:
     PyPlayer();
     virtual ~PyPlayer();
 
-    virtual void RunGF(unsigned gf, bool gfisnwf);
-
     std::vector<PyBuilding> GetHeadquaters() const;
 
     void ChangeDistribution(Distributions distributions);

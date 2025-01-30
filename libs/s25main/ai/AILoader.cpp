@@ -9,22 +9,7 @@
 #include "ai/s25py/s25py.h"
 #include "files.h"
 #include <iostream>
-
-// Disable some warnings thrown by pybind11
-#pragma GCC diagnostic ignored "-Wredundant-decls"
-#pragma GCC diagnostic ignored "-Wnoexcept"
 #include <pybind11/embed.h>
-namespace py = pybind11;
-#pragma GCC diagnostic error "-Wredundant-decls"
-#pragma GCC diagnostic error "-Wnoexcept"
-
-PYBIND11_EMBEDDED_MODULE(s25py, m)
-{
-    py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>, s25py::PlayerTrampoline>(m, "Player")
-      .def(py::init<>())
-      .def("next_gameframe", &s25py::PyPlayer::RunGF)
-      .def("get_headquaters", &s25py::PyPlayer::GetHeadquaters);
-}
 
 AILoader::AILoader() : rootDir_(RTTRCONFIG.ExpandPath(s25::folders::ai))
 {
@@ -66,9 +51,9 @@ void AILoader::Load()
     }
 }
 
-std::unique_ptr<AIPlayer> AILoader::Create(unsigned idx)
+py::object AILoader::Create(unsigned idx)
 {
-    py::object python_class = py::module_::import(ais_[idx].dir.c_str()).attr(ais_[idx].name);
-    py::object python_instance = python_class();
-    return std::move(python_instance);
+    py::module module = py::module_::import(ais_[idx].dir.c_str());
+    py::object python_class = module.attr(ais_[idx].name.c_str());
+    return std::move(python_class());
 }

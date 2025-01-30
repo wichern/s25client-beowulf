@@ -7,11 +7,13 @@
 #include "s25util/Serializer.h"
 
 namespace AI {
-Info::Info(Serializer& ser) : type(helpers::popEnum<Type>(ser)), level(helpers::popEnum<Level>(ser)) {}
+Info::Info(Serializer& ser) : type(helpers::popEnum<Type>(ser)), level(helpers::popEnum<Level>(ser)),
+pythonIdx(ser.PopUnsignedInt()) {}
 
 void Info::serialize(Serializer& ser) const
 {
     helpers::pushEnum<uint8_t>(ser, type);
     helpers::pushEnum<uint8_t>(ser, level);
+    ser.PushUnsignedInt(pythonIdx);
 }
 } // namespace AI

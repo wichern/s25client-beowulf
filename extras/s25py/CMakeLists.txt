@@ -42,9 +42,9 @@ endif()
 
 add_library(s25py SHARED
     ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/pyBuilding.cpp
-    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/pyGame.cpp
+    pyGame.cpp
+    s25module.cpp
     ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/pyPlayer.cpp
-    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/pyPlayerAIJH.cpp
     ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/s25py.cpp)
 
 set_target_properties(s25py PROPERTIES PREFIX "")
@@ -55,4 +55,5 @@ target_link_libraries(s25py PRIVATE s25Main Boost::nowide)
 
 target_include_directories(s25py PRIVATE 
     ${PROJECT_SOURCE_DIR}/external/pybind11/include
+    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py
     ${PYTHON3_INCLUDES})

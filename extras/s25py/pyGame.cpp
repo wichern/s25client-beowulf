@@ -165,8 +165,8 @@ bool PyGame::Step()
         }
     }
 
-    for(auto& player : players_)
-        player->RunGF(game_->em_->GetCurrentGF(), isnfw);
+    // for(auto& player : players_)
+    //     player->RunGF(game_->em_->GetCurrentGF(), isnfw);
 
     game_->RunGF();
 
