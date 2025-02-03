@@ -32,7 +32,7 @@ build: $(BUILD_DIR)/lib/$(S25PY_FILENAME)
 run: $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 	( \
 		. $(VENV_DIR)/bin/activate && \
-		RTTR_PREFIX_DIR=$(shell pwd)/../.. ./my_game.py \
+		RTTR_PREFIX_DIR=$(shell pwd)/../../build ./my_game.py \
 	)
 
 .PHONY: debug

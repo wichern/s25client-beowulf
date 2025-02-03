@@ -5,14 +5,21 @@
 #pragma once
 
 #include "ai/AIPlayer.h"
-#include "ai/AILoader.h"
+
+// Disable some warnings thrown by pybind11
+#pragma GCC diagnostic ignored "-Wredundant-decls"
+#pragma GCC diagnostic ignored "-Wnoexcept"
+#include <pybind11/pybind11.h>
+namespace py = pybind11;
+#pragma GCC diagnostic error "-Wredundant-decls"
+#pragma GCC diagnostic error "-Wnoexcept"
 
 namespace s25py {
 
 class AIPlayerPython final : public AIPlayer
 {
 public:
-    AIPlayerPython(unsigned char playerId, const GameWorldBase& gwb, AI::Level level, unsigned pythonIdx);
+    AIPlayerPython(unsigned char playerId, const GameWorldBase& gwb, AI::Level level, py::object py);
     ~AIPlayerPython() override;
 
     void RunGF(unsigned gf, bool gfisnwf) override;

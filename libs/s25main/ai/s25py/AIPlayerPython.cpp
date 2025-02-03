@@ -4,13 +4,11 @@
 
 #include "AIPlayerPython.h"
 
-#include "ai/AILoader.h"
-
 namespace s25py {
 
-AIPlayerPython::AIPlayerPython(const unsigned char playerId, const GameWorldBase& gwb, const AI::Level level, unsigned pythonIdx)
+AIPlayerPython::AIPlayerPython(const unsigned char playerId, const GameWorldBase& gwb, const AI::Level level, py::object py)
     : AIPlayer(playerId, gwb, level)
-    , py_(AILOADER.Create(pythonIdx))
+    , py_(py)
 {
 }
 

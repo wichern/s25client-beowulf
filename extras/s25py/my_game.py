@@ -11,7 +11,7 @@ class AwesomeAI(s25py.Player):
         print(f'Message from {playerId}: {msg}')
 
 game = s25py.Game("<RTTR_RTTR>/MAPS/OTHER/Bergschlumpf.swd")
-game.add_player(s25py.Player("dummy"))
-game.add_player(s25py.PlayerAIJH("default"))
-game.add_player(AwesomeAI("my"))
+#game.add_player("dummy", s25py.Player())
+#game.add_player("default", s25py.PlayerAIJH())
+game.add_player_obj("my", AwesomeAI())
 game.run(max_gf=10000)
