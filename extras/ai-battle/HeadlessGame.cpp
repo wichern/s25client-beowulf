@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "ai/s25py/AILoader.h"
 #include "HeadlessGame.h"
 #include "EventManager.h"
 #include "GlobalGameSettings.h"
@@ -228,6 +229,7 @@ std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais)
         switch(ai.type)
         {
             case AI::Type::Default: pi.name = "AIJH " + std::to_string(ret.size()); break;
+            case AI::Type::Python: pi.name = AILOADER.GetName(ai.pythonIdx) + " " + std::to_string(ret.size()); break;
             case AI::Type::Dummy:
             default: pi.name = "Dummy " + std::to_string(ret.size()); break;
         }

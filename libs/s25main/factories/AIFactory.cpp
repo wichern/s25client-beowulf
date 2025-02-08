@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ai/aijh/AIPlayerJH.h"
-#include "ai/AILoader.h"
+#include "ai/s25py/AILoader.h"
 #include "ai/DummyAI.h"
 #include "ai/s25py/AIPlayerPython.h"
 #include "AIFactory.h"

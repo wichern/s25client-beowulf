@@ -25,8 +25,9 @@ public:
            unsigned randomSeed, unsigned nwfInterval);
     ~PyGame();
 
-    void AddPlayerObject(const std::string& name, std::shared_ptr<PyPlayer> player);
-    void AddPlayer(const std::string& name, AI::Type type, AI::Level level);
+    void AddPlayer(const std::string& name, AI::Level level, std::shared_ptr<PyPlayer> player);
+    void AddPlayerAIJH(const std::string& name, AI::Level level);
+    void AddPlayerDummy(const std::string& name, AI::Level level);
     // @todo: allow specifying python player in RTTR_RTTR/assets by name
 
     void Run(unsigned maxGF);
@@ -37,6 +38,8 @@ public:
 private:
     void Step();
     void Start();
+
+    void AddPlayerInternal(const std::string& name, AI::Type type, AI::Level level, std::shared_ptr<PyPlayer> player);
 
     std::string mapPath_;
     std::string replayPath_;

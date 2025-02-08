@@ -41,11 +41,9 @@ if(NOT COMMAND_RESULT EQUAL 0)
 endif()
 
 add_library(s25py SHARED
-    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/pyBuilding.cpp
-    pyGame.cpp
+    PyGame.cpp
     s25module.cpp
-    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/pyPlayer.cpp
-    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/s25py.cpp)
+    ${PROJECT_SOURCE_DIR}/libs/s25main/ai/s25py/PyPlayer.cpp)
 
 set_target_properties(s25py PROPERTIES PREFIX "")
 set_target_properties(s25py PROPERTIES SUFFIX "${PYTHON3_SUFFIX}")

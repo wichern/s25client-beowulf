@@ -5,7 +5,7 @@
 #include "GameLobbyController.h"
 #include "GameLobby.h"
 #include "JoinPlayerInfo.h"
-#include "ai/AILoader.h"
+#include "ai/s25py/AILoader.h"
 #include "network/GameMessages.h"
 #include "network/NetworkPlayer.h"
 #include <utility>

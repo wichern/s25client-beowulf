@@ -14,7 +14,7 @@ $(BUILD_DIR)/Makefile:
 	)
 
 # Install s25py in venv
-$(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME): $(BUILD_DIR)/lib/$(S25PY_FILENAME) build
+$(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME): $(VENV_DIR)/bin/activate $(BUILD_DIR)/lib/$(S25PY_FILENAME) build
 	cp $(BUILD_DIR)/lib/$(S25PY_FILENAME) $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 
 # Since we have not set up all dependency correctly, this has to be phony
@@ -25,6 +25,13 @@ $(BUILD_DIR)/lib/$(S25PY_FILENAME): $(BUILD_DIR)/Makefile
 		make -j$(CPU_COUNT) s25py \
 	)
 
+# Create venv
+$(VENV_DIR)/bin/activate:
+	( \
+		python3 -m venv $(VENV_DIR) && \
+		. $(VENV_DIR)/bin/activate \
+	)
+
 .PHONY: build
 build: $(BUILD_DIR)/lib/$(S25PY_FILENAME)
 
@@ -32,12 +39,12 @@ build: $(BUILD_DIR)/lib/$(S25PY_FILENAME)
 run: $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 	( \
 		. $(VENV_DIR)/bin/activate && \
-		RTTR_PREFIX_DIR=$(shell pwd)/../../build ./my_game.py \
+		RTTR_PREFIX_DIR=$(shell pwd)/../../build ./example.py \
 	)
 
 .PHONY: debug
 debug: $(VENV_DIR)/lib/$(PYVER)/site-packages/$(S25PY_FILENAME)
 	( \
 		. $(VENV_DIR)/bin/activate && \
-		RTTR_PREFIX_DIR=$(shell pwd)/../.. gdb --args python ./my_game.py \
+		RTTR_PREFIX_DIR=$(shell pwd)/../.. gdb --args python ./example.py \
 	)

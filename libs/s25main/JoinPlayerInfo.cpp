@@ -4,7 +4,7 @@
 
 #include "JoinPlayerInfo.h"
 #include "RTTR_Assert.h"
-#include "ai/AILoader.h"
+#include "ai/s25py/AILoader.h"
 #include "mygettext/mygettext.h"
 #include "s25util/Serializer.h"
 #include <boost/format.hpp>

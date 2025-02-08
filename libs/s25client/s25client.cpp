@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "ai/AILoader.h"
+#include "ai/s25py/AILoader.h"
+#include "ai/s25py/module_core.h"
 #include "Debug.h"
 #include "GameManager.h"
 #include "QuickStartGame.h"
@@ -29,6 +30,7 @@
 #include <boost/nowide/args.hpp>
 #include <boost/nowide/iostream.hpp>
 #include <boost/program_options.hpp>
+#include <pybind11/embed.h>
 #include <array>
 #include <cstdlib>
 #include <ctime>
@@ -51,23 +53,14 @@
 #    include <csignal>
 #endif
 
-// Disable some warnings thrown by pybind11
-#pragma GCC diagnostic ignored "-Wredundant-decls"
-#pragma GCC diagnostic ignored "-Wnoexcept"
-#include <pybind11/embed.h>
-namespace py = pybind11;
-#pragma GCC diagnostic error "-Wredundant-decls"
-#pragma GCC diagnostic error "-Wnoexcept"
-
-PYBIND11_EMBEDDED_MODULE(s25py, m)
-{
-    py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>>(m, "Player")
-      .def(py::init<>());
-}
-
 namespace bfs = boost::filesystem;
 namespace bnw = boost::nowide;
 namespace po = boost::program_options;
+
+PYBIND11_EMBEDDED_MODULE(s25py, m)
+{
+    s25py::init_core(m);
+}
 
 /// Calls a setGlobalInstance function for the (previously) singleton type T
 /// on construction and destruction
@@ -481,6 +474,9 @@ int RunProgram(po::variables_map& options)
             return 1;
         }
     }
+
+    // Initialize pybind11 interpreter
+    pybind11::scoped_interpreter guard{};
 
     // Load AI scripts
     AILOADER.Load();

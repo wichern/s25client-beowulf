@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "pyGame.h"
-#include "pyPlayer.h"
+#include "PyGame.h"
+#include "PyPlayer.h"
 
 #include "ai/AIPlayer.h"
 #include "ai/s25py/AIPlayerPython.h"
@@ -27,6 +27,7 @@
 
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
+namespace py = pybind11;
 
 namespace s25py {
 
@@ -36,12 +37,10 @@ PyGame::PyGame(const std::string& mapPath, std::string replayPath, GameObjective
       nwfInterval_(nwfInterval)
 {
     RTTRCONFIG.Init();
-    RANDOM.Init(randomSeed_);
+    RANDOM.Init(randomSeed);
 
-    // @todo: check when and if srand is called.
-
-    bnw::cout << "Game(" << mapPath_ << ", " << replayPath_ << ", " << objective_ << ", "
-              << randomSeed_ << ", " << nwfInterval_ << ")" << std::endl;
+    bnw::cout << "Game(map: " << mapPath_ << ", replay: " << replayPath_ << ", objective: " << objective_ << ", seed: "
+              << randomSeed << ", nwfInterval: " << nwfInterval_ << ")" << std::endl;
 }
 
 PyGame::~PyGame()
@@ -49,9 +48,7 @@ PyGame::~PyGame()
     if(game_)
     {
         if(replay_.IsRecording())
-        {
             replay_.StopRecording();
-        }
 
         replay_.Close();
 
@@ -60,43 +57,61 @@ PyGame::~PyGame()
     }
 }
 
-void PyGame::AddPlayerObject(const std::string& name, std::shared_ptr<PyPlayer> player)
+void PyGame::AddPlayer(const std::string& name, AI::Level level, std::shared_ptr<PyPlayer> player)
+{
+    AddPlayerInternal(name, AI::Type::Python, level, player);
+}
+
+void PyGame::AddPlayerAIJH(const std::string& name, AI::Level level)
+{
+    AddPlayerInternal(name, AI::Type::Default, level, nullptr);
+}
+
+void PyGame::AddPlayerDummy(const std::string& name, AI::Level level)
+{
+    AddPlayerInternal(name, AI::Type::Dummy, level, nullptr);
+}
+
+void PyGame::AddPlayerInternal(const std::string& name, AI::Type type, AI::Level level, std::shared_ptr<PyPlayer> player)
 {
     PlayerInfo pi;
-    pi.aiInfo.type = AI::Type::Python;
-    pi.aiInfo.level = AI::Level::Easy;
+    pi.ps = PlayerState::AI;
+    pi.aiInfo.type = type;
+    pi.aiInfo.level = level;
     pi.name = name;
     pi.nation = Nation::Romans;
     pi.team = Team::None;
     playerInfos_.push_back({pi, player});
 }
 
-void PyGame::AddPlayer(const std::string& name, AI::Type type, AI::Level level)
-{
-    PlayerInfo pi;
-    pi.aiInfo.type = type;
-    pi.aiInfo.level = level;
-    pi.name = name;
-    pi.nation = Nation::Romans;
-    pi.team = Team::None;
-    playerInfos_.push_back({pi, nullptr});
-}
-
 void PyGame::Run(unsigned maxGF)
 {
     Start();
 
-    while (game_->em_->GetCurrentGF() < maxGF && !game_->IsGameFinished())
+    while(true) {
+        if (getCurrentGF() >= maxGF) {
+            std::cout << "Game stopped after " << maxGF << " GFs." << std::endl;
+            break;
+        }
+
+        if (game_->IsGameFinished()) {
+            std::cout << "Game finished after " << getCurrentGF() << " GFs." << std::endl;
+            break;
+        }
+
         Step();
+    }
 }
 
 void PyGame::Start()
 {
     GlobalGameSettings ggs;
     ggs.objective = objective_;
+
     std::vector<PlayerInfo> pis;
     for (const auto& pi : playerInfos_)
         pis.push_back(pi.first);
+    
     game_ = new Game(ggs, std::make_unique<EventManager>(0), pis);
 
     MapLoader loader(game_->world_);
@@ -137,7 +152,7 @@ void PyGame::Start()
 
 void PyGame::Step()
 {
-    bool isnfw = game_->em_->GetCurrentGF() % nwfInterval_ == 0;
+    bool isnfw = getCurrentGF() % nwfInterval_ == 0;
     AsyncChecksum checksum;
 
     if(isnfw)
@@ -154,7 +169,7 @@ void PyGame::Step()
             if(replay_.IsRecording() && !cmds.gcs.empty())
             {
                 cmds.checksum = checksum;
-                replay_.AddGameCommand(game_->em_->GetCurrentGF(), playerId, cmds);
+                replay_.AddGameCommand(getCurrentGF(), playerId, cmds);
             }
 
             for(const gc::GameCommandPtr& gc : cmds.gcs)
@@ -163,12 +178,12 @@ void PyGame::Step()
     }
 
     for(auto& player : game_->aiPlayers_)
-        player.RunGF(game_->em_->GetCurrentGF(), isnfw);
+        player.RunGF(getCurrentGF(), isnfw);
 
     game_->RunGF();
 
     if(replay_.IsRecording())
-        replay_.UpdateLastGF(game_->em_->GetCurrentGF());
+        replay_.UpdateLastGF(getCurrentGF());
 }
 
 unsigned PyGame::getCurrentGF() const

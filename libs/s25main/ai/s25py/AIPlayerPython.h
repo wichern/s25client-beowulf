@@ -10,7 +10,6 @@
 #pragma GCC diagnostic ignored "-Wredundant-decls"
 #pragma GCC diagnostic ignored "-Wnoexcept"
 #include <pybind11/pybind11.h>
-namespace py = pybind11;
 #pragma GCC diagnostic error "-Wredundant-decls"
 #pragma GCC diagnostic error "-Wnoexcept"
 
@@ -19,14 +18,14 @@ namespace s25py {
 class AIPlayerPython final : public AIPlayer
 {
 public:
-    AIPlayerPython(unsigned char playerId, const GameWorldBase& gwb, AI::Level level, py::object py);
-    ~AIPlayerPython() override;
+    AIPlayerPython(unsigned char playerId, const GameWorldBase& gwb, AI::Level level, pybind11::object py);
+    ~AIPlayerPython() override = default;
 
     void RunGF(unsigned gf, bool gfisnwf) override;
     void OnChatMessage(unsigned sendPlayerId, ChatDestination, const std::string& msg) override;
 
 private:
-    py::object py_;
+    pybind11::object py_;
 };
 
 } // namespace s25py

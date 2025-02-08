@@ -3,6 +3,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "AIPlayerPython.h"
+#include "ai/s25py/PyPlayer.h"
+
+namespace py = pybind11;
 
 namespace s25py {
 
@@ -10,10 +13,8 @@ AIPlayerPython::AIPlayerPython(const unsigned char playerId, const GameWorldBase
     : AIPlayer(playerId, gwb, level)
     , py_(py)
 {
-}
-
-AIPlayerPython::~AIPlayerPython()
-{
+    std::shared_ptr<s25py::PyPlayer> player = py_.cast<std::shared_ptr<s25py::PyPlayer>>();
+    player->aii_ = &aii;
 }
 
 void AIPlayerPython::RunGF(unsigned gf, bool gfisnwf)

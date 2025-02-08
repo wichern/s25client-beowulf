@@ -2,27 +2,28 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "s25py.h"
+#include "module_core.h"
 
-#include "pyPlayer.h"
-#include "Point.h"
+#include "PyPlayer.h"
 #include "gameTypes/AIInfo.h"
 #include "ai/AIResource.h"
 #include "gameTypes/BuildingQuality.h"
 #include "gameTypes/BuildingType.h"
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/GameSettingTypes.h"
+#include "buildings/nobBaseWarehouse.h"
 #include "s25util/System.h"
 
 #include <boost/nowide/iostream.hpp>
 namespace bnw = boost::nowide;
+namespace py = pybind11;
 
 namespace s25py {
 
 void init_core(py::module_ &m)
 {
     py::enum_<GameObjective>(m, "GameObjective")
-      .value("None", GameObjective::None)
+      .value("NoObjective", GameObjective::None)
       .value("Conquer3_4", GameObjective::Conquer3_4)
       .value("TotalDomination", GameObjective::TotalDomination)
       .value("EconomyMode", GameObjective::EconomyMode)
@@ -33,13 +34,16 @@ void init_core(py::module_ &m)
       .value("Tournament5", GameObjective::Tournament5)
       .export_values();
 
-    py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>>(m, "Player")
-      .def(py::init<>());
+    py::class_<s25py::PyPlayer, std::shared_ptr<s25py::PyPlayer>, s25py::PlayerTrampoline>(m, "Player")
+      .def(py::init<>())
+      .def("run_gf", &s25py::PyPlayer::RunGF)
+      .def("on_chat_message", &s25py::PyPlayer::OnChatMessage)
+      .def("get_headquater", &s25py::PyPlayer::GetHeadquater);
 
-    py::class_<s25py::PyBuilding>(m, "Building")
-      .def_readwrite("type", &s25py::PyBuilding::type)
-      .def_readwrite("pos", &s25py::PyBuilding::pos)
-      .def_readwrite("flag_pos", &s25py::PyBuilding::flag_pos);
+    py::class_<nobBaseWarehouse>(m, "BaseWarehouse")
+      .def_property_readonly("type", &nobBaseWarehouse::GetBuildingType)
+      .def_property_readonly("pos", &nobBaseWarehouse::GetPos)
+      .def_property_readonly("flag_pos", &nobBaseWarehouse::GetFlagPos);
 
     py::class_<MapPoint>(m, "MapPoint")
       .def_readwrite("x", &MapPoint::x)

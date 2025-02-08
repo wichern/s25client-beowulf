@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "ai/s25py/AILoader.h"
+#include "ai/s25py/module_core.h"
 #include "GlobalGameSettings.h"
 #include "HeadlessGame.h"
 #include "QuickStartGame.h"
@@ -10,17 +12,22 @@
 #include "files.h"
 #include "random/Random.h"
 #include "s25util/System.h"
-
 #include <boost/filesystem.hpp>
 #include <boost/nowide/args.hpp>
 #include <boost/nowide/filesystem.hpp>
 #include <boost/nowide/iostream.hpp>
 #include <boost/optional.hpp>
 #include <boost/program_options.hpp>
+#include <pybind11/embed.h>
 
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 namespace po = boost::program_options;
+
+PYBIND11_EMBEDDED_MODULE(s25py, m)
+{
+    s25py::init_core(m);
+}
 
 int main(int argc, char** argv)
 {
@@ -87,8 +94,12 @@ int main(int argc, char** argv)
         bnw::cout << "random_init: " << random_init << std::endl;
         bnw::cout << std::endl;
 
+        // Initialize pybind11 interpreter
+        pybind11::scoped_interpreter guard{};
+    
         RTTRCONFIG.Init();
         RANDOM.Init(random_init);
+        AILOADER.Load();
 
         const bfs::path mapPath = RTTRCONFIG.ExpandPath(options["map"].as<std::string>());
         const std::vector<AI::Info> ais = ParseAIOptions(options["ai"].as<std::vector<std::string>>());

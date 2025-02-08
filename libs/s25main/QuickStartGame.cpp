@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "ai/s25py/AILoader.h"
 #include "QuickStartGame.h"
 #include "Loader.h"
 #include "MusicPlayer.h"
@@ -39,14 +40,20 @@ std::vector<AI::Info> ParseAIOptions(const std::vector<std::string>& aiOptions)
     for(const std::string& aiOption : aiOptions)
     {
         const auto aiOption_lower = s25util::toLower(aiOption);
-        // @todo: Add AI::Type::Python
         AI::Type type = AI::Type::Dummy;
+        unsigned pyIdx = 0;
         if(aiOption_lower == "aijh")
             type = AI::Type::Default;
-        else if(aiOption_lower != "dummy")
-            throw std::invalid_argument("Invalid AI player name: " + aiOption_lower);
+        else if(aiOption_lower == "dummy")
+            type = AI::Type::Dummy;
+        else {
+            pyIdx = AILOADER.GetIdx(aiOption);
+            if (pyIdx == std::numeric_limits<unsigned>::max())
+                throw std::invalid_argument("Invalid AI player name: " + aiOption);
+            type = AI::Type::Python;
+        }
 
-        aiInfos.push_back({type, AI::Level::Hard});
+        aiInfos.push_back({type, AI::Level::Hard, pyIdx});
     }
 
     return aiInfos;

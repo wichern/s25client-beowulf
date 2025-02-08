@@ -1,6 +1,6 @@
 # s25py
 
-`s25py` is an extension to `s25client` that allows running AIs written with python.
+`s25py` is an extension to `s25client` that enables running AI scripts written in python.
 
 ## Minimal example
 
@@ -11,20 +11,20 @@ class AwesomeAI(s25py.Player):
     def run_gf(self, gf, gfisnwf):
         pass
 
-    def on_chat_message(self, playerId, msg):
+    def on_chat_message(self, playerId, dest, msg):
         pass
 ```
 
-## Run in s25client
+## Running in s25client
 
-In order for `s25client` to find your AI, you have to create a subdirectory in `<RTTR_RTTR>/assets/ai` containing a `__init__.py` (e.g. `<RTTR_RTTR>/assets/ai/AwesomeAI/__init__.py`).
-`s25client` will import every class in your module that subclasses `s25py.Player`.
+To allow `s25client` to detect your AI, create a subdirectory inside `<RTTR_RTTR>/assets/ai` containing an `__init__.py` file (e.g. `<RTTR_RTTR>/assets/ai/AwesomeAI/__init__.py`).
+`s25client` will automatically import any class in your module that subclasses `s25py.Player`.
 
-## Debug
+## Debugging
 
-In order to debug your AI with your favourite python IDE, you can run a headless game.
+To debug your AI using your preferred Python ID, you can run a headless game.
 
-### Create s25py.cython*.so
+### Building s25py.cython*.so
 
 Install required packages
 ```sh
@@ -35,7 +35,6 @@ Create a virtual environment to not install the package globally.
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-pip install pybind11
 ```
 
 Build
@@ -60,7 +59,7 @@ import your_ai
 game = s25py.Game("<RTTR_RTTR>/MAPS/OTHER/Bergschlumpf.swd")
 game.add_player(s25py.Player())
 game.add_player(s25py.PlayerAIJH())
-game.add_player(your_ai.AwesomeAI())
+game.add_player_obj("AI #1", your_ai.AwesomeAI())
 game.run(max_gf=10000)
 ```
 
@@ -88,29 +87,3 @@ The `Game` class has a list of optional properties.
 ```sh
 RTTR_PREFIX_DIR=$(pwd) gdb --args python my_game.py
 ```
-
-# Map/World Layers
-
-Inheritance hierarchy and important members:
-
-* `MapBase`: (`size_`)
-* `World`:
-** `nodes`
-*** `altitude`
-*** `t1`, `t2` of type `terrainDesc`
-*** `resources`
-*** `owner`
-*** `bq` (when recalculated?)
-*** `fow` by player
-*** `seaId`
-*** `harborId`
-*** `obj` object of type `noBase*` that is located at this position
-** `seas` Id and number of nodes containing the sea
-** `harbor_pos` List of harbor positions
-* `GameWorldBase`
-** `roadPathFinder`
-** `freePathFinder`
-** `notifications`
-** `players`
-** `gameSettings`
-** `em` EventManager

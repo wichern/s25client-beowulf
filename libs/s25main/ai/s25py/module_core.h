@@ -2,11 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "s25py.h"
+#pragma once
 
-#include <pybind11/embed.h>
+#include <pybind11/pybind11.h>
 
-PYBIND11_EMBEDDED_MODULE(s25py, m)
-{
-    s25py::init_core(m);
-}
+namespace s25py {
+
+void init_core(pybind11::module_ &m);
+
+} // namespace s25py
