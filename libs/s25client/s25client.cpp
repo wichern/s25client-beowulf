@@ -57,6 +57,7 @@ namespace bfs = boost::filesystem;
 namespace bnw = boost::nowide;
 namespace po = boost::program_options;
 
+// Create s25py module that python modules used in this binary can import.
 PYBIND11_EMBEDDED_MODULE(s25py, m)
 {
     s25py::init_core(m);

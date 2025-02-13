@@ -1,4 +1,4 @@
-// Copyright (C) 2005 - 2024 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2025 Settlers Freaks (sf-team at siedler25.org)
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -29,7 +29,6 @@ bool is_subclass(const py::handle& obj, const py::handle& super) {
 void AILoader::Load()
 {
     bfs::path rootDir = RTTRCONFIG.ExpandPath(s25::folders::ai);
-    // LOG.write("Scanning %s for AI players ...\n", LogTarget::Stdout) % rootDir.string().c_str();
 
     // Add AI asset dir to python sys path.
     py::module sys = py::module_::import("sys");
@@ -53,14 +52,16 @@ void AILoader::Load()
 
                 for(auto item : module.attr("__dict__").cast<py::dict>()) {
                     if (is_subclass(item.second, base_class)) {
-                        LOG.write("Found AI: %s\n", LogTarget::Stdout) % item.first.cast<std::string>().c_str();
+                        LOG.write("Import AI: %s\n", LogTarget::Stdout) % item.first.cast<std::string>().c_str();
                         ais_.push_back({subfolder, item.first.cast<std::string>()});
                     }
                 }
-            } catch (const py::error_already_set& ex) {
+            } catch(const py::error_already_set& ex)
+            {
                 s25util::error(std::string("Python error: ") + ex.what());
             }
-        } catch (const bfs::filesystem_error& ex) {
+        } catch(const bfs::filesystem_error& ex)
+        {
             s25util::error(std::string("Filesystem error: ") + ex.what());
         }
     }

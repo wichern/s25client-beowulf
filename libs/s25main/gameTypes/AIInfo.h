@@ -35,7 +35,9 @@ struct Info
     Type type;
     Level level;
     unsigned pythonIdx;
-    Info(Type t = Type::Dummy, Level l = Level::Easy, unsigned pythondIdx = 0) : type(t), level(l), pythonIdx(pythondIdx) {}
+    Info(Type t = Type::Dummy, Level l = Level::Easy, unsigned pythondIdx = 0u)
+        : type(t), level(l), pythonIdx(pythondIdx)
+    {}
     Info(Serializer& ser);
     void serialize(Serializer& ser) const;
 

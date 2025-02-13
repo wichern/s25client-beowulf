@@ -1,27 +1,25 @@
-// Copyright (C) 2005 - 2024 Settlers Freaks (sf-team at siedler25.org)
+// Copyright (C) 2005 - 2025 Settlers Freaks (sf-team at siedler25.org)
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "PyGame.h"
-#include "PyPlayer.h"
-
-#include "ai/AIPlayer.h"
-#include "ai/s25py/AIPlayerPython.h"
 #include "AsyncChecksum.h"
 #include "EventManager.h"
+#include "Game.h"
+#include "GlobalGameSettings.h"
+#include "PyPlayer.h"
+#include "RttrConfig.h"
+#include "ai/AIPlayer.h"
+#include "ai/s25py/AIPlayerPython.h"
 #include "factories/AIFactory.h"
 #include "files.h"
-#include "Game.h"
+#include "network/PlayerGameCommands.h"
+#include "random/Random.h"
+#include "world/GameWorld.h"
+#include "world/MapLoader.h"
 #include "gameTypes/AIInfo.h"
 #include "gameTypes/GameTypesOutput.h"
 #include "gameTypes/MapInfo.h"
-#include "GlobalGameSettings.h"
-#include "network/PlayerGameCommands.h"
-#include "random/Random.h"
-#include "RttrConfig.h"
-#include "world/GameWorld.h"
-#include "world/MapLoader.h"
-
 #include <boost/filesystem.hpp>
 #include <boost/nowide/iostream.hpp>
 
