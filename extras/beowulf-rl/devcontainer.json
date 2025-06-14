@@ -1,0 +1,35 @@
+{
+  "name": "s25dev",
+  "build": {
+    "dockerfile": "../extras/beowulf-rl/Dockerfile",
+    "args": {
+      "USER_UID": "${localEnv:UID}",
+      "USER_GID": "${localEnv:GID}",
+      "HTTPS_PROXY": "${localEnv:HTTP_PROXY}",
+      "HTTP_PROXY": "${localEnv:HTTP_PROXY}",
+      "https_proxy": "${localEnv:HTTP_PROXY}",
+      "http_proxy": "${localEnv:HTTP_PROXY}"
+    },
+    "options": ["--network=host"]
+  },
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash"
+  },
+  "extensions": [
+      "ms-vscode.cpptools"
+  ],
+  "remoteUser": "mlpack",
+  "containerEnv": {
+    "USER_UID": "${localEnv:UID}",
+    "USER_GID": "${localEnv:GID}",
+    "HTTPS_PROXY": "${localEnv:HTTP_PROXY}",
+    "HTTP_PROXY": "${localEnv:HTTP_PROXY}",
+    "https_proxy": "${localEnv:HTTP_PROXY}",
+    "http_proxy": "${localEnv:HTTP_PROXY}",
+    "NO_PROXY": "localhost",
+    "no_proxy": "localhost"
+  },
+  "runArgs": [
+    "--network=host"
+  ]
+}

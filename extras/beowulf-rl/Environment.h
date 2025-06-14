@@ -4,54 +4,51 @@
 
 #pragma once
 
-#include "State.h"
+#include "GameState.h"
+#include "ActionSpace.h"
 
 #include <armadillo>
 
+#include <memory>
+
+class GameWorld;
+
 namespace beowulf {
 
-class TicTacToeAction
-  {
-   public:
-    /**
-     * Construct an action instance.
-     */
-    TicTacToeAction() : action(1)
-    { /* Nothing to do here */ }
-    std::vector<double> action;
-    // Storing degree of freedom.
-    static const size_t size = 1;
-  };
+struct Settings;
+class HeadlessGame;
 
 class Environment
 {
 public:
-    using Action = TicTacToeAction;
-    using State = beowulf::State;
+    using Action = ActionSpace;
+    using State = GameState;
 
-    Environment() { /* Initialize parameters */ }
+    Environment(Settings* settings);
 
-    State InitialSample()
-    {
-        return State();
-    }
+    // Get an initial game state
+    State InitialSample();
+    bool IsTerminal(const State& state) const;
 
-    bool IsTerminal(const State& state)
-    {
-        //return CheckWinner(state) != 0 || state.IsFull();
-        return true;
-    }
+    size_t ActionSize() const;
+    size_t StateSize() const;
 
-    size_t ActionSize() const { return 1; }
-    size_t StateSize() const { return 9; }
+    // Apply given action and calculate reward for the next state.
+    double Sample(const State& state, const Action& action, State& nextState);
 
-    double Sample(const State& state,
-                  const Action& action,
-                  State& nextState)
-    {
-        nextState = state;
-        return -0.1;
-    }
+    GameWorld* world_ = nullptr;
+    unsigned agentId_ = 0u;
+    Settings* settings_ = nullptr;
+    std::unique_ptr<HeadlessGame> engine_;
+
+    unsigned GetCurrentGf() const;
+
+    unsigned lastFailedActionConstructions_ = 0u;
+    unsigned failedActionConstructions_ = 0u;
+private:
+
+    MapPoint toPoint(const State& state, unsigned point_idx) const;
+    Direction toDirection(unsigned direction_idx) const;
 };
 
 } // namespace beowulf
