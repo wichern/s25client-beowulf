@@ -25,16 +25,22 @@ constexpr auto maxEnumValue(AgentAction)
 
 enum class AgentActionParamType : unsigned
 {
+    Action, /* select next action */
     Point,
     BuildingType,
     Direction,
     Percentage,
     Boolean,
-    JobType,
-    GoodsType,
+    Job,
+    GoodType,
     MilitaryVal,
     MilitaryRank,
     PlayerId
 };
+
+constexpr auto maxEnumValue(AgentActionParamType)
+{
+    return AgentActionParamType::PlayerId;
+}
 
 }

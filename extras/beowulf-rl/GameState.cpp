@@ -25,7 +25,6 @@ GameState::GameState(Environment* env)
     , env_(env)
 {
     poi_ = env_->world_->GetPlayer(env_->agentId_).GetHQPos();
-    Update();
 }
 
 void GameState::Update()
@@ -50,6 +49,7 @@ void GameState::Update()
         data[idx++] = player.GetInventory()[i];
     for(const auto i : helpers::enumRange<GoodType>())
         data[idx++] = player.GetInventory()[i];
+    // @todo: add building stats
     RTTR_Assert(idx == 1 + MAX_PARAMS_PER_ACTION + meta_information_count);
 
     // Insert map point data

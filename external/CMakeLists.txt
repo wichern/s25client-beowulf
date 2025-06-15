@@ -84,3 +84,6 @@ set(BUILD_TESTING OFF)
 add_subdirectory(turtle)
 get_target_property(inc turtle INTERFACE_INCLUDE_DIRECTORIES)
 set_target_properties(turtle PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${inc}")
+
+add_library(asciichart INTERFACE)
+target_include_directories(asciichart INTERFACE asciichart/include)

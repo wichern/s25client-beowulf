@@ -2,26 +2,13 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-// now
-// Since GameState is default-constructed initially, we need to make the game static?
-
-// somewhen
-// @todo: Create replays
-// @todo: At end of every episode, print an ASCII map
-// @todo: Pre-Train with Replays and AIJH
-// @todo: try -opemmp flag
-// @todo: multi-thread? one thread for game logic, one for mlpack
-
-//
-// usage:
-//  beowulf-rl train settings.ini
-//
-
 #include <mlpack.hpp>
 
 #include "Environment.h"
 #include "Settings.h"
 #include "AsciiMap.h"
+#include "Policy.h"
+#include "Observer.h"
 #include "GameState.h"
 #include "HeadlessGame.h"
 
@@ -40,21 +27,23 @@
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 
+// @todo: Run a greedy-only episode after each episode to evalute the current state of the network (test rollout)
+//        This value should be used in the reward diagram
+// @todo: Implement different Policies (eventually selectable by config)
+//          Boltzmann Exploration (Softmax Policy)
+//          Upper Confidence Bound (UCB)
+// @todo: create log files that include the selected actions for debugging
+//          log for rewards, epsilon, etc to be used in discussion
+//          log for selected actions (debugging)
+//          ascii maps
+//          replays
+// @todo: Make asciichart display y values with comma and take any container as input
 // @todo: make the initial game state size calculation faster by updating Q_Learning to cache the size like SAC already does
-// @todo: print Overview with an Observer singleton
-//          AsciiMap of current POI
-//          Below: graph of episode rewards
-//          Graph of failed action constructions in episode
-//          Graph of time calculating the episode took
-//          -> https://github.com/Civitasv/asciichart
-// @todo: clean up Environment::Sample()
 // @todo: At end of each episode print all generated commands and the final ascii map of the full map into a file
 // @todo: Create replays
-// @todo: Improve reward function
+// @todo: Move POI
 // @todo: Make it read a configuration file and train on multiple maps/objectives/settings like so:
 //        Per episode, select a different map/objective/setting and make sure that all are used
-
-//void PrintEpisodeResult(unsigned idx, const beowulf::GameState& state, double reward);
 
 #if defined(__MINGW32__) && !defined(__clang__)
 void printConsole(const char* fmt, ...) __attribute__((format(gnu_printf, 1, 2)));
@@ -99,9 +88,7 @@ int main(/*int argc, char** argv*/)
         config.DoubleQLearning() = true;
         config.TargetNetworkSyncInterval() = 1000;
 
-        // @todo: subclass GreedyPolicy to prefer selecting 0 as action
-        //        maybe this allows us to even only select valid actions
-        mlpack::GreedyPolicy<beowulf::Environment> policy(1.0, 40'000, 0.1, 0.99);
+        beowulf::Policy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
         mlpack::RandomReplay<beowulf::Environment> replayMethod(128, 100'000);
 
         // @todo: Which initialization function makes most sense for us?
@@ -139,12 +126,29 @@ int main(/*int argc, char** argv*/)
             );
 
         for (unsigned i = 0u; i < EPISODES; ++i) {
-            // @todo: use more POIs
-            double reward = agent.Episode();
-            bnw::cout << "Episode " << i << ": " << reward <<  std::endl;
-            //PrintEpisodeResult(i, agent.State(), reward);
+            /*double reward =*/ agent.Episode();
+            double epsilon = policy.Epsilon();
+
+            // have we reached the end of the initial exploration phase?
+            if (agent.TotalSteps() >= config.ExplorationSteps())
+            {
+                // make a test run
+                beowulf::Environment::State state = env.InitialSample();
+                double totalReturn = 0.0;
+                while (!env.IsTerminal(state))
+                {
+                    arma::colvec actionValue;
+                    dqn.Predict(state.Encode(), actionValue);
+                    beowulf::Environment::Action action = policy.Sample(actionValue, true, config.NoisyQLearning());
+                    beowulf::Environment::State nextState;
+                    totalReturn += env.Sample(state, action, nextState);
+                    state = nextState;
+                }
+
+                beowulf::Observer::getInstance().printEpisode(totalReturn, epsilon);
+            } else
+                beowulf::Observer::getInstance().printInitialTrainingPhase();
         }
-        // @todo: Store network in order to load it again next time.
     } catch(const std::exception& e)
     {
         bnw::cerr << e.what() << std::endl;
@@ -153,21 +157,6 @@ int main(/*int argc, char** argv*/)
 
     return 0;
 }
-
-// void PrintEpisodeResult(unsigned idx, const beowulf::GameState& state, double reward)
-// {
-//     // static bool first_run = true;
-//     // if(first_run)
-//     //     first_run = false;
-//     // else
-//     //     printConsole("\x1b[%dA", 8 + world_.GetNumPlayers()); // Move cursor back up
-
-//     AsciiMap debug(state.game_->world_, state.poi_, POI_RADIUS+2);
-//     debug.drawPlayer(state.agentId_);
-//     debug.write();
-
-//     bnw::cout << "Episode " << idx << ": " << reward << std::endl;
-// }
 
 void printConsole(const char* fmt, ...)
 {
