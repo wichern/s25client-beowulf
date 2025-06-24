@@ -7,6 +7,7 @@
 #include "gameData/BuildingProperties.h"
 #include "gameTypes/GameTypesOutput.h"
 #include "PointOutput.h"
+#include "EventManager.h"
 #include "Settings.h"
 #include "Observer.h"
 #include "AsciiMap.h"
@@ -71,7 +72,11 @@ double Environment::Sample(const State& state,
 
     // advance state
     if (actionFinished)
+    {
         engine_->RunNextNWGF();
+        beowulf::Observer::getInstance().setCurrentGf(engine_->em_.GetCurrentGF());
+        beowulf::Observer::getInstance().printState();
+    }
     // @todo: if action was 'NoAction' then we go to another POI
     nextState.Update();
 
@@ -175,7 +180,8 @@ bool Environment::HandleAction(const State& state, const Action& action, unsigne
             unsigned buildingTypeIdxWithoutInvalids = 0u;
             for (unsigned i = 0u; i <= helpers::MaxEnumValue_v<BuildingType> && buildingTypeIdxWithoutInvalids < action.action; ++i)
             {
-                if (BuildingProperties::IsValid(BuildingType(i)))
+                BuildingType bt = BuildingType(i);
+                if (bt != BuildingType::Headquarters && BuildingProperties::IsValid(bt))
                     buildingTypeIdxWithoutInvalids++;
             }
             RTTR_Assert(buildingTypeIdxWithoutInvalids == action.action);
@@ -292,6 +298,9 @@ Environment::MetaState Environment::ExtractMetaState() const
         {
             auto const& buildings = player.GetBuildingRegister().GetBuildings(buildingType);
             ret.buildingCount = buildings.size();
+
+            if (buildingType == BuildingType::Headquarters)
+                continue;
             
             if (!player.GetHQPos().isValid())
                 continue;
@@ -300,15 +309,19 @@ Environment::MetaState Environment::ExtractMetaState() const
             if (!hq)
                 continue;
             
+            // @todo: if this calculation is slow, we can buffer it?
             for (const auto* building : buildings)
             {
-                if (BuildingProperties::IsWareHouse(buildingType) && buildingType != BuildingType::Headquarters)
+                if (BuildingProperties::IsWareHouse(building->GetBuildingType()))
                 {
                     if (aii.FindPathOnRoads(*building->GetFlag(), *hq, nullptr))
                         ret.connectedBuildings++;
                 }
-                if (aii.FindWarehouse(*building->GetFlag(), FW::NoCondition(), true, true))
-                    ret.connectedBuildings++;
+                else
+                {
+                    if (aii.FindWarehouse(*building->GetFlag(), FW::NoCondition(), true, true))
+                        ret.connectedBuildings++;   
+                }
             }
         }
     }

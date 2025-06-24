@@ -58,7 +58,7 @@ class Policy
     static constexpr helpers::EnumArray<size_t, AgentActionParamType> ACTION_SPACE_SIZE = {{
         /* Action */        helpers::MaxEnumValue_v<AgentAction>,
         /* Point */         GameState::point_count,
-        /* BuildingType */  helpers::MaxEnumValue_v<BuildingType> - NUM_UNUSED_BLD_TYPES, //@todo: do not allow HQ as well
+        /* BuildingType */  helpers::MaxEnumValue_v<BuildingType> - NUM_UNUSED_BLD_TYPES - 1, // -1 for not allowing HQ
         /* Direction */     helpers::MaxEnumValue_v<Direction>,
         /* Percentage */    100, /* @todo */
         /* Boolean */       2,
@@ -74,7 +74,6 @@ class Policy
     if (!deterministic && exploration < epsilon && isNoisy == false)
     {
         action.action = static_cast<decltype(action.action)>(mlpack::RandInt(actionSpaceSize));
-        //std::cout << epsilon << ", random: " << action.action << std::endl;
     }
     // Select the action greedily.
     else
@@ -102,10 +101,6 @@ class Policy
           }
         }
         action.action = static_cast<decltype(action.action)>(bestIndex);
-
-      // action.action = static_cast<decltype(action.action)>(
-      //     arma::as_scalar(arma::find(actionValue == actionValue.max(), 1)));
-        //std::cout << epsilon << ", greedy: " << action.action << std::endl;
     }
     return action;
   }

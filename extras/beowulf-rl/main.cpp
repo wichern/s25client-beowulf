@@ -27,11 +27,8 @@
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 
-// @todo: Run a greedy-only episode after each episode to evalute the current state of the network (test rollout)
-//        This value should be used in the reward diagram
 // @todo: Implement different Policies (eventually selectable by config)
 //          Boltzmann Exploration (Softmax Policy)
-//          Upper Confidence Bound (UCB)
 // @todo: create log files that include the selected actions for debugging
 //          log for rewards, epsilon, etc to be used in discussion
 //          log for selected actions (debugging)
@@ -44,14 +41,6 @@ namespace bfs = boost::filesystem;
 // @todo: Move POI
 // @todo: Make it read a configuration file and train on multiple maps/objectives/settings like so:
 //        Per episode, select a different map/objective/setting and make sure that all are used
-
-#if defined(__MINGW32__) && !defined(__clang__)
-void printConsole(const char* fmt, ...) __attribute__((format(gnu_printf, 1, 2)));
-#elif defined __GNUC__
-void printConsole(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
-#else
-void printConsole(const char* fmt, ...);
-#endif
 
 int main(/*int argc, char** argv*/)
 {
@@ -89,15 +78,24 @@ int main(/*int argc, char** argv*/)
         config.TargetNetworkSyncInterval() = 1000;
 
         beowulf::Policy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
-        mlpack::RandomReplay<beowulf::Environment> replayMethod(128, 100'000);
+        mlpack::RandomReplay<beowulf::Environment> replayMethod(64, 200'000);
 
         // @todo: Which initialization function makes most sense for us?
-        mlpack::FFN<mlpack::MeanSquaredError, mlpack::GlorotInitialization> network;
-        network.Add(new mlpack::Linear(env.StateSize()));
+        mlpack::FFN<mlpack::MeanSquaredError, mlpack::GaussianInitialization> network(
+            mlpack::MeanSquaredError(),
+            mlpack::GaussianInitialization(0, 0.01)
+        );
+        //network.Add(new mlpack::Linear(env.StateSize()));
+        // network.Add(new mlpack::ReLU());
+        // network.Add(new mlpack::Linear(128));
+        // network.Add(new mlpack::ReLU());
+        // network.Add(new mlpack::Linear(64));
+        //network.Add(new mlpack::ReLU());
+        network.Add(new mlpack::Linear(1024));  // reduce input to a dense encoding
         network.Add(new mlpack::ReLU());
-        network.Add(new mlpack::Linear(128));
+        network.Add(new mlpack::Linear(512));
         network.Add(new mlpack::ReLU());
-        network.Add(new mlpack::Linear(64));
+        network.Add(new mlpack::Linear(256));
         network.Add(new mlpack::ReLU());
         network.Add(new mlpack::Linear(beowulf::ActionSpace::size));
 
@@ -125,6 +123,8 @@ int main(/*int argc, char** argv*/)
                 std::move(env)
             );
 
+        beowulf::Observer::getInstance().init(settings.maxGf, &agent.Environment());
+
         for (unsigned i = 0u; i < EPISODES; ++i) {
             /*double reward =*/ agent.Episode();
             double epsilon = policy.Epsilon();
@@ -145,9 +145,10 @@ int main(/*int argc, char** argv*/)
                     state = nextState;
                 }
 
-                beowulf::Observer::getInstance().printEpisode(totalReturn, epsilon);
+                beowulf::Observer::getInstance().addEpisodeResult(totalReturn, epsilon);
             } else
-                beowulf::Observer::getInstance().printInitialTrainingPhase();
+                beowulf::Observer::getInstance().addEpisodeResult(0.0, epsilon);
+            beowulf::Observer::getInstance().printState();
         }
     } catch(const std::exception& e)
     {
@@ -156,23 +157,5 @@ int main(/*int argc, char** argv*/)
     }
 
     return 0;
-}
-
-void printConsole(const char* fmt, ...)
-{
-    char buffer[512];
-    va_list args;
-    va_start(args, fmt);
-    const int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    if(len > 0 && (size_t)len < sizeof(buffer))
-    {
-#ifdef WIN32
-        static auto h = setupStdOut();
-        WriteConsoleA(h, buffer, len, 0, 0);
-#else
-        bnw::cout << buffer;
-#endif
-    }
 }
 

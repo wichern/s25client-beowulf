@@ -3,14 +3,32 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "Observer.h"
+#include "AsciiMap.h"
+#include "Environment.h"
+#include "world/GameWorld.h"
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <stdarg.h>
+#include <cmath>
+#include <boost/nowide/args.hpp>
+#include <boost/nowide/filesystem.hpp>
+#include <boost/nowide/iostream.hpp>
 
+#ifdef WIN32
+#    include "Windows.h"
+#endif
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-conversion"
-#include "ascii/ascii.h"
-#pragma GCC diagnostic pop
+namespace bnw = boost::nowide;
 
 namespace beowulf {
+
+#if defined(__MINGW32__) && !defined(__clang__)
+void printConsole(const char* fmt, ...) __attribute__((format(gnu_printf, 1, 2)));
+#elif defined __GNUC__
+void printConsole(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+#else
+void printConsole(const char* fmt, ...);
+#endif
 
 Observer& Observer::getInstance()
 {
@@ -18,12 +36,19 @@ Observer& Observer::getInstance()
     return instance;
 }
 
-void Observer::printEpisode(double reward, double epsilon)
+void Observer::init(unsigned maxGf, beowulf::Environment* env)
 {
-    // @todo: print progress of episode
+    maxGf_ = maxGf;
+    env_ = env;
+    trainingStart_ = std::chrono::steady_clock::now();
+    lastFrame_ = trainingStart_ - std::chrono::seconds(1);
+}
 
+void Observer::addEpisodeResult(double reward, double epsilon)
+{
     // ignore the huge negative rewards from losses
-    rewards_.push_back(std::max(reward, 0.0));
+    //rewards_.push_back(std::max(reward, 0.0));
+    rewards_.push_back(reward);
     if (rewards_.size() > 50)
         rewards_.erase(rewards_.begin());
 
@@ -31,32 +56,198 @@ void Observer::printEpisode(double reward, double epsilon)
     if (epsilons_.size() > 50)
         epsilons_.erase(epsilons_.begin());
 
-    // scroll up
-    if (rewards_.size() > 1) {
-        for (unsigned j = 0; j <= 2*chartHeight_ + 5; j++) {
-            std::cout << "\033[A\033[2K";
-        }
-    }
+    currentEpisode_++;
+    setCurrentGf(maxGf_);
 
-    std::cout << "REWARD" << std::endl;
-    ascii::Asciichart asciichart_reward(rewards_);
-    asciichart_reward.min(0.0);
-    asciichart_reward.max(5.0);
-    std::cout << asciichart_reward.height(chartHeight_).Plot();
-
-    std::cout << std::endl;
-    std::cout << "EPSILON (exploration vs exploitation ratio)" << std::endl;
-    ascii::Asciichart asciichart_epsilon(epsilons_);
-    asciichart_epsilon.min(0.0);
-    asciichart_epsilon.max(100.0);
-    std::cout << asciichart_epsilon.height(chartHeight_).Plot();
-
-    std::cout << "Last reward: " << reward << std::endl;
+    // write asciimap
 }
 
-void Observer::printInitialTrainingPhase()
+inline std::string repeat(const std::string& in, size_t count)
 {
-    std::cout << "initial training phase" << std::endl;
+    std::string ret;
+    for (size_t i = 0u; i < count; ++i)
+        ret += in;
+    return ret;
+}
+
+void Observer::printState()
+{
+    // ANSI colors
+    static const char* RESET = "\033[0m";
+    static const char* BLUE = "\033[34m";
+    static const char* GREEN = "\033[32m";
+    //static const char* RED = "\033[31m";
+    //static const char* YELLOW = "\033[33m";
+
+    auto now = std::chrono::steady_clock::now();
+    if (lastFrame_ + std::chrono::milliseconds(500) > now)
+        return;
+    lastFrame_ = now;
+
+    // Move cursor up and clear
+    //printConsole("\033[%uA\033[J", lastHeight_);
+    printConsole("\033[2J");
+    lastHeight_ = 0u;
+
+    // Get terminal dimensions
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    unsigned short width = std::min((unsigned short)120, w.ws_col);
+    unsigned short height = w.ws_row;
+
+    // top
+    printConsole("+%s+\n", std::string(width - 2, '-').c_str());
+    lastHeight_++;
+
+    // title with episode and elapsed time
+    std::string padding = std::string(width - 29, ' ');
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now - trainingStart_);
+    auto minutes = std::chrono::duration_cast<std::chrono::minutes>(now - trainingStart_);
+    auto hours = std::chrono::duration_cast<std::chrono::hours>(now - trainingStart_);
+    printConsole("| %sEpisode%s %-*u%s %02ld:%02ld:%02ld |\n",
+        BLUE, RESET,
+        8, currentEpisode_,
+        padding.c_str(),
+        hours.count(), minutes.count() % 60, seconds.count() % 60);
+    lastHeight_++;
+
+    // progress bar
+    unsigned barWidth = width - 11;
+    float percent = static_cast<float>(currentGf_) / static_cast<float>(maxGf_);
+    unsigned filled = static_cast<int>(percent * static_cast<float>(barWidth));
+    printConsole("| %s[%s%s] %3d%%%s |\n",
+        GREEN,
+        std::string(filled, '#').c_str(),
+        std::string(barWidth - filled, '-').c_str(),
+        static_cast<int>(percent * 100.0),
+        RESET);
+    lastHeight_++;
+
+    // horizontal line
+    unsigned leftWidth = width/ 2;
+    unsigned rightWidth = width - leftWidth - 1;
+    printConsole("+%s+%s+\n",
+        std::string(leftWidth - 1, '-').c_str(),
+        std::string(rightWidth - 1, '-').c_str());
+    lastHeight_++;
+
+    // charts
+    static const size_t chartHeight = 8;
+    std::vector<std::string> linesReward = printChart(rewards_, chartHeight, leftWidth - 3);
+    std::vector<std::string> linesEpsilon = printChart(epsilons_, chartHeight, rightWidth - 3);
+    std::string padding_reward = std::string(leftWidth - 9, ' ');
+    std::string padding_epsilon = std::string(rightWidth - 10, ' ');
+    printConsole("| %sReward%s%s | %sEpsilon%s%s |\n",
+        BLUE, RESET,
+        padding_reward.c_str(),
+        BLUE, RESET,
+        padding_epsilon.c_str());
+    lastHeight_++;
+    for (size_t i = 0; i < chartHeight; ++i)
+    {
+        printConsole("| %s | %s |\n",
+            linesReward[i].c_str(),
+            linesEpsilon[i].c_str()
+        );
+        lastHeight_++;
+    }
+
+    // horizontal line
+    printConsole("+%s+%s+\n",
+        std::string(leftWidth - 1, '-').c_str(),
+        std::string(rightWidth - 1, '-').c_str());
+    lastHeight_++;
+
+    static const unsigned minMapHeight = 10;
+
+    if ((lastHeight_ + minMapHeight + 1) < height && env_ && env_->world_)
+    {
+        std::string paddingMap = std::string(width - 24, ' ');
+        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now - trainingStart_);
+        auto minutes = std::chrono::duration_cast<std::chrono::minutes>(now - trainingStart_);
+        auto hours = std::chrono::duration_cast<std::chrono::hours>(now - trainingStart_);
+        printConsole("| %sLast Test Run Result%s%s |\n",
+            BLUE, RESET,
+            paddingMap.c_str());
+
+        // print a part of the test run result
+        // auto const& world = *(env_->world_);
+        // auto const& player = world.GetPlayer(env_->agentId_);
+        // AsciiMap debug(world, player.GetHQPos(), POI_RADIUS+2);
+        // debug.drawPlayer(env_->agentId_);
+        // debug.write();
+
+        printConsole("+%s+\n", std::string(width - 2, '-').c_str());
+        lastHeight_++;
+    }
+
+
+
+    //printConsole("┌───────────────┬───────────────────────┬───────────────────────┬────────────────┐\n");
+
+
+    // std::cout << "REWARD" << std::endl;
+    // ascii::Asciichart asciichart_reward(rewards_);
+    // asciichart_reward.min(0.0);
+    // asciichart_reward.max(1.0);
+    // std::cout << asciichart_reward.height(chartHeight_).Plot();
+
+    // std::cout << std::endl;
+    // std::cout << "EPSILON (exploration vs exploitation ratio)" << std::endl;
+    // ascii::Asciichart asciichart_epsilon(epsilons_);
+    // asciichart_epsilon.min(0.0);
+    // asciichart_epsilon.max(100.0);
+    // std::cout << asciichart_epsilon.height(chartHeight_).Plot();
+
+    // std::cout << "Last reward: " << reward << std::endl;
+}
+
+std::vector<std::string> Observer::printChart(const std::vector<double> values, unsigned height, unsigned width) const
+{
+    std::vector<std::string> lines(height, std::string(width, ' '));
+
+    if (values.empty())
+        return lines;
+
+    // normalize
+    double maxVal = *std::max_element(values.begin(), values.end());
+    double minVal = *std::min_element(values.begin(), values.end());
+    std::vector<int> normalized;
+    for (double d : values) {
+        int val = (maxVal - minVal < 1e-6) ? height / 2
+                                           : int(((d - minVal) / (maxVal - minVal)) * (height - 1));
+        normalized.push_back(val);
+    }
+
+    unsigned step = std::max(1u, static_cast<unsigned>(values.size()) / width);
+    for (unsigned i = 0, x = 0; i < values.size() && x+6 < width; i += step, ++x) {
+        lines[height - 1 - normalized[i]][6 + x] = '*';
+    }
+    for (unsigned i = 0; i < height; ++i) {
+        double val = minVal + (maxVal - minVal) * (height - 1 - i) / (height - 1);
+        char buffer[16];
+        snprintf(buffer, sizeof(buffer), "%5.1f:", val);
+        lines[i].replace(0, 6, buffer);
+    }
+    return lines;
+}
+
+void printConsole(const char* fmt, ...)
+{
+    char buffer[512];
+    va_list args;
+    va_start(args, fmt);
+    const int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    if(len > 0 && (size_t)len < sizeof(buffer))
+    {
+#ifdef WIN32
+        static auto h = setupStdOut();
+        WriteConsoleA(h, buffer, len, 0, 0);
+#else
+        bnw::cout << buffer;
+#endif
+    }
 }
 
 } // namespace beowulf

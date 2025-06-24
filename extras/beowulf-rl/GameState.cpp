@@ -52,6 +52,16 @@ void GameState::Update()
     // @todo: add building stats
     RTTR_Assert(idx == 1 + MAX_PARAMS_PER_ACTION + meta_information_count);
 
+    // When we visit every node, we can limit the information to:
+    //  - Catapults in range
+    //  - resources in range * resouce types
+    //  - BQ in range * BQ type
+    //  - BuildingType
+    //  - Productivity
+    //  - Number of buildings nearby * building type
+    //  - distance to nearest warehouse
+    //  - owner is self, enemy or friend
+
     // Insert map point data
     if (poi_.isValid()) {
         auto const points = world.GetPointsInRadiusWithCenter(poi_, POI_RADIUS);
