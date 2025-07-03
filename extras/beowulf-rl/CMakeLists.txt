@@ -7,7 +7,8 @@ add_executable(beowulf-rl
     Environment.cpp
     GameState.cpp
     HeadlessGame.cpp
-    Observer.cpp)
+    Observer.cpp
+    BuildLocations.cpp)
 #target_compile_definitions(beowulf-rl PRIVATE ARMA_NO_DEBUG)
 #target_compile_definitions(beowulf-rl PRIVATE MLPACK_ENABLE_ANN_PRINT_DEBUG ARMA_DONT_USE_WRAPPER ARMA_EXTRA_DEBUG)
 target_link_libraries(beowulf-rl PRIVATE armadillo openblas s25Main Boost::program_options Boost::nowide asciichart)

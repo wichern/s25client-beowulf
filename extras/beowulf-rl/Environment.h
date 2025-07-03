@@ -41,9 +41,12 @@ public:
     Settings* settings_ = nullptr;
     std::unique_ptr<HeadlessGame> engine_;
 
+    MapPoint GetNextPOI();
+
     unsigned GetCurrentGf() const;
 
 private:
+    std::vector<MapPoint> pois_;
 
     // state information we need for reward calculation
     struct MetaState

@@ -388,4 +388,22 @@ double Environment::RewardNewBuildings(const MetaState& oldState, const MetaStat
     return ret;
 }
 
+MapPoint Environment::GetNextPOI()
+{
+    while (!pois_.empty()) {
+        MapPoint ret = pois_.back();
+        pois_.pop_back();
+
+        //if (IsValidPOI(ret))
+            return ret;
+    }
+
+    // calculate next POIS
+    //CalculatePOIS();
+    if (!pois_.empty())
+        return pois_.front();
+
+    return MapPoint();
+}
+
 } // namespace beowulf

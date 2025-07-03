@@ -12,6 +12,22 @@
 #include "world/GameWorld.h"
 #include "config.h"
 
+// POI
+//
+// We use the following points as POIs:
+//  - Player Buildings
+//  - Player Build Locations
+//  - Attackable Enemy Military Buildings
+//  - V2: Flags (to send Specialists)
+//
+// The next POI is selected by the following algorithm:
+//  while (true) {
+//      pois = vector<MapPoint>(GetAllPossiblePOIs())
+//      while (!pois.empty())
+//          poi = pois.pop()
+//  }
+//  
+
 namespace beowulf {
 
 GameState::GameState()
@@ -24,7 +40,7 @@ GameState::GameState(Environment* env)
     : data(arma::zeros<arma::colvec>(dimension))
     , env_(env)
 {
-    poi_ = env_->world_->GetPlayer(env_->agentId_).GetHQPos();
+    //poi_ = env_->world_->GetPlayer(env_->agentId_).GetHQPos();
 }
 
 void GameState::Update()
@@ -50,7 +66,6 @@ void GameState::Update()
     for(const auto i : helpers::enumRange<GoodType>())
         data[idx++] = player.GetInventory()[i];
     // @todo: add building stats
-    RTTR_Assert(idx == 1 + MAX_PARAMS_PER_ACTION + meta_information_count);
 
     // When we visit every node, we can limit the information to:
     //  - Catapults in range
@@ -68,7 +83,7 @@ void GameState::Update()
         for (size_t i = 0; i < points.size(); ++i) {
             auto const& node = world.GetNode(points[i]);
 
-            unsigned offset = meta_information_count + (i *  point_attribute_count);
+            unsigned offset = 1u; //meta_information_count + (i *  point_attribute_count);
             
             idx = offset;
             data[idx++] = static_cast<double>(node.fow[env_->agentId_].visibility);
@@ -97,7 +112,7 @@ void GameState::Update()
                 idx++;
             }
 
-            RTTR_Assert(idx == offset + point_attribute_count);
+            //RTTR_Assert(idx == offset + point_attribute_count);
             
             // @todo: do we need to know about figures? it is not a fixed amount!
             // @todo: Add wares on roads? Or road usage?

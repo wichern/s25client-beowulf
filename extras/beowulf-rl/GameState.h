@@ -23,10 +23,8 @@ class Environment;
 class GameState
 {
 public:
-    static constexpr size_t point_count = (POI_RADIUS * POI_RADIUS + POI_RADIUS) * 3u + 1u;
-    static constexpr size_t meta_information_count = 4 + helpers::MaxEnumValue_v<Job> + 1 + helpers::MaxEnumValue_v<GoodType> + 1;
-    static constexpr size_t point_attribute_count = 10;
-    static constexpr size_t dimension = meta_information_count + (point_count * point_attribute_count);
+    static constexpr size_t point_count = 10;
+    static constexpr size_t dimension = 100;
 
     GameState();
     GameState(Environment* env);

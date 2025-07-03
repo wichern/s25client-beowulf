@@ -27,18 +27,38 @@
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 
-// @todo: Implement different Policies (eventually selectable by config)
-//          Boltzmann Exploration (Softmax Policy)
+// Plan B
+// ------
+//
+// [ ] Move classes we will need for game execution to ai/beowulf directory
+// [ ] How to react to Events?
+// [ ] How to implement RoadManager class?
+//      Connect 
+// [ ] How to implement BuildLocations class?
+//      Return all available building sites (incrementally)
+//      Only return building sites that can be connected to ?
+// [ ] POI search
+//     Since we are only interested in BuildingQualities where we could connect with a road,
+//     we need a way to calculate this (maybe from old Beowulf code)
+//
+//  Option A
+//      Visit all BuildingQualities, place anticipated building and check whether a road can be connected to a warehouse
+//
+//  Option B
+//      FloodFill from all warehouses and add all BuildingQualities to a list of reachable locations
+//
+// [ ] POI validation
+// [ ] Auto road network management (connect, disconnect)
+// [ ] Update GameState (get spatial data using CheckPointsInRadius)
+
+
 // @todo: create log files that include the selected actions for debugging
 //          log for rewards, epsilon, etc to be used in discussion
 //          log for selected actions (debugging)
 //          ascii maps
 //          replays
-// @todo: Make asciichart display y values with comma and take any container as input
-// @todo: make the initial game state size calculation faster by updating Q_Learning to cache the size like SAC already does
 // @todo: At end of each episode print all generated commands and the final ascii map of the full map into a file
 // @todo: Create replays
-// @todo: Move POI
 // @todo: Make it read a configuration file and train on multiple maps/objectives/settings like so:
 //        Per episode, select a different map/objective/setting and make sure that all are used
 
