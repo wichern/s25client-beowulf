@@ -28,14 +28,10 @@ public:
 
     void printState();
 
-    void setNextActionParam(AgentActionParamType type) { nextActionParamType_ = type; }
-    AgentActionParamType getNextActionParam() const { return nextActionParamType_; }
-
 private:
     unsigned maxGf_ = 0u;
     beowulf::Environment* env_ = nullptr;
 
-    AgentActionParamType nextActionParamType_ = AgentActionParamType::Action;
     std::vector<double> rewards_;
     std::vector<double> epsilons_;
     unsigned currentEpisode_ = 1u;

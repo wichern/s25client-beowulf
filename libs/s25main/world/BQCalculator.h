@@ -7,6 +7,7 @@
 #include "World.h"
 #include "helpers/containerUtils.h"
 #include "gameData/TerrainDesc.h"
+#include "nodeObjs/noBase.h"
 
 struct BQCalculator
 {

@@ -21,7 +21,7 @@ class HeadlessGame;
 class Environment
 {
 public:
-    using Action = ActionSpace;
+    using Action = BuildActionSpace;
     using State = GameState;
 
     Environment(Settings* settings);
@@ -41,12 +41,21 @@ public:
     Settings* settings_ = nullptr;
     std::unique_ptr<HeadlessGame> engine_;
 
-    MapPoint GetNextPOI();
-
     unsigned GetCurrentGf() const;
 
 private:
-    std::vector<MapPoint> pois_;
+    struct POI
+    {
+
+        std::vector<MapPoint> buildLocations;
+        std::vector<MapPoint> wareHouses;
+        std::vector<MapPoint> harbours;
+        std::vector<MapPoint> militaryBuildings;
+        std::vector<MapPoint> enemyMilitaryBuildings;
+        std::vector<MapPoint> productionBuildings;
+    } poi;
+
+    MapPoint GetNextPOI();
 
     // state information we need for reward calculation
     struct MetaState
@@ -63,7 +72,6 @@ private:
     };
 
     MetaState ExtractMetaState() const;
-    bool HandleAction(const State& state, const Action& action, unsigned& nextStep, std::array<unsigned, 4>& nextParams);
     double RewardGameState(const MetaState& oldState, const MetaState& newState) const;
     double RewardNewGoods(const MetaState& oldState, const MetaState& newState) const;
     double RewardNewPeople(const MetaState& oldState, const MetaState& newState) const;

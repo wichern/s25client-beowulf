@@ -59,7 +59,7 @@ void nofFarmhand::HandleDerivedEvent(const unsigned /*id*/)
         {
             // Start working after the initial wait period
             // Work radius
-            const unsigned max_radius = [](Job job) {
+            const unsigned max_radius = [](Job job) -> unsigned {
                 switch(job)
                 {
                     case Job::Carpenter: return 0;
@@ -68,9 +68,9 @@ void nofFarmhand::HandleDerivedEvent(const unsigned /*id*/)
                     case Job::Winegrower: return 2;
                     case Job::CharBurner: return 3;
                     case Job::Woodcutter:
-                    case Job::Forester: return 6;
-                    case Job::Fisher: return 7;
-                    case Job::Stonemason: return 8;
+                    case Job::Forester: return WOOD_WORK_RANGE;
+                    case Job::Fisher: return FISHER_WORK_RANGE;
+                    case Job::Stonemason: return STONE_WORK_RANGE;
                     default: throw std::logic_error("Invalid job");
                 }
             }(job_);

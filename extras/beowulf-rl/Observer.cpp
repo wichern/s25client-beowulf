@@ -180,26 +180,6 @@ void Observer::printState()
         printConsole("+%s+\n", std::string(width - 2, '-').c_str());
         lastHeight_++;
     }
-
-
-
-    //printConsole("┌───────────────┬───────────────────────┬───────────────────────┬────────────────┐\n");
-
-
-    // std::cout << "REWARD" << std::endl;
-    // ascii::Asciichart asciichart_reward(rewards_);
-    // asciichart_reward.min(0.0);
-    // asciichart_reward.max(1.0);
-    // std::cout << asciichart_reward.height(chartHeight_).Plot();
-
-    // std::cout << std::endl;
-    // std::cout << "EPSILON (exploration vs exploitation ratio)" << std::endl;
-    // ascii::Asciichart asciichart_epsilon(epsilons_);
-    // asciichart_epsilon.min(0.0);
-    // asciichart_epsilon.max(100.0);
-    // std::cout << asciichart_epsilon.height(chartHeight_).Plot();
-
-    // std::cout << "Last reward: " << reward << std::endl;
 }
 
 std::vector<std::string> Observer::printChart(const std::vector<double> values, unsigned height, unsigned width) const

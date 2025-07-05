@@ -20,6 +20,7 @@ constexpr GameSpeed referenceSpeed = GameSpeed::Normal;
 
 /// Reichweite der Bergarbeiter
 constexpr unsigned MINER_RADIUS = 2;
+constexpr unsigned CATAPULT_RANGE = 14;
 
 /// Konstante für die Pfadrichtung bei einer Schiffsverbindung
 constexpr unsigned char SHIP_DIR = 100;

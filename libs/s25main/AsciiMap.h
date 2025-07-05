@@ -62,6 +62,8 @@ public:
     void drawRoad(const MapPoint& pt, RoadDir dir, bool fat = false);
     void drawPlayer(unsigned playerId);
 
+    void drawBq(const MapPoint& pt, BuildingQuality bq);
+
     void clear();
     void write(std::ostream& out = std::cout) const;
 
@@ -77,8 +79,6 @@ private:
     void set(const AsciiPosition& pos, char c);
     void set(AsciiPosition pos, const std::string& str);
     bool onMap(const AsciiPosition& pos) const;
-
-    // void drawBQ(const MapPoint& pt, BuildingQuality bq);
 
     MapExtent map_size_;
     MapPoint offset_;
@@ -218,6 +218,12 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
         if(flagObj && flagObj->GetPlayer() == playerId)
             draw(pt, 'f');
 
+        if(const auto* obj = gwb_.GetNode(pt).obj)
+            if (obj->GetType() == NodalObjectType::Tree)
+                draw(pt, 't');
+        if (gwb_.GetNode(pt).boundary_stones[BorderStonePos::OnPoint])
+            draw(pt, '+');
+
         for(const auto roadDir : helpers::EnumRange<RoadDir>{})
         {
             PointRoad type = gwb_.GetRoad(pt, roadDir);
@@ -327,4 +333,27 @@ inline void AsciiMap::write(std::ostream& out) const
 {
     assert(map_[map_buffer_len_ - 1] == 0); // Check for null terminator.
     out << map_ << std::flush;
+}
+
+inline void AsciiMap::drawBq(const MapPoint& pt, BuildingQuality bq)
+{
+    switch (bq) {
+    case BuildingQuality::Hut:
+        draw(pt, 'h');
+        break;
+    case BuildingQuality::House:
+        draw(pt, 'H');
+        break;
+    case BuildingQuality::Castle:
+        draw(pt, 'C');
+        break;
+    case BuildingQuality::Mine:
+        draw(pt, 'm');
+        break;
+    case BuildingQuality::Harbor:
+        draw(pt, 'H');
+        break;
+    default:
+        break;
+    }
 }

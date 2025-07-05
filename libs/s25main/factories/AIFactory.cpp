@@ -4,6 +4,7 @@
 
 #include "AIFactory.h"
 #include "ai/DummyAI.h"
+#include "ai/beowulf/Beowulf.h"
 #include "ai/aijh/AIPlayerJH.h"
 #include "gameTypes/AIInfo.h"
 
@@ -12,6 +13,7 @@ std::unique_ptr<AIPlayer> AIFactory::Create(const AI::Info& aiInfo, unsigned pla
     switch(aiInfo.type)
     {
         case AI::Type::Dummy: return std::make_unique<DummyAI>(playerId, world, aiInfo.level); break;
+        case AI::Type::Beowulf: return std::make_unique<beowulf::Beowulf>(playerId, world, aiInfo.level); break;
         case AI::Type::Default:
         default: return std::make_unique<AIJH::AIPlayerJH>(playerId, world, aiInfo.level); break;
     }

@@ -7,7 +7,6 @@
 #include "Environment.h"
 #include "Settings.h"
 #include "AsciiMap.h"
-#include "Policy.h"
 #include "Observer.h"
 #include "GameState.h"
 #include "HeadlessGame.h"
@@ -27,31 +26,22 @@
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 
-// Plan B
+// PLAN B
 // ------
 //
-// [ ] Move classes we will need for game execution to ai/beowulf directory
-// [ ] How to react to Events?
-// [ ] How to implement RoadManager class?
-//      Connect 
-// [ ] How to implement BuildLocations class?
-//      Return all available building sites (incrementally)
-//      Only return building sites that can be connected to ?
-// [ ] POI search
-//     Since we are only interested in BuildingQualities where we could connect with a road,
-//     we need a way to calculate this (maybe from old Beowulf code)
+// 1. We create an agent for placing building sites only.
+//    Road connections will be done by an helper
+//    Building destruction will be ignored for now
+//    Warehouse actions will be ignored for now
+//    Building settings (modes, enabling) will be ignored for now
+//    Attacking will be ignored for now
+//    Ships will be ignored for now
+//    Global settings changes will be ignored for now
 //
-//  Option A
-//      Visit all BuildingQualities, place anticipated building and check whether a road can be connected to a warehouse
-//
-//  Option B
-//      FloodFill from all warehouses and add all BuildingQualities to a list of reachable locations
-//
-// [ ] POI validation
-// [ ] Auto road network management (connect, disconnect)
-// [ ] Update GameState (get spatial data using CheckPointsInRadius)
+// 2. Once the building site agent is done, we can train the other agents.
+//    Probably cannot be done at once.
 
-
+// @todo: Read replays for initial training
 // @todo: create log files that include the selected actions for debugging
 //          log for rewards, epsilon, etc to be used in discussion
 //          log for selected actions (debugging)
@@ -97,9 +87,16 @@ int main(/*int argc, char** argv*/)
         config.DoubleQLearning() = true;
         config.TargetNetworkSyncInterval() = 1000;
 
-        beowulf::Policy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
+        //beowulf::Policy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
+        mlpack::GreedyPolicy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
         mlpack::RandomReplay<beowulf::Environment> replayMethod(64, 200'000);
 
+#if 1
+        mlpack::rl::SimpleDQN dqn(
+            env.StateSize(),    // input layer
+            64,    // hidden layer. too small may underfit, too large may overfit and be slow
+            beowulf::BuildActionSpace::size); // output layer
+#else
         // @todo: Which initialization function makes most sense for us?
         mlpack::FFN<mlpack::MeanSquaredError, mlpack::GaussianInitialization> network(
             mlpack::MeanSquaredError(),
@@ -118,13 +115,6 @@ int main(/*int argc, char** argv*/)
         network.Add(new mlpack::Linear(256));
         network.Add(new mlpack::ReLU());
         network.Add(new mlpack::Linear(beowulf::ActionSpace::size));
-
-#if 0
-        mlpack::rl::SimpleDQN dqn(
-            env.StateSize(),    // input layer
-            64,    // hidden layer. too small may underfit, too large may overfit and be slow
-            beowulf::ActionSpace::size); // output layer
-#else
         mlpack::rl::SimpleDQN dqn(network);
 #endif
         
@@ -134,7 +124,7 @@ int main(/*int argc, char** argv*/)
             ens::AdamUpdate,
             decltype(policy),
             decltype(replayMethod)
-            > agent(
+            > buildAgent(
                 config,
                 dqn,
                 policy,
@@ -143,14 +133,14 @@ int main(/*int argc, char** argv*/)
                 std::move(env)
             );
 
-        beowulf::Observer::getInstance().init(settings.maxGf, &agent.Environment());
+        beowulf::Observer::getInstance().init(settings.maxGf, &buildAgent.Environment());
 
         for (unsigned i = 0u; i < EPISODES; ++i) {
-            /*double reward =*/ agent.Episode();
+            /*double reward =*/ buildAgent.Episode();
             double epsilon = policy.Epsilon();
 
             // have we reached the end of the initial exploration phase?
-            if (agent.TotalSteps() >= config.ExplorationSteps())
+            if (buildAgent.TotalSteps() >= config.ExplorationSteps())
             {
                 // make a test run
                 beowulf::Environment::State state = env.InitialSample();

@@ -3,14 +3,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ai/beowulf/BuildLocations.h"
+#include "ai/beowulf/Helper.h"
+#include "ai/beowulf/RoadManager.h"
+#include "ai/AIInterface.h"
+#include "pathfinding/PathConditionRoad.h"
 
 namespace beowulf {
 
-BuildLocations::BuildLocations(const GameWorldBase& world, unsigned player)
-: world_(world)
-, player_(player)
+BuildLocations::BuildLocations(AIInterface& aii)
+: aii_(aii)
 {
-    map_.Resize(world.GetSize());
+    map_.Resize(aii_.gwb.GetSize());
 }
 
 BuildLocations::~BuildLocations()
@@ -22,41 +25,79 @@ void BuildLocations::Calculate(const MapPoint& start)
 {
     RTTR_Assert(start.isValid());
 
-    PathConditionRoad<GameWorldBase> roadChecker(world_, false);
+    locations_.clear();
+    RoadManager roads(aii_);
 
-    std::vector<MapPoint> queue;
-    queue.push_back(start);
-    map_[start].visited = true;
-
-    while (!queue.empty()) {
-        MapPoint cur = queue.back();
-        queue.pop_back();
-
-        // action(cur)
-        BuildingQuality bq = world_.GetBQ(cur, player_);
+    FloodFill(map_, start,
+    // condition
+    [&](const MapPoint& pt, Direction dir)
+    {
+        // Check if there is a road already OR we could build one.
+        return roads.HasRoad(pt, dir) || roads.IsRoadPossible(pt, dir);
+    },
+    // action
+    [&](const MapPoint& pt)
+    {
+        BuildingQuality bq = aii_.gwb.GetBQ(pt, aii_.GetPlayerId());
         if (bq > BuildingQuality::Flag) {
+            RoadManager roadsPreview(aii_, pt, bq);
             // Check if we can still connect that connection if we place a building.
-            MapPoint flag = world_.GetNeighbour(cur, Direction::SouthEast);
-            // Use FindPathForRoad with a dummy world (this?) that provides BM ()
-            if (aii.FindFreePathForNewRoad(start->GetPos(), target->GetPos(), &route);)
-
-            locations_.push_back({ cur, bq });
+            MapPoint flag = aii_.gwb.GetNeighbour(pt, Direction::SouthEast);
+            if (roadsPreview.CanConnect(flag, start)) {
+                locations_.push_back({ pt, bq });
+            } else if (bq == BuildingQuality::Castle) {
+                RoadManager roadsPreview2(aii_, pt, BuildingQuality::House);
+                // maybe we could connect a smaller building
+                if (roadsPreview2.CanConnect(flag, start))
+                    locations_.push_back({ pt, BuildingQuality::House });
+            }
         }
+    });
+}
 
-        // Visit all neighbours
-        for (const auto dir : helpers::EnumRange<Direction>{}) {
-            MapPoint next = world_.GetNeighbour(cur, dir);
-            if (map_[next].visited)
-                continue;
+std::vector<MapPoint> BuildLocations::Get(BuildingQuality minBq) const
+{
+    std::vector<MapPoint> ret;
 
-            // Check if there is a road already or we could build one.
-            if (world_.GetPointRoad(cur, dir) == PointRoad::None && !roadChecker.IsEdgeOk())
-                continue;
+    for (auto const& [pt, bq] : locations_)
+        if (bq >= minBq)
+            ret.push_back(pt);
 
-            queue.push_back(next);
-            map_[next].visited = true;
+    return ret;
+}
+
+unsigned BuildLocations::GetSum() const
+{
+    // @todo: this rating function should not really belong here.
+    unsigned sum = 0u;
+
+    for (auto const& [pt, bq] : locations_)
+    {
+        switch (bq) {
+        case BuildingQuality::Hut:
+        case BuildingQuality::Mine:
+            sum += 1;
+            break;
+        case BuildingQuality::House:
+            sum += 2;
+            break;
+        case BuildingQuality::Castle:
+            sum += 3;
+            break;
+        case BuildingQuality::Harbor:
+            sum += 4;
+            break;
+        default:
+            break;
         }
     }
+
+    return sum;
+}
+
+unsigned BuildLocations::GetSize() const
+{
+    return locations_.size();
 }
 
 } // namespace beowulf

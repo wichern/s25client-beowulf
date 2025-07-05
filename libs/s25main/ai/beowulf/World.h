@@ -17,9 +17,6 @@ public:
     World(GameWorldBase& gwb);
     virtual ~World();
 
-    // Get the building quality at given point, given the provided building would already exist
-    BuildingQuality GetBQ(const MapPoint& pt, const MapPoint& plannedPt, BuildingQuality plannedBq) const;
-
 private:
     GameWorldBase& gwb_;
 };

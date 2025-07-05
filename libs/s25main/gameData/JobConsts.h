@@ -48,6 +48,11 @@ extern const helpers::EnumArray<JobSpriteData, Job> JOB_SPRITE_CONSTS;
 /// Katapultmann-Wartezeit
 const unsigned CATAPULT_WAIT1_LENGTH = 1300; // eigenlich 310 - aber hochgestellt wegen zu schneller Warenverteilung
 
+const unsigned WOOD_WORK_RANGE = 6u;
+const unsigned STONE_WORK_RANGE = 8u;
+const unsigned HUNTER_WORK_RANGE = 7;
+const unsigned FISHER_WORK_RANGE = 7u;
+
 /// Position of the ware on a donkey per direction and animation step
 const helpers::EnumArray<std::array<DrawPoint, 8>, Direction> WARE_POS_DONKEY = {{
   {{{0, -13}, {0, -12}, {0, -12}, {1, -13}, {2, -13}, {2, -12}, {2, -12}, {1, -13}}},

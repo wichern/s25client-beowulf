@@ -5,7 +5,7 @@
 #pragma once
 
 #ifndef POI_RADIUS
-#define POI_RADIUS 6u    // 14 is the maximum range of a catapult
+#define POI_RADIUS 14u    // 14 is the maximum range of a catapult
 #endif
 
 //#define DEBUG_OUTPUT
@@ -18,19 +18,6 @@
 #include <vector>
 
 namespace beowulf {
-
-#define MAX_PARAMS_PER_ACTION 4 // @todo: make constexpr
-using ParamList = std::vector<AgentActionParamType>;
-const helpers::EnumArray<ParamList, AgentAction> SUPPRESS_UNUSED ACTION_PARAMS = {{
-    /* NoAction */              { },
-    /* SetFlag */               { AgentActionParamType::Point },
-    /* DestroyFlag */           { AgentActionParamType::Point },
-    /* ConnectFlagsDefault */   { AgentActionParamType::Point, AgentActionParamType::Point },
-    /* DestroyRoad */           { AgentActionParamType::Point, AgentActionParamType::Direction },
-    /* SetBuildingSite */       { AgentActionParamType::Point, AgentActionParamType::BuildingType },
-    /* DestroyBuilding */       { AgentActionParamType::Point }
-}};
-
 
 constexpr helpers::EnumArray<double, GoodType> SUPPRESS_UNUSED GOOD_GAIN_REWARD = {{
     /* Beer */              0.1,

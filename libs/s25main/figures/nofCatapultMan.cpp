@@ -15,6 +15,7 @@
 #include "ogl/glArchivItem_Bitmap_Player.h"
 #include "random/Random.h"
 #include "world/GameWorld.h"
+#include "gameData/GameConsts.h"
 #include "gameData/JobConsts.h"
 #include "gameData/MapConsts.h"
 
@@ -121,7 +122,7 @@ void nofCatapultMan::HandleDerivedEvent(const unsigned /*id*/)
                         unsigned distance = world->CalcDistance(pos, building->GetPos());
 
                         // Entfernung nicht zu hoch?
-                        if(distance < 14)
+                        if(distance < CATAPULT_RANGE)
                         {
                             // Mit in die Liste aufnehmen
                             possibleTargets.push_back(PossibleTarget(building->GetPos(), distance));

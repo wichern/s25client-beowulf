@@ -5,6 +5,7 @@
 #include "Environment.h"
 #include "HeadlessGame.h"
 #include "gameData/BuildingProperties.h"
+#include "gameData/BuildingConsts.h"
 #include "gameTypes/GameTypesOutput.h"
 #include "PointOutput.h"
 #include "EventManager.h"
@@ -12,21 +13,33 @@
 #include "Observer.h"
 #include "AsciiMap.h"
 #include "ai/AIInterface.h"
+#include "ai/beowulf/BuildLocations.h"
 #include "FindWhConditions.h"
 #include "buildings/nobHQ.h"
 
 namespace beowulf {
 
+BuildingType BuildingTypeWithoutUnused(unsigned bld);
+BuildingType BuildingTypeWithoutUnused(unsigned bld) {
+    for(const auto i : helpers::enumRange<BuildingType>()) {
+        if (!BuildingProperties::IsValid(i))
+            continue;
+        if (0 == bld)
+            return i;
+        bld--;
+    }
+    RTTR_Assert(false);
+    return BuildingType::Nothing2;
+}
+
 Environment::Environment(Settings* settings)
 : settings_(settings)
 {
-
+    RTTR_Assert(settings_);
 }
 
 Environment::State Environment::InitialSample()
 {
-    RTTR_Assert(settings_);
-
     engine_ = std::make_unique<HeadlessGame>(settings_);
     world_ = &engine_->world_;
     
@@ -37,9 +50,8 @@ Environment::State Environment::InitialSample()
         }
     }
 
-    Environment::State ret = Environment::State(this);
+    Environment::State ret = Environment::State(this, GetNextPOI());
     ret.Update();
-    Observer::getInstance().setNextActionParam(AgentActionParamType::Action);
     return ret;
 }
 
@@ -56,225 +68,43 @@ double Environment::Sample(const State& state,
     const Action& action,
     State& nextState)
 {
-    nextState = GameState(this);
-    
-    bool actionFinished = true;
-    if (state.poi_.isValid())
-        actionFinished = HandleAction(state, action, nextState.actionStep_, nextState.actionParams_);
-    else
+    double ret = 0.0;
+
+    if (action.action != 0)
     {
-        nextState.actionStep_ = 0u;
-        nextState.actionParams_.fill(0u);
-        // @todo: try to find other poi
+        BuildingType bld = BuildingTypeWithoutUnused(action.action - 1);
+        auto& aii = engine_->players_[agentId_]->getAIInterface();
+
+        if(!canUseBq(world_->GetBQ(state.poi_, agentId_), BUILDING_SIZE[bld]))
+            ret -= 0.5;
+        else
+            aii.SetBuildingSite(state.poi_, bld);
     }
 
     MetaState oldMetaState = ExtractMetaState();
-
+    
     // advance state
-    if (actionFinished)
-    {
+    MapPoint nextPoi;
+    do {
         engine_->RunNextNWGF();
+        nextPoi = GetNextPOI();
         beowulf::Observer::getInstance().setCurrentGf(engine_->em_.GetCurrentGF());
         beowulf::Observer::getInstance().printState();
-    }
-    // @todo: if action was 'NoAction' then we go to another POI
+    } while (!IsTerminal(state) && !nextPoi.isValid());
+    
+
+    nextState = GameState(this, nextPoi);
     nextState.Update();
 
     MetaState nextMetaState = ExtractMetaState();
 
     // Evaluate reward
-    double ret = 0.0;
-
     ret += RewardGameState(oldMetaState, nextMetaState);
     ret += RewardNewGoods(oldMetaState, nextMetaState);
     ret += RewardNewConnections(oldMetaState, nextMetaState);
     ret += RewardNewBuildings(oldMetaState, nextMetaState);
 
-    // update observer state
-    if (actionFinished)
-        Observer::getInstance().setNextActionParam(AgentActionParamType::Action);
-    else
-        Observer::getInstance().setNextActionParam(ACTION_PARAMS[AgentAction(nextState.actionParams_[0])][nextState.actionStep_ - 1]);
-
-#ifdef DEBUG_OUTPUT
-    // Print Ascii Map of POI
-    auto const& player = world_->GetPlayer(agentId_);
-    AsciiMap debug(*world_, player.GetHQPos(), POI_RADIUS+2);
-    debug.drawPlayer(agentId_);
-    debug.write();
-#endif
-
     return ret;
-}
-
-MapPoint Environment::toPoint(const State& state, unsigned point_idx) const
-{
-    // convert the index to a map point
-    if (point_idx == 0)
-        return state.poi_;
-
-    unsigned idx = point_idx;
-    MapPoint curStartPt = state.poi_;
-    for(unsigned r = 1; r <= POI_RADIUS; ++r)
-    {
-        curStartPt = world_->GetNeighbour(curStartPt, Direction::West);
-        MapPoint curPt = curStartPt;
-        for(const auto dir : helpers::enumRange(Direction::NorthEast))
-        {
-            for(unsigned step = 0; step < r; ++step)
-            {
-                if (--idx == 0u)
-                {
-                    return curPt;
-                }
-                curPt = world_->GetNeighbour(curPt, dir);
-            }
-        }
-    }
-
-    RTTR_Assert(false);
-    return MapPoint();
-}
-
-bool Environment::HandleAction(const State& state, const Action& action, unsigned& nextStep, std::array<unsigned, 4>& nextParams)
-{
-    // currently no action?
-    if (0u == state.actionStep_)
-    {
-        RTTR_Assert(action.action <= helpers::MaxEnumValue_v<AgentAction>);
-
-        if (AgentAction::NoAction == action.action) {
-            nextStep = 0u;
-            return true; // no action finished
-        }
-
-        nextStep = 1u;  // go to first param selection
-        nextParams.fill(0u);
-        nextParams[0] = action.action;
-        return false; // action not finished
-    }
-
-    nextParams = state.actionParams_;
-
-    // we already have an action
-    const unsigned paramIdx = state.actionStep_ - 1;
-    const AgentAction actionType = AgentAction(state.actionParams_[0]);
-
-    switch (ACTION_PARAMS[actionType][paramIdx]) {
-        case AgentActionParamType::Point:
-        {
-            RTTR_Assert(action.action < GameState::point_count);
-            nextParams[state.actionStep_] = action.action;
-            nextStep = state.actionStep_ + 1;
-        } break;
-        case AgentActionParamType::Direction:
-        {
-            RTTR_Assert(action.action <= helpers::MaxEnumValue_v<Direction>);
-            nextParams[state.actionStep_] = action.action;
-            nextStep = state.actionStep_ + 1;
-        } break;
-        case AgentActionParamType::BuildingType:
-        {
-            // We get a building type from 0 (HeadQuaters) to maxEnumValue(BuildingType) - NUM_UNUSED_BLD_TYPES
-            // therefore we need to skip every unused building
-            unsigned buildingTypeIdxWithoutInvalids = 0u;
-            for (unsigned i = 0u; i <= helpers::MaxEnumValue_v<BuildingType> && buildingTypeIdxWithoutInvalids < action.action; ++i)
-            {
-                BuildingType bt = BuildingType(i);
-                if (bt != BuildingType::Headquarters && BuildingProperties::IsValid(bt))
-                    buildingTypeIdxWithoutInvalids++;
-            }
-            RTTR_Assert(buildingTypeIdxWithoutInvalids == action.action);
-            nextParams[state.actionStep_] = action.action;
-            nextStep = state.actionStep_ + 1;
-        } break;
-        default:
-            // all other cases not currently needed
-            RTTR_Assert(false);
-            nextStep = 0u;
-            break;
-    }
-
-    // do we have all required parameters?
-    if (nextStep < ACTION_PARAMS[actionType].size())
-        return false;  // wait for more parameters
-
-    nextStep = 0u;
-
-    // create game command
-    auto& aii = engine_->players_[agentId_]->getAIInterface();
-    switch (actionType) {
-        case AgentAction::SetFlag:
-        {
-            MapPoint pt = toPoint(state, nextParams[1]);
-            RTTR_Assert(pt.isValid());
-            
-#ifdef DEBUG_OUTPUT
-            std::cout << "SetFlag(" << pt << ")\n";
-#endif
-            aii.SetFlag(pt);
-        } break;
-        case AgentAction::DestroyFlag:
-        {
-            MapPoint pt = toPoint(state, nextParams[1]);
-            RTTR_Assert(pt.isValid());
-#ifdef DEBUG_OUTPUT
-            std::cout << "DestroyFlag(" << pt << ")\n";
-#endif
-            aii.DestroyFlag(pt);
-        } break;
-        case AgentAction::ConnectFlagsDefault:
-        {
-            MapPoint pt1 = toPoint(state, nextParams[1]);
-            MapPoint pt2 = toPoint(state, nextParams[2]);
-            RTTR_Assert(pt1.isValid());
-            RTTR_Assert(pt2.isValid());
-#ifdef DEBUG_OUTPUT
-            std::cout << "ConnectFlagsDefault(" << pt1 << "," << pt2 << ")\n";
-#endif
-
-            std::vector<Direction> route;
-            if (pt1 == pt2 || !aii.FindFreePathForNewRoad(pt1, pt2, &route) || route.size() < 2) {
-                // @todo: punish this error?
-            } else {
-                aii.BuildRoad(pt1, false, route);
-            }
-        } break;
-        case AgentAction::DestroyRoad:
-        {
-            MapPoint pt = toPoint(state, nextParams[1]);
-            RTTR_Assert(pt.isValid());
-            Direction dir = static_cast<Direction>(nextParams[2]);
-#ifdef DEBUG_OUTPUT
-            std::cout << "DestroyRoad(" << pt << "," << dir << ")\n";
-#endif
-            aii.DestroyRoad(pt, dir);
-        } break;
-        case AgentAction::SetBuildingSite:
-        {
-            MapPoint pt = toPoint(state, nextParams[1]);
-            RTTR_Assert(pt.isValid());
-            BuildingType type = BuildingType(nextParams[2]);
-#ifdef DEBUG_OUTPUT
-            std::cout << "SetBuildingSite(" << pt << "," << type << ")\n";
-#endif
-            aii.SetBuildingSite(pt, type);
-        } break;
-        case AgentAction::DestroyBuilding:
-        {
-            MapPoint pt = toPoint(state, nextParams[1]);
-            RTTR_Assert(pt.isValid());
-#ifdef DEBUG_OUTPUT
-            std::cout << "DestroyBuilding(" << pt << ")\n";
-#endif
-            aii.DestroyBuilding(pt);
-        } break;
-        default:
-            RTTR_Assert(false);
-            break;
-    }
-
-    return true;
 }
 
 Environment::MetaState Environment::ExtractMetaState() const
@@ -390,19 +220,30 @@ double Environment::RewardNewBuildings(const MetaState& oldState, const MetaStat
 
 MapPoint Environment::GetNextPOI()
 {
-    while (!pois_.empty()) {
-        MapPoint ret = pois_.back();
-        pois_.pop_back();
+    while (!poi.buildLocations.empty()) {
+        MapPoint ret = poi.buildLocations.back();
+        poi.buildLocations.pop_back();
 
-        //if (IsValidPOI(ret))
+        // still valid?
+        BuildingQuality bq = world_->GetBQ(ret, agentId_);
+        if (bq > BuildingQuality::Nothing)
             return ret;
     }
 
     // calculate next POIS
-    //CalculatePOIS();
-    if (!pois_.empty())
-        return pois_.front();
+    auto& aii = engine_->players_[agentId_]->getAIInterface();
+    BuildLocations buildLocations(aii);
+    for (const auto* sh : aii.GetStorehouses())
+        buildLocations.Calculate(sh->GetFlagPos());
+    poi.buildLocations = std::move(buildLocations.Get());
 
+    if (!poi.buildLocations.empty()) {
+        MapPoint ret = poi.buildLocations.back();
+        poi.buildLocations.pop_back();
+        return ret;
+    }
+
+    // There are no available build locations anymore
     return MapPoint();
 }
 
