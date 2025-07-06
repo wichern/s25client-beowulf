@@ -4,7 +4,7 @@
 
 #include "ai/beowulf/BuildLocations.h"
 #include "ai/beowulf/Helper.h"
-#include "ai/beowulf/RoadManager.h"
+#include "ai/beowulf/RoadBuilder.h"
 #include "ai/AIInterface.h"
 #include "pathfinding/PathConditionRoad.h"
 
@@ -26,7 +26,7 @@ void BuildLocations::Calculate(const MapPoint& start)
     RTTR_Assert(start.isValid());
 
     locations_.clear();
-    RoadManager roads(aii_);
+    RoadBuilder roads(aii_);
 
     FloodFill(map_, start,
     // condition
@@ -40,13 +40,13 @@ void BuildLocations::Calculate(const MapPoint& start)
     {
         BuildingQuality bq = aii_.gwb.GetBQ(pt, aii_.GetPlayerId());
         if (bq > BuildingQuality::Flag) {
-            RoadManager roadsPreview(aii_, pt, bq);
+            RoadBuilder roadsPreview(aii_, pt, bq);
             // Check if we can still connect that connection if we place a building.
             MapPoint flag = aii_.gwb.GetNeighbour(pt, Direction::SouthEast);
             if (roadsPreview.CanConnect(flag, start)) {
                 locations_.push_back({ pt, bq });
             } else if (bq == BuildingQuality::Castle) {
-                RoadManager roadsPreview2(aii_, pt, BuildingQuality::House);
+                RoadBuilder roadsPreview2(aii_, pt, BuildingQuality::House);
                 // maybe we could connect a smaller building
                 if (roadsPreview2.CanConnect(flag, start))
                     locations_.push_back({ pt, BuildingQuality::House });

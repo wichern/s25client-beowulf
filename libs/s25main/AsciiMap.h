@@ -30,6 +30,12 @@ class AsciiMap
     unsigned short scale_ = 1;
 
 public:
+    enum class Border : uint8_t
+    {
+        Locations = 0,
+        ASCII
+    };
+
     /**
      * Create a new ASCII map with given size and scale.
      *
@@ -53,7 +59,8 @@ public:
      * @param scale         Scaling of the representation.
      */
     explicit AsciiMap(const GameWorldBase& gwb, unsigned short scale = 1);
-    explicit AsciiMap(const GameWorldBase& gwb, const MapPoint& center, unsigned short radius, unsigned short scale = 1);
+    explicit AsciiMap(const GameWorldBase& gwb, const MapPoint& center, unsigned short radius, unsigned short scale = 1, Border border = Border::Locations);
+    explicit AsciiMap(const GameWorldBase& gwb, const MapPoint& center, unsigned short width, unsigned short height, unsigned short scale = 1, Border border = Border::Locations);
 
     ~AsciiMap();
 
@@ -67,12 +74,15 @@ public:
     void clear();
     void write(std::ostream& out = std::cout) const;
 
-private:
     using AsciiPosition = Position;
-    static const unsigned char c_margin_left_ = 4;
-    static const unsigned char c_margin_top_ = 2;
+    AsciiPosition::ElementType w_;
+    AsciiPosition::ElementType h_;
+private:
 
     void init(const MapExtent& size);
+
+    int xMargin() const;
+    int yMargin() const;
 
     AsciiPosition getPos(const MapPoint& pt) const;
     size_t getIdx(const AsciiPosition& pos) const;
@@ -82,16 +92,15 @@ private:
 
     MapExtent map_size_;
     MapPoint offset_;
-    AsciiPosition::ElementType w_;
-    AsciiPosition::ElementType h_;
     AsciiPosition::ElementType scale_w_;
     AsciiPosition::ElementType scale_h_;
     size_t map_buffer_len_;
     char* map_;
+    Border border_;
 };
 
 constexpr helpers::EnumArray<const char*, BuildingType> SHORT_BLD_NAMES = {
-  {"HQ",  "Bar", "Gua", "",    "Wat", "",    "",    "",    "",    "Fort", "GrM", "CoM", "IrM", "GoM",
+  {"HQ",  "Bar", "Gua", "",    "Wat", "",  "Vin",  "Win",    "Tem",  "Fort", "GrM", "CoM", "IrM", "GoM",
    "Loo", "",    "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre",  "Arm", "Met", "Iro", "Cha",
    "Pig", "Sto", "",    "Mil", "Bak", "Saw", "Min", "Wel", "Shi", "Far",  "Don", "Har"}};
 
@@ -103,14 +112,29 @@ inline AsciiMap::AsciiMap(const GameWorldBase& gwb, unsigned short scale) : gwb_
 inline AsciiMap::AsciiMap(const GameWorldBase& gwb,
         const MapPoint& center,
         unsigned short radius,
-        unsigned short scale)
-: gwb_(gwb), scale_(scale)
+        unsigned short scale,
+        Border border)
+: gwb_(gwb), scale_(scale), border_(border)
 {
     const MapExtent& size = gwb_.GetSize();
     offset_.x = std::max(center.x - radius, 0);
     offset_.y = std::max(center.y - radius, 0);
     unsigned short diameter = radius * 2;
     init(MapPoint(std::min(diameter, size.x), std::min(diameter, size.y)));
+}
+
+inline AsciiMap::AsciiMap(const GameWorldBase& gwb,
+        const MapPoint& center,
+        unsigned short width,
+        unsigned short height,
+        unsigned short scale,
+        Border border)
+: gwb_(gwb), scale_(scale), border_(border)
+{
+    const MapExtent& size = gwb_.GetSize();
+    offset_.x = std::max(center.x - width/2, 0);
+    offset_.y = std::max(center.y - height/2, 0);
+    init(MapPoint(std::min(width, size.x), std::min(height, size.y)));
 }
 
 inline AsciiMap::~AsciiMap()
@@ -218,9 +242,14 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
         if(flagObj && flagObj->GetPlayer() == playerId)
             draw(pt, 'f');
 
-        if(const auto* obj = gwb_.GetNode(pt).obj)
+        if(const auto* obj = gwb_.GetNode(pt).obj) {
             if (obj->GetType() == NodalObjectType::Tree)
                 draw(pt, 't');
+            else if (obj->GetType() == NodalObjectType::Granite)
+                draw(pt, '^');
+            else if (obj->GetType() == NodalObjectType::Grainfield)
+                draw(pt, '#');
+        }
         if (gwb_.GetNode(pt).boundary_stones[BorderStonePos::OnPoint])
             draw(pt, '+');
 
@@ -239,14 +268,14 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
 
     for(const auto bldType : helpers::enumRange<BuildingType>())
     {
-        if(!BuildingProperties::IsUsual(bldType))
+        if(!BuildingProperties::IsValid(bldType))
             continue;
         for(nobUsual* bld : buildings.GetBuildings(bldType))
             draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
     }
 
-    for(nobBaseWarehouse* bld : buildings.GetStorehouses())
-        draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
+    // for(nobBaseWarehouse* bld : buildings.GetStorehouses())
+    //     draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
 
     for(const noBuildingSite* building : buildings.GetBuildingSites())
         draw(building->GetPos(), std::string("(") + SHORT_BLD_NAMES[building->GetBuildingType()] + ")");
@@ -257,22 +286,37 @@ inline void AsciiMap::clear()
     // Fill with spaces.
     memset(map_, ' ', map_buffer_len_ - 1);
 
-    for(AsciiPosition::ElementType x = 0; x < w_; ++x)
+    switch (border_)
+    {
+    case Border::Locations:
     {
         // Add column number
-        if(x % scale_w_ == 0)
-            set({x + c_margin_left_, 1}, std::to_string((x / scale_w_) + offset_.x));
-    }
+        for(AsciiPosition::ElementType x = 0; x < w_; ++x)
+            if(x % scale_w_ == 0)
+                set({x + xMargin(), 1}, std::to_string((x / scale_w_) + offset_.x));
 
-    for(AsciiPosition::ElementType y = 0; y < h_; ++y)
-    {
         // Add line number.
-        if(y % scale_h_ == 0)
-            set({1, y + c_margin_top_}, std::to_string((y / scale_h_) + offset_.y));
-
-        // Add newline for every row.
-        set({w_ - 1, y}, '\n');
+        for(AsciiPosition::ElementType y = 0; y < h_; ++y)
+            if(y % scale_h_ == 0)
+                set({1, y + yMargin()}, std::to_string((y / scale_h_) + offset_.y));
+    } break;
+    case Border::ASCII:
+    {
+        set({0, h_ - 1}, '+');
+        set({w_ - 2, h_ - 1}, '+');
+        for(AsciiPosition::ElementType x = 1; x < w_ - 2; ++x)
+            set({x, h_ - 1}, '-');
+        for(AsciiPosition::ElementType y = 0; y < h_ - 1; ++y) {
+            set({0, y}, '|');
+            set({w_ - 2, y}, '|');
+        }
+    } break;
+    default: break;
     }
+
+    // Add newline for every row.
+    for(AsciiPosition::ElementType y = 0; y < h_; ++y)
+        set({w_ - 1, y}, '\n');
 
     // Add null terminator.
     map_[map_buffer_len_ - 1] = 0;
@@ -285,8 +329,8 @@ inline void AsciiMap::init(const MapExtent& size)
     scale_w_ = 2u + (2u * scale_);
     scale_h_ = scale_w_ / 2;
 
-    w_ = (size.x * scale_w_) + c_margin_left_ - scale_ + 1u; // +1 for '\n'
-    h_ = (size.y * scale_h_) + c_margin_top_;
+    w_ = (map_size_.x * scale_w_) + xMargin() - scale_ + 1u; // +1 for '\n'
+    h_ = (map_size_.y * scale_h_) + yMargin();
 
     map_buffer_len_ = static_cast<size_t>((w_ * h_) + 1U); // +1 for null terminator
     map_ = new char[map_buffer_len_];
@@ -297,10 +341,10 @@ inline void AsciiMap::init(const MapExtent& size)
 inline AsciiMap::AsciiPosition AsciiMap::getPos(const MapPoint& pt) const
 {
     AsciiPosition ret;
-    ret.x = c_margin_left_;
+    ret.x = xMargin();
     ret.x += static_cast<AsciiPosition::ElementType>(pt.x) * scale_w_;
     ret.x += ((pt.y + offset_.y) & 1) ? scale_h_ : 0U; // offset on every second row
-    ret.y = c_margin_top_ + (pt.y * scale_h_);
+    ret.y = yMargin() + (pt.y * scale_h_);
     return ret;
 }
 
@@ -356,4 +400,40 @@ inline void AsciiMap::drawBq(const MapPoint& pt, BuildingQuality bq)
     default:
         break;
     }
+}
+
+inline int AsciiMap::xMargin() const
+{
+    switch (border_)
+    {
+    case Border::Locations:
+    {
+        return 4;
+    } break;
+    case Border::ASCII:
+    {
+        return 1;
+    } break;
+    default: break;
+    }
+
+    return 0;
+}
+
+inline int AsciiMap::yMargin() const
+{
+    switch (border_)
+    {
+    case Border::Locations:
+    {
+        return 2;
+    } break;
+    case Border::ASCII:
+    {
+        return 0;
+    } break;
+    default: break;
+    }
+
+    return 0;
 }

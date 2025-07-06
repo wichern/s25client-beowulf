@@ -2,17 +2,17 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "ai/beowulf/RoadManager.h"
+#include "ai/beowulf/RoadBuilder.h"
 #include "ai/beowulf/Helper.h"
 #include "ai/beowulf/BQCalculatorPreview.h"
-#include "ai/beowulf/RoadManager.h"
+#include "ai/beowulf/RoadBuilder.h"
 #include "ai/AIInterface.h"
 #include "nodeObjs/noFlag.h"
 #include "pathfinding/PathConditionRoad.h"
 
 namespace beowulf {
 
-RoadManager::RoadManager(
+RoadBuilder::RoadBuilder(
     AIInterface& aii,
     const MapPoint& anticipatedPt,
     BuildingQuality anticipatedBq)
@@ -22,12 +22,12 @@ RoadManager::RoadManager(
 {
 }
 
-RoadManager::~RoadManager()
+RoadBuilder::~RoadBuilder()
 {
 
 }
 
-bool RoadManager::CanConnect(
+bool RoadBuilder::CanConnect(
     const MapPoint& start,
     const MapPoint& dest) const
 {
@@ -38,10 +38,7 @@ bool RoadManager::CanConnect(
     // Condition
     [&](const MapPoint& pt, Direction dir)
     {
-        bool hr =HasRoad(pt, dir);
-        bool ip =  IsRoadPossible(pt, dir);
-        return hr || ip;
-        //return HasRoad(pt, dir) || IsRoadPossible(pt, dir);
+        return HasRoad(pt, dir) || IsRoadPossible(pt, dir);
     },
     // End
     [&](const MapPoint& pt)
@@ -62,7 +59,33 @@ bool RoadManager::CanConnect(
     });
 }
 
-bool RoadManager::IsRoadPossible(
+bool RoadBuilder::CanConnectToAFlag(const MapPoint& start) const
+{
+    return beowulf::FindPath(start, aii_.gwb, nullptr,
+    // Condition
+    [&](const MapPoint& pt, Direction dir)
+    {
+        return IsRoadPossible(pt, dir);
+    },
+    // End
+    [&](const MapPoint& pt)
+    {
+        auto* no = aii_.gwb.GetNO(pt);
+        return no && no->GetType() == NodalObjectType::Flag;
+    },
+    // Heuristic
+    [&](const MapPoint& pt)
+    {
+        return aii_.gwb.CalcDistance(pt, start);
+    },
+    // Cost
+    [&](const MapPoint& /*pt*/, Direction /*dir*/)
+    {
+        return 1;
+    });
+}
+
+bool RoadBuilder::IsRoadPossible(
     const MapPoint& pt,
     Direction dir) const
 {
@@ -123,24 +146,24 @@ bool RoadManager::IsRoadPossible(
 }
 
 
-bool RoadManager::HasFlag(const MapPoint& pt) const
+bool RoadBuilder::HasFlag(const MapPoint& pt) const
 {
     return aii_.gwb.GetSpecObj<noFlag>(pt) != nullptr;
 }
 
-bool RoadManager::HasRoad(const MapPoint& pt, Direction dir) const
+bool RoadBuilder::HasRoad(const MapPoint& pt, Direction dir) const
 {
     PointRoad road = aii_.gwb.GetPointRoad(pt, dir);
     return road == PointRoad::Normal || road == PointRoad::Donkey;
 }
 
-BuildingQuality RoadManager::GetBQ(const MapPoint& pt) const
+BuildingQuality RoadBuilder::GetBQ(const MapPoint& pt) const
 {
     BQCalculatorPreview bqc(aii_.gwb, anticipatedPt_, anticipatedBq_);
     return bqc(pt, [&](const MapPoint& pos) { return aii_.gwb.IsOnRoad(pos); });
 }
 
-BlockingManner RoadManager::GetBM(const MapPoint& pt) const
+BlockingManner RoadBuilder::GetBM(const MapPoint& pt) const
 {
     if (pt == anticipatedPt_)
         return BlockingManner::Building;
@@ -152,6 +175,50 @@ BlockingManner RoadManager::GetBM(const MapPoint& pt) const
                 return BlockingManner::Single;
 
     return aii_.gwb.GetNO(pt)->GetBM();
+}
+
+bool RoadBuilder::ConnectToNearestFlag(const MapPoint& flagPos)
+{
+    RTTR_Assert(flagPos.isValid());
+
+    std::vector<Direction> route;
+    bool ret = beowulf::FindPath(flagPos, aii_.gwb, &route,
+    // Condition
+    [&](const MapPoint& pt, Direction dir)
+    {
+        return IsRoadPossible(pt, dir);
+    },
+    // End
+    [&](const MapPoint& pt)
+    {
+        // The search can end if we found a way to any flag of the destination
+        // road network.
+        auto* no = aii_.gwb.GetNO(pt);
+        return no && no->GetType() == NodalObjectType::Flag;
+    },
+    // Heuristic
+    [&](const MapPoint& pt)
+    {
+        return aii_.gwb.CalcDistance(pt, flagPos);
+    },
+    // Cost
+    [&](const MapPoint& /*pt*/, Direction /*dir*/)
+    {
+        return 1;
+    });
+
+    if (ret)
+        return aii_.BuildRoad(flagPos, false, route);
+
+    return ret;
+}
+
+bool RoadBuilder::IsConnected(const MapPoint& pt, bool buildingFlag) const
+{
+    for (const auto dir : helpers::enumRange<Direction>())
+        if ((!buildingFlag || dir != Direction::NorthWest) && HasRoad(pt, dir))
+            return true;
+    return false;
 }
 
 } // namespace beowulf

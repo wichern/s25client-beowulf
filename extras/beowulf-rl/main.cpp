@@ -76,7 +76,7 @@ int main(/*int argc, char** argv*/)
         // @todo: How to know how many AIs to add? Instead let Environment fill map completely and set beowulf and a random position each time
         settings.ais.push_back(AI::Info{AI::Type::Beowulf});
         settings.ais.push_back(AI::Info{AI::Type::Dummy});
-        settings.maxGf = 10'000u;
+        settings.maxGf = 100'000u;
 
         beowulf::Environment env(&settings);
         

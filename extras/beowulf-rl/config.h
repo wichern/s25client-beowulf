@@ -4,11 +4,10 @@
 
 #pragma once
 
+// Radius to scan for POI point estimation
 #ifndef POI_RADIUS
 #define POI_RADIUS 14u    // 14 is the maximum range of a catapult
 #endif
-
-//#define DEBUG_OUTPUT
 
 #include "types.h"
 #include "helpers/EnumArray.h"

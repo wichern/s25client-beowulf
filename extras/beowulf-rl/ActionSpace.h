@@ -4,12 +4,7 @@
 
 #pragma once
 
-#include "GameCommands.h"
-#include "GameState.h"
 #include "helpers/MaxEnumValue.h"
-#include "types.h"
-
-#include <armadillo>
 
 /*
  * Actions the agent could support: libs/s25main/GameCommands.h
@@ -70,8 +65,6 @@
  * - Surrender()                                        
  * - DestroyAll()                                       
  */
-
-class GameWorldBase;
 
 namespace beowulf {
 

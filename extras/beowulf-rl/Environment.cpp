@@ -14,6 +14,7 @@
 #include "AsciiMap.h"
 #include "ai/AIInterface.h"
 #include "ai/beowulf/BuildLocations.h"
+#include "ai/beowulf/RoadBuilder.h"
 #include "FindWhConditions.h"
 #include "buildings/nobHQ.h"
 
@@ -72,13 +73,26 @@ double Environment::Sample(const State& state,
 
     if (action.action != 0)
     {
-        BuildingType bld = BuildingTypeWithoutUnused(action.action - 1);
+        const BuildingType bld = BuildingTypeWithoutUnused(action.action - 1);
         auto& aii = engine_->players_[agentId_]->getAIInterface();
+        const BuildingQuality bq = BUILDING_SIZE[bld];
 
-        if(!canUseBq(world_->GetBQ(state.poi_, agentId_), BUILDING_SIZE[bld]))
+        if(!canUseBq(world_->GetBQ(state.poi_, agentId_), bq))
             ret -= 0.5;
-        else
+        else {
             aii.SetBuildingSite(state.poi_, bld);
+            MapPoint flagPos = world_->GetNeighbour(state.poi_, Direction::SouthEast);
+            RoadBuilder roads(aii, flagPos, bq);
+            if (!roads.IsConnected(flagPos, true)) {
+                bool success = roads.ConnectToNearestFlag(flagPos);
+                if (!success) {
+                    AsciiMap debug(*world_, state.poi_, 12);
+                    debug.drawPlayer(agentId_);
+                    debug.write();
+                }
+                RTTR_Assert(success); // if this fails, the BuildLocations class failed
+            }
+        }
     }
 
     MetaState oldMetaState = ExtractMetaState();
@@ -101,7 +115,6 @@ double Environment::Sample(const State& state,
     // Evaluate reward
     ret += RewardGameState(oldMetaState, nextMetaState);
     ret += RewardNewGoods(oldMetaState, nextMetaState);
-    ret += RewardNewConnections(oldMetaState, nextMetaState);
     ret += RewardNewBuildings(oldMetaState, nextMetaState);
 
     return ret;
@@ -121,7 +134,6 @@ Environment::MetaState Environment::ExtractMetaState() const
     ret.constructionSiteCount = player.GetBuildingRegister().GetBuildingSites().size();
 
     ret.buildingCount = 0u;
-    ret.connectedBuildings = 0u;
     for(const auto buildingType : helpers::enumRange<BuildingType>())
     {
         if (BuildingProperties::IsUsual(buildingType))
@@ -138,21 +150,6 @@ Environment::MetaState Environment::ExtractMetaState() const
             const auto* hq = aii.GetHeadquarter();
             if (!hq)
                 continue;
-            
-            // @todo: if this calculation is slow, we can buffer it?
-            for (const auto* building : buildings)
-            {
-                if (BuildingProperties::IsWareHouse(building->GetBuildingType()))
-                {
-                    if (aii.FindPathOnRoads(*building->GetFlag(), *hq, nullptr))
-                        ret.connectedBuildings++;
-                }
-                else
-                {
-                    if (aii.FindWarehouse(*building->GetFlag(), FW::NoCondition(), true, true))
-                        ret.connectedBuildings++;   
-                }
-            }
         }
     }
     
@@ -197,19 +194,6 @@ double Environment::RewardNewPeople(const MetaState& oldState, const MetaState& 
     return ret;
 }
 
-double Environment::RewardNewConnections(const MetaState& oldState, const MetaState& newState) const
-{
-    double ret = 0.0;
-
-    // reward new connections
-    ret += delta(oldState.connectedBuildings, newState.connectedBuildings) * 0.005;
-
-    // punish lost connections
-    ret -= delta(newState.connectedBuildings, oldState.connectedBuildings) * 0.0025;
-
-    return ret;
-}
-
 double Environment::RewardNewBuildings(const MetaState& oldState, const MetaState& newState) const
 {
     double ret = 0.0;
@@ -220,18 +204,23 @@ double Environment::RewardNewBuildings(const MetaState& oldState, const MetaStat
 
 MapPoint Environment::GetNextPOI()
 {
+    auto& aii = engine_->players_[agentId_]->getAIInterface();
+
+    // Take from the already calculated POIs
     while (!poi.buildLocations.empty()) {
         MapPoint ret = poi.buildLocations.back();
         poi.buildLocations.pop_back();
 
         // still valid?
         BuildingQuality bq = world_->GetBQ(ret, agentId_);
-        if (bq > BuildingQuality::Nothing)
-            return ret;
+        if (bq > BuildingQuality::Nothing) {
+            RoadBuilder roadsPreview(aii, ret, bq);
+            if (roadsPreview.CanConnectToAFlag(ret))
+                return ret;
+        }
     }
 
     // calculate next POIS
-    auto& aii = engine_->players_[agentId_]->getAIInterface();
     BuildLocations buildLocations(aii);
     for (const auto* sh : aii.GetStorehouses())
         buildLocations.Calculate(sh->GetFlagPos());

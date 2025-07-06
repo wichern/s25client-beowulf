@@ -16,16 +16,17 @@ class AIInterface;
 namespace beowulf {
 
 // @todo: Rename to RoadBuilder
-class RoadManager
+class RoadBuilder
 {
 public:
-    RoadManager(AIInterface& aii,
+    RoadBuilder(AIInterface& aii,
         const MapPoint& anticipatedPt = MapPoint(),
         BuildingQuality anticipatedBq = BuildingQuality::Nothing);
-    ~RoadManager();
+    ~RoadBuilder();
 
     // Check if two points could be connected with roads when 'anticipatedPt' would have a building of size 'anticipatedBq'.
     bool CanConnect(const MapPoint& start, const MapPoint& dest) const;
+    bool CanConnectToAFlag(const MapPoint& start) const;
 
     /// Check if we can build a segment from 'pt' in 'dir'. Assumes that we can start at 'pt'.
     bool IsRoadPossible(const MapPoint& pt, Direction dir) const;
@@ -33,19 +34,15 @@ public:
     bool HasFlag(const MapPoint& pt) const;
     bool HasRoad(const MapPoint& pt, Direction dir) const;
 
-    // @todo: Connection strategies...
-    //
-    // Scenario #1: We place a building site
-    //  Option #1: Connect it to the next closest flag
-    //  Option #2: Connect it to the closest building that needs the resource from this building
-    //  Option #3: Connect to next warehouse
-    //
-    // Scenario #2: A road was destroyed and buildings are not connected anymore
-    //  Remove all roads that are not used anymore
-    //  Option #1: React on all events where changes can happen
-    //  Option #2: Do regular clean-up intervals
-    //  
-    // void Connect(const MapPoint& src, const MapPoint& dest);
+    bool IsConnected(const MapPoint& pt, bool buildingFlag = false) const;
+    //bool IsConnectedTo(const MapPoint& start, const MapPoint& dest) const;
+
+    bool ConnectToNearestFlag(const MapPoint& flagPos);
+    // bool ConnectToNearestClient(const MapPoint& flagPos);
+    // bool ConnectToNearestWarehouse(const MapPoint& flagPos);
+
+    // Remove all roads and flags that are not used anymore,
+    // connect buildings that are 
     // void Cleanup();
 
 private:

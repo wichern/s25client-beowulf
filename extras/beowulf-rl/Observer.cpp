@@ -85,8 +85,7 @@ void Observer::printState()
     lastFrame_ = now;
 
     // Move cursor up and clear
-    //printConsole("\033[%uA\033[J", lastHeight_);
-    printConsole("\033[2J");
+    printConsole("\033[%uA\033[J", lastHeight_);
     lastHeight_ = 0u;
 
     // Get terminal dimensions
@@ -152,32 +151,28 @@ void Observer::printState()
         lastHeight_++;
     }
 
-    // horizontal line
-    printConsole("+%s+%s+\n",
-        std::string(leftWidth - 1, '-').c_str(),
-        std::string(rightWidth - 1, '-').c_str());
-    lastHeight_++;
-
     static const unsigned minMapHeight = 10;
 
     if ((lastHeight_ + minMapHeight + 1) < height && env_ && env_->world_)
     {
-        std::string paddingMap = std::string(width - 24, ' ');
-        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now - trainingStart_);
-        auto minutes = std::chrono::duration_cast<std::chrono::minutes>(now - trainingStart_);
-        auto hours = std::chrono::duration_cast<std::chrono::hours>(now - trainingStart_);
-        printConsole("| %sLast Test Run Result%s%s |\n",
-            BLUE, RESET,
-            paddingMap.c_str());
+        // horizontal line
+        printConsole("+%s+%s+\n",
+            std::string(leftWidth - 1, '-').c_str(),
+            std::string(rightWidth - 1, '-').c_str());
+        lastHeight_++;
 
         // print a part of the test run result
-        // auto const& world = *(env_->world_);
-        // auto const& player = world.GetPlayer(env_->agentId_);
-        // AsciiMap debug(world, player.GetHQPos(), POI_RADIUS+2);
-        // debug.drawPlayer(env_->agentId_);
-        // debug.write();
-
-        printConsole("+%s+\n", std::string(width - 2, '-').c_str());
+        auto const& world = *(env_->world_);
+        auto const& player = world.GetPlayer(env_->agentId_);
+        AsciiMap debug(world, player.GetHQPos(), (width)/4, (width)/8, 1, AsciiMap::Border::ASCII);
+        debug.drawPlayer(env_->agentId_);
+        debug.write();
+        lastHeight_ += debug.h_;
+    } else {
+        // horizontal line
+        printConsole("+%s+%s+\n",
+            std::string(leftWidth - 1, '-').c_str(),
+            std::string(rightWidth - 1, '-').c_str());
         lastHeight_++;
     }
 }
