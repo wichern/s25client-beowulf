@@ -9,6 +9,8 @@
 #include "RttrForeachPt.h"
 #include "buildings/noBuildingSite.h"
 #include "buildings/nobBaseWarehouse.h"
+#include "buildings/nobHarborBuilding.h"
+#include "buildings/nobMilitary.h"
 #include "buildings/nobUsual.h"
 #include "helpers/EnumArray.h"
 #include "helpers/MaxEnumValue.h"
@@ -100,7 +102,7 @@ private:
 };
 
 constexpr helpers::EnumArray<const char*, BuildingType> SHORT_BLD_NAMES = {
-  {"HQ",  "Bar", "Gua", "",    "Wat", "",  "Vin",  "Win",    "Tem",  "Fort", "GrM", "CoM", "IrM", "GoM",
+  {"HQ",  "Bar", "Gua", "",    "Wat",  "Vin",  "Win",    "Tem", "",  "Fort", "GrM", "CoM", "IrM", "GoM",
    "Loo", "",    "Cat", "Woo", "Fis", "Qua", "For", "Sla", "Hun", "Bre",  "Arm", "Met", "Iro", "Cha",
    "Pig", "Sto", "",    "Mil", "Bak", "Saw", "Min", "Wel", "Shi", "Far",  "Don", "Har"}};
 
@@ -268,14 +270,19 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
 
     for(const auto bldType : helpers::enumRange<BuildingType>())
     {
-        if(!BuildingProperties::IsValid(bldType))
-            continue;
-        for(nobUsual* bld : buildings.GetBuildings(bldType))
-            draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
+        if(BuildingProperties::IsUsual(bldType))
+            for(nobUsual* bld : buildings.GetBuildings(bldType))
+                draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
     }
 
-    // for(nobBaseWarehouse* bld : buildings.GetStorehouses())
-    //     draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
+    for(nobBaseWarehouse* bld : buildings.GetStorehouses())
+        draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
+
+    for(nobMilitary* bld : buildings.GetMilitaryBuildings())
+        draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
+
+    for(nobHarborBuilding* bld : buildings.GetHarbors())
+        draw(bld->GetPos(), SHORT_BLD_NAMES[bld->GetBuildingType()]);
 
     for(const noBuildingSite* building : buildings.GetBuildingSites())
         draw(building->GetPos(), std::string("(") + SHORT_BLD_NAMES[building->GetBuildingType()] + ")");

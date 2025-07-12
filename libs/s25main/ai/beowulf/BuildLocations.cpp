@@ -21,7 +21,7 @@ BuildLocations::~BuildLocations()
 
 }
 
-void BuildLocations::Calculate(const MapPoint& start)
+void BuildLocations::Calculate(const MapPoint& start, bool confirm)
 {
     RTTR_Assert(start.isValid());
 
@@ -40,6 +40,10 @@ void BuildLocations::Calculate(const MapPoint& start)
     {
         BuildingQuality bq = aii_.gwb.GetBQ(pt, aii_.GetPlayerId());
         if (bq > BuildingQuality::Flag) {
+            if (!confirm) {
+                locations_.push_back({ pt, BuildingQuality::House });
+                return;
+            }
             RoadBuilder roadsPreview(aii_, pt, bq);
             // Check if we can still connect that connection if we place a building.
             MapPoint flag = aii_.gwb.GetNeighbour(pt, Direction::SouthEast);

@@ -32,7 +32,7 @@ public:
     ~BuildLocations();
 
     /// Calculate all possible build locations starting from a flag of the road network we want to build for.
-    void Calculate(const MapPoint& start);
+    void Calculate(const MapPoint& start, bool confirm = true);
 
     std::vector<MapPoint> Get(BuildingQuality minBq = BuildingQuality::Hut) const;
     std::vector<std::pair<MapPoint, BuildingQuality>> GetAll() const { return locations_; }

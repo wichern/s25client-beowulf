@@ -41,6 +41,8 @@ public:
     // bool ConnectToNearestClient(const MapPoint& flagPos);
     // bool ConnectToNearestWarehouse(const MapPoint& flagPos);
 
+    bool FindConnectionToNearestFlag(const MapPoint& flag, std::vector<Direction>* route);
+
     // Remove all roads and flags that are not used anymore,
     // connect buildings that are 
     // void Cleanup();

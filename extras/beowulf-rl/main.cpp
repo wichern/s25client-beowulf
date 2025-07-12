@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#define MLPACK_USE_SYSTEM_STB
 #include <mlpack.hpp>
 
 #include "Environment.h"
@@ -26,20 +27,10 @@
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 
-// PLAN B
-// ------
-//
-// 1. We create an agent for placing building sites only.
-//    Road connections will be done by an helper
-//    Building destruction will be ignored for now
-//    Warehouse actions will be ignored for now
-//    Building settings (modes, enabling) will be ignored for now
-//    Attacking will be ignored for now
-//    Ships will be ignored for now
-//    Global settings changes will be ignored for now
-//
-// 2. Once the building site agent is done, we can train the other agents.
-//    Probably cannot be done at once.
+// [ ] find more performance improvements
+// [ ] Why does it build wine economy? Is it enabled by default?
+// [ ] smarter road connections (put a flag every 2 to 3 segments)
+// [ ] Update POI calculation to only use resources that are reachable
 
 // @todo: Read replays for initial training
 // @todo: create log files that include the selected actions for debugging
@@ -62,8 +53,6 @@ int main(/*int argc, char** argv*/)
     //     retrun 1;
     // }
 
-    static constexpr unsigned EPISODES = 1000u;
-
     unsigned random_init = static_cast<unsigned>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 
     try {
@@ -81,7 +70,7 @@ int main(/*int argc, char** argv*/)
         beowulf::Environment env(&settings);
         
         mlpack::TrainingConfig config;
-        config.ExplorationSteps() = 20'000;
+        config.ExplorationSteps() = 2'000;
         config.IsCategorical() = false;
         config.StepSize() = 0.0005;
         config.DoubleQLearning() = true;
@@ -94,7 +83,7 @@ int main(/*int argc, char** argv*/)
 #if 1
         mlpack::rl::SimpleDQN dqn(
             env.StateSize(),    // input layer
-            64,    // hidden layer. too small may underfit, too large may overfit and be slow
+            256,    // hidden layer. too small may underfit, too large may overfit and be slow
             beowulf::BuildActionSpace::size); // output layer
 #else
         // @todo: Which initialization function makes most sense for us?
@@ -135,7 +124,7 @@ int main(/*int argc, char** argv*/)
 
         beowulf::Observer::getInstance().init(settings.maxGf, &buildAgent.Environment());
 
-        for (unsigned i = 0u; i < EPISODES; ++i) {
+        while(policy.Epsilon() > 0.0) {
             /*double reward =*/ buildAgent.Episode();
             double epsilon = policy.Epsilon();
 

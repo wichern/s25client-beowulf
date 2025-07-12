@@ -74,23 +74,26 @@ double Environment::Sample(const State& state,
     if (action.action != 0)
     {
         const BuildingType bld = BuildingTypeWithoutUnused(action.action - 1);
+        auto& player = world_->GetPlayer(agentId_);
         auto& aii = engine_->players_[agentId_]->getAIInterface();
         const BuildingQuality bq = BUILDING_SIZE[bld];
 
-        if(!canUseBq(world_->GetBQ(state.poi_, agentId_), bq))
-            ret -= 0.5;
-        else {
-            aii.SetBuildingSite(state.poi_, bld);
+        // punish too many building sites
+        ret -= static_cast<double>(player.GetBuildingRegister().GetBuildingSites().size()) * 0.00001;
+
+        if(canUseBq(world_->GetBQ(state.poi_, agentId_), bq)) {
+            // Can we build the road?
+            RoadBuilder roads(aii, state.poi_, bq);
             MapPoint flagPos = world_->GetNeighbour(state.poi_, Direction::SouthEast);
-            RoadBuilder roads(aii, flagPos, bq);
-            if (!roads.IsConnected(flagPos, true)) {
-                bool success = roads.ConnectToNearestFlag(flagPos);
-                if (!success) {
-                    AsciiMap debug(*world_, state.poi_, 12);
-                    debug.drawPlayer(agentId_);
-                    debug.write();
+
+            if (roads.IsConnected(flagPos, true))
+                aii.SetBuildingSite(state.poi_, bld);
+            else {
+                std::vector<Direction> route;
+                if (roads.FindConnectionToNearestFlag(flagPos, &route)) {
+                    aii.SetBuildingSite(state.poi_, bld);
+                    aii.BuildRoad(flagPos, false, route);
                 }
-                RTTR_Assert(success); // if this fails, the BuildLocations class failed
             }
         }
     }
@@ -223,7 +226,7 @@ MapPoint Environment::GetNextPOI()
     // calculate next POIS
     BuildLocations buildLocations(aii);
     for (const auto* sh : aii.GetStorehouses())
-        buildLocations.Calculate(sh->GetFlagPos());
+        buildLocations.Calculate(sh->GetFlagPos(), false);
     poi.buildLocations = std::move(buildLocations.Get());
 
     if (!poi.buildLocations.empty()) {

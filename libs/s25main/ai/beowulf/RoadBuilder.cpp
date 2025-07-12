@@ -179,10 +179,19 @@ BlockingManner RoadBuilder::GetBM(const MapPoint& pt) const
 
 bool RoadBuilder::ConnectToNearestFlag(const MapPoint& flagPos)
 {
+    std::vector<Direction> route;
+
+    if (FindConnectionToNearestFlag(flagPos, &route))
+        return aii_.BuildRoad(flagPos, false, route);
+
+    return false;
+}
+
+bool RoadBuilder::FindConnectionToNearestFlag(const MapPoint& flagPos, std::vector<Direction>* route)
+{
     RTTR_Assert(flagPos.isValid());
 
-    std::vector<Direction> route;
-    bool ret = beowulf::FindPath(flagPos, aii_.gwb, &route,
+    return beowulf::FindPath(flagPos, aii_.gwb, route,
     // Condition
     [&](const MapPoint& pt, Direction dir)
     {
@@ -206,11 +215,6 @@ bool RoadBuilder::ConnectToNearestFlag(const MapPoint& flagPos)
     {
         return 1;
     });
-
-    if (ret)
-        return aii_.BuildRoad(flagPos, false, route);
-
-    return ret;
 }
 
 bool RoadBuilder::IsConnected(const MapPoint& pt, bool buildingFlag) const

@@ -100,6 +100,7 @@ void GameState::Update()
     distance_to_border = POI_RADIUS + 1; // distance to nearest border
     distance_to_warehouse = POI_RADIUS + 1; // distance to nearest warehouse
 
+    // @todo: only consider points we can walk to (BFS) at least for most resources (how is fish handled?)
     world.CheckPointsInRadius(poi_, POI_RADIUS, [&](const MapPoint& pt, unsigned distance_to_poi) {
         const noBase* no = world.GetNO(pt);
         const MapNode& node = world.GetNode(pt);

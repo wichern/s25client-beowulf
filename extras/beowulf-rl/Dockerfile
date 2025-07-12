@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
   g++ gdb cmake git \
   libboost1.74-all-dev libminiupnpc-dev \
   libsdl2-dev libsdl2-mixer-dev libcurl4-openssl-dev \
-  libbz2-dev liblua5.2-dev gettext bash-completion nano locales \
+  libbz2-dev liblua5.2-dev gettext bash-completion nano locales linux-perf linux-base \
   sudo \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
