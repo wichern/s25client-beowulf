@@ -10,15 +10,19 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <cmath>
-#include <boost/nowide/args.hpp>
-#include <boost/nowide/filesystem.hpp>
 #include <boost/nowide/iostream.hpp>
+#include <boost/filesystem.hpp>
+#include "PointOutput.h"
+#include "gameTypes/GameTypesOutput.h"
 
 #ifdef WIN32
 #    include "Windows.h"
 #endif
 
+static const char* BEOWULF_REPORT_DIR_PREFIX = "beowulf-rl.";
+
 namespace bnw = boost::nowide;
+namespace bfs = boost::filesystem;
 
 namespace beowulf {
 
@@ -36,16 +40,28 @@ Observer& Observer::getInstance()
     return instance;
 }
 
-void Observer::init(unsigned maxGf, beowulf::Environment* env)
+void Observer::init(unsigned explorationSteps, unsigned maxGf, beowulf::Environment* env)
 {
+    const auto cwd = bfs::current_path();
+    outDir_ = cwd / std::string(BEOWULF_REPORT_DIR_PREFIX + std::to_string(NextResultDirId()));
+    bfs::create_directory(outDir_);
+
+    explorationSteps_ = explorationSteps;
     maxGf_ = maxGf;
     env_ = env;
     trainingStart_ = std::chrono::steady_clock::now();
     lastFrame_ = trainingStart_ - std::chrono::seconds(1);
 }
 
+void Observer::addExplorationResult(unsigned steps)
+{
+    currentExplorationStep_ = steps;
+}
+
 void Observer::addEpisodeResult(double reward, double epsilon)
 {
+    currentExplorationStep_ = explorationSteps_;
+
     // ignore the huge negative rewards from losses
     //rewards_.push_back(std::max(reward, 0.0));
     rewards_.push_back(reward);
@@ -56,10 +72,14 @@ void Observer::addEpisodeResult(double reward, double epsilon)
     if (epsilons_.size() > 50)
         epsilons_.erase(epsilons_.begin());
 
-    currentEpisode_++;
     setCurrentGf(maxGf_);
 
     // write asciimap
+
+    // Create file with all actions of the agent
+    // Create replay
+    // Print Reward
+    // all Q-values from all states into additional csv-file (to check for exploding or near zero values)
 }
 
 inline std::string repeat(const std::string& in, size_t count)
@@ -99,20 +119,30 @@ void Observer::printState()
     lastHeight_++;
 
     // title with episode and elapsed time
-    std::string padding = std::string(width - 29, ' ');
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now - trainingStart_);
     auto minutes = std::chrono::duration_cast<std::chrono::minutes>(now - trainingStart_);
     auto hours = std::chrono::duration_cast<std::chrono::hours>(now - trainingStart_);
-    printConsole("| %sEpisode%s %-*u%s %02ld:%02ld:%02ld |\n",
-        BLUE, RESET,
-        8, currentEpisode_,
-        padding.c_str(),
-        hours.count(), minutes.count() % 60, seconds.count() % 60);
+    if (currentExplorationStep_ <= explorationSteps_) {
+        std::string padding = std::string(width - 29, ' ');
+        printConsole("| %sExploration Phase%s%s%02ld:%02ld:%02ld |\n",
+            BLUE, RESET,
+            padding.c_str(),
+            hours.count(), minutes.count() % 60, seconds.count() % 60);
+        } else {
+    std::string padding = std::string(width - 29, ' ');
+            printConsole("| %sEpisode%s %-*u%s %02ld:%02ld:%02ld |\n",
+                BLUE, RESET,
+                8, currentEpisode_,
+                padding.c_str(),
+                hours.count(), minutes.count() % 60, seconds.count() % 60);
+        }
     lastHeight_++;
 
     // progress bar
     unsigned barWidth = width - 11;
     float percent = static_cast<float>(currentGf_) / static_cast<float>(maxGf_);
+    if (currentExplorationStep_ <= explorationSteps_)
+        percent = static_cast<float>(currentExplorationStep_) / static_cast<float>(explorationSteps_);
     unsigned filled = static_cast<int>(percent * static_cast<float>(barWidth));
     printConsole("| %s[%s%s] %3d%%%s |\n",
         GREEN,
@@ -223,6 +253,41 @@ void printConsole(const char* fmt, ...)
         bnw::cout << buffer;
 #endif
     }
+}
+
+unsigned Observer::NextResultDirId() const
+{
+    unsigned ret = 0;
+
+    for (const auto& it : bfs::directory_iterator(bfs::current_path())) {
+        if (bfs::is_directory(it.status())) {
+            std::string dirname = it.path().filename().string();
+            if (dirname.rfind(BEOWULF_REPORT_DIR_PREFIX) != 0)
+                continue;
+
+            // extract ID
+            std::string prefix(BEOWULF_REPORT_DIR_PREFIX);
+            if (!dirname.compare(0, prefix.size(), prefix))
+                ret = std::max(ret, static_cast<unsigned>(std::stoul(dirname.substr(prefix.size()))));
+        }
+    }
+
+    return ret + 1;
+}
+
+void Observer::beginEpisode()
+{
+    if (outEpisodeActions_.is_open())
+        outEpisodeActions_.close();
+    currentEpisode_++;
+    episodeDir_ = outDir_ / std::to_string(currentEpisode_);
+    bfs::create_directory(episodeDir_);
+    outEpisodeActions_.open(episodeDir_ / "actions.txt", std::ofstream::out | std::ofstream::trunc);
+}
+
+void Observer::storeSetBuildingSite(const MapPoint& pt, BuildingType bld)
+{
+    outEpisodeActions_ << pt << " : " << bld << "\n";
 }
 
 } // namespace beowulf

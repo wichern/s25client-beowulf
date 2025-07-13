@@ -6,6 +6,7 @@
 
 #include "GameState.h"
 #include "ActionSpace.h"
+#include "pathfinding/PathConditionHuman.h"
 
 #include <armadillo>
 

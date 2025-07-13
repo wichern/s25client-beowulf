@@ -47,7 +47,6 @@ private:
 
     struct Node
     {
-        BuildingQuality bq;
         bool visited = false;
     };
 

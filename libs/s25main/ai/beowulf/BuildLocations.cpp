@@ -25,7 +25,9 @@ void BuildLocations::Calculate(const MapPoint& start, bool confirm)
 {
     RTTR_Assert(start.isValid());
 
-    locations_.clear();
+    if (map_[start].visited)
+        return;
+
     RoadBuilder roads(aii_);
 
     FloodFill(map_, start,
@@ -38,6 +40,7 @@ void BuildLocations::Calculate(const MapPoint& start, bool confirm)
     // action
     [&](const MapPoint& pt)
     {
+        map_[pt].visited = true;
         BuildingQuality bq = aii_.gwb.GetBQ(pt, aii_.GetPlayerId());
         if (bq > BuildingQuality::Flag) {
             if (!confirm) {

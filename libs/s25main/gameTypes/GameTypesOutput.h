@@ -67,6 +67,7 @@ RTTR_ENUM_OUTPUT(StartWares, VLow, Low, Normal, ALot)
 RTTR_ENUM_OUTPUT(Visibility, Invisible, FogOfWar, Visible)
 RTTR_ENUM_OUTPUT(Team, None, Random, Team1, Team2, Team3, Team4, Random1To2, Random1To3, Random1To4)
 RTTR_ENUM_OUTPUT(ServerType, Lobby, Direct, Local, LAN)
+RTTR_ENUM_OUTPUT(BuildingType, Headquarters, Barracks, Guardhouse, Nothing2, Watchtower, Vineyard, Winery, Temple, Nothing6, Fortress, GraniteMine, CoalMine, IronMine, GoldMine, LookoutTower, Nothing7, Catapult, Woodcutter, Fishery, Quarry, Forester, Slaughterhouse, Hunter, Brewery, Armory, Metalworks, Ironsmelter, Charburner, PigFarm, Storehouse, Nothing9, Mill, Bakery, Sawmill, Mint, Well, Shipyard, Farm, DonkeyBreeder, HarborBuilding)
 
 namespace AI {
 RTTR_ENUM_OUTPUT(Type, Dummy, Beowulf, Default)
@@ -83,7 +84,6 @@ RTTR_ENUM_OUTPUT(Level, Easy, Medium, Hard)
         return out << #EnumName "::" << static_cast<unsigned>(rttr::enum_cast(e)); \
     }
 
-RTTR_ENUM_OUTPUT(BuildingType)
 RTTR_ENUM_OUTPUT(Job)
 RTTR_ENUM_OUTPUT(Nation)
 RTTR_ENUM_OUTPUT(GO_Type)

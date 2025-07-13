@@ -86,13 +86,15 @@ double Environment::Sample(const State& state,
             RoadBuilder roads(aii, state.poi_, bq);
             MapPoint flagPos = world_->GetNeighbour(state.poi_, Direction::SouthEast);
 
-            if (roads.IsConnected(flagPos, true))
+            if (roads.IsConnected(flagPos, true)) {
                 aii.SetBuildingSite(state.poi_, bld);
-            else {
+                Observer::getInstance().storeSetBuildingSite(state.poi_, bld);
+            } else {
                 std::vector<Direction> route;
                 if (roads.FindConnectionToNearestFlag(flagPos, &route)) {
                     aii.SetBuildingSite(state.poi_, bld);
                     aii.BuildRoad(flagPos, false, route);
+                    Observer::getInstance().storeSetBuildingSite(state.poi_, bld);
                 }
             }
         }
@@ -100,7 +102,7 @@ double Environment::Sample(const State& state,
 
     MetaState oldMetaState = ExtractMetaState();
     
-    // advance state
+    // advance state until we want to perform the next action.
     MapPoint nextPoi;
     do {
         engine_->RunNextNWGF();
@@ -119,6 +121,14 @@ double Environment::Sample(const State& state,
     ret += RewardGameState(oldMetaState, nextMetaState);
     ret += RewardNewGoods(oldMetaState, nextMetaState);
     ret += RewardNewBuildings(oldMetaState, nextMetaState);
+
+    /*
+    Ideas
+    For resource movement (e.g., logs → sawmill)
+    For population growth
+    For rate of goods production (not just discrete events)
+    Reward construction steps, not just finished buildings (e.g., for sending materials)
+    */
 
     return ret;
 }
@@ -169,7 +179,7 @@ double Environment::RewardGameState(const MetaState& oldState, const MetaState& 
     return ret;
 }
 
-inline double delta(unsigned oldVal, unsigned newVal)
+inline double delta(const unsigned oldVal, const unsigned newVal)
 {
     if (oldVal >= newVal)
         return 0.0;
@@ -181,7 +191,7 @@ double Environment::RewardNewGoods(const MetaState& oldState, const MetaState& n
     double ret = 0.0;
     for(const auto i : helpers::enumRange<GoodType>())
     {
-        double reward = GOOD_GAIN_REWARD[i];
+        const double reward = GOOD_GAIN_REWARD[i];
         if (reward > 0.0)
             ret += delta(oldState.goods[i], newState.goods[i]) * reward;
     }
@@ -201,7 +211,7 @@ double Environment::RewardNewBuildings(const MetaState& oldState, const MetaStat
 {
     double ret = 0.0;
     ret += delta(oldState.constructionSiteCount, newState.constructionSiteCount) * 0.01;
-    ret += delta(oldState.buildingCount, newState.buildingCount) * 0.02;
+    ret += delta(oldState.buildingCount, newState.buildingCount) * 0.1;
     return ret;
 }
 
@@ -222,6 +232,11 @@ MapPoint Environment::GetNextPOI()
                 return ret;
         }
     }
+
+    // do not calculate more POIs when we already have too many building sites
+    // @todo: what is too many?
+    if (aii.GetBuildingSites().size() > 5 * aii.GetStorehouses().size())
+        return MapPoint();
 
     // calculate next POIS
     BuildLocations buildLocations(aii);

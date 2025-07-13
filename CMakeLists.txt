@@ -18,6 +18,8 @@ project(RTTR VERSION ${RTTR_VERSION})
 
 message(STATUS "Using CMake ${CMAKE_VERSION}")
 
+add_compile_options(-fno-omit-frame-pointer)
+
 if(DEFINED CMAKE_TOOLCHAIN_FILE)
     message(STATUS "Used Toolchain definition file '${CMAKE_TOOLCHAIN_FILE}'")
 endif()

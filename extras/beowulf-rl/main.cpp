@@ -27,18 +27,12 @@
 namespace bnw = boost::nowide;
 namespace bfs = boost::filesystem;
 
-// [ ] find more performance improvements
+// Debug unconnected buildings
 // [ ] Why does it build wine economy? Is it enabled by default?
+//      make switch for building type in Sample(). Also Köhler and Harbor(?) are based on addons/settings
 // [ ] smarter road connections (put a flag every 2 to 3 segments)
-// [ ] Update POI calculation to only use resources that are reachable
 
 // @todo: Read replays for initial training
-// @todo: create log files that include the selected actions for debugging
-//          log for rewards, epsilon, etc to be used in discussion
-//          log for selected actions (debugging)
-//          ascii maps
-//          replays
-// @todo: At end of each episode print all generated commands and the final ascii map of the full map into a file
 // @todo: Create replays
 // @todo: Make it read a configuration file and train on multiple maps/objectives/settings like so:
 //        Per episode, select a different map/objective/setting and make sure that all are used
@@ -65,12 +59,12 @@ int main(/*int argc, char** argv*/)
         // @todo: How to know how many AIs to add? Instead let Environment fill map completely and set beowulf and a random position each time
         settings.ais.push_back(AI::Info{AI::Type::Beowulf});
         settings.ais.push_back(AI::Info{AI::Type::Dummy});
-        settings.maxGf = 100'000u;
+        settings.maxGf = 10'000u;
 
         beowulf::Environment env(&settings);
         
         mlpack::TrainingConfig config;
-        config.ExplorationSteps() = 2'000;
+        config.ExplorationSteps() = 100'000;
         config.IsCategorical() = false;
         config.StepSize() = 0.0005;
         config.DoubleQLearning() = true;
@@ -78,9 +72,9 @@ int main(/*int argc, char** argv*/)
 
         //beowulf::Policy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
         mlpack::GreedyPolicy<beowulf::Environment> policy(1.0, 40'0000, 0.1, 0.99);
-        mlpack::RandomReplay<beowulf::Environment> replayMethod(64, 200'000);
+        mlpack::RandomReplay<beowulf::Environment> replayMethod(128, 800'000);
 
-#if 1
+#if 0
         mlpack::rl::SimpleDQN dqn(
             env.StateSize(),    // input layer
             256,    // hidden layer. too small may underfit, too large may overfit and be slow
@@ -97,13 +91,13 @@ int main(/*int argc, char** argv*/)
         // network.Add(new mlpack::ReLU());
         // network.Add(new mlpack::Linear(64));
         //network.Add(new mlpack::ReLU());
-        network.Add(new mlpack::Linear(1024));  // reduce input to a dense encoding
-        network.Add(new mlpack::ReLU());
-        network.Add(new mlpack::Linear(512));
-        network.Add(new mlpack::ReLU());
         network.Add(new mlpack::Linear(256));
         network.Add(new mlpack::ReLU());
-        network.Add(new mlpack::Linear(beowulf::ActionSpace::size));
+        network.Add(new mlpack::Linear(128));
+        network.Add(new mlpack::ReLU());
+        network.Add(new mlpack::Linear(64));
+        network.Add(new mlpack::ReLU());
+        network.Add(new mlpack::Linear(beowulf::BuildActionSpace::size));
         mlpack::rl::SimpleDQN dqn(network);
 #endif
         
@@ -122,7 +116,7 @@ int main(/*int argc, char** argv*/)
                 std::move(env)
             );
 
-        beowulf::Observer::getInstance().init(settings.maxGf, &buildAgent.Environment());
+        beowulf::Observer::getInstance().init(config.ExplorationSteps(), settings.maxGf, &buildAgent.Environment());
 
         while(policy.Epsilon() > 0.0) {
             /*double reward =*/ buildAgent.Episode();
@@ -131,6 +125,7 @@ int main(/*int argc, char** argv*/)
             // have we reached the end of the initial exploration phase?
             if (buildAgent.TotalSteps() >= config.ExplorationSteps())
             {
+                beowulf::Observer::getInstance().beginEpisode();
                 // make a test run
                 beowulf::Environment::State state = env.InitialSample();
                 double totalReturn = 0.0;
@@ -146,7 +141,7 @@ int main(/*int argc, char** argv*/)
 
                 beowulf::Observer::getInstance().addEpisodeResult(totalReturn, epsilon);
             } else
-                beowulf::Observer::getInstance().addEpisodeResult(0.0, epsilon);
+                beowulf::Observer::getInstance().addExplorationResult(buildAgent.TotalSteps());
             beowulf::Observer::getInstance().printState();
         }
     } catch(const std::exception& e)
