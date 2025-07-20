@@ -36,7 +36,7 @@ bool RoadBuilder::CanConnect(
 
     return beowulf::FindPath(start, aii_.gwb, nullptr,
     // Condition
-    [&](const MapPoint& pt, Direction dir)
+    [&](const MapPoint& pt, Direction dir, unsigned /*len*/)
     {
         return HasRoad(pt, dir) || IsRoadPossible(pt, dir);
     },
@@ -63,7 +63,7 @@ bool RoadBuilder::CanConnectToAFlag(const MapPoint& start) const
 {
     return beowulf::FindPath(start, aii_.gwb, nullptr,
     // Condition
-    [&](const MapPoint& pt, Direction dir)
+    [&](const MapPoint& pt, Direction dir, unsigned /*len*/)
     {
         return IsRoadPossible(pt, dir);
     },
@@ -177,25 +177,36 @@ BlockingManner RoadBuilder::GetBM(const MapPoint& pt) const
     return aii_.gwb.GetNO(pt)->GetBM();
 }
 
-bool RoadBuilder::ConnectToNearestFlag(const MapPoint& flagPos)
-{
-    std::vector<Direction> route;
-
-    if (FindConnectionToNearestFlag(flagPos, &route))
-        return aii_.BuildRoad(flagPos, false, route);
-
-    return false;
-}
-
-bool RoadBuilder::FindConnectionToNearestFlag(const MapPoint& flagPos, std::vector<Direction>* route)
+bool RoadBuilder::FindConnectionToNearestFlag(
+    const MapPoint& flagPos,
+    std::vector<Direction>* route,
+    Strategy strategy,
+    std::vector<MapPoint>* flags)
 {
     RTTR_Assert(flagPos.isValid());
 
-    return beowulf::FindPath(flagPos, aii_.gwb, route,
+    bool ret = beowulf::FindPath(flagPos, aii_.gwb, route,
     // Condition
-    [&](const MapPoint& pt, Direction dir)
+    [&](const MapPoint& pt, Direction dir, unsigned len)
     {
-        return IsRoadPossible(pt, dir);
+        switch (strategy)
+        {
+        case ShortestTwoSegmentFlags:
+        {
+            if (!IsRoadPossible(pt, dir))
+                return false;
+
+            // every second element shall get a flag
+            if (len % 2u == 0u)
+                return GetBQ(pt) != BuildingQuality::Nothing;
+
+            return true;
+        } break;
+        default:
+        {
+            return IsRoadPossible(pt, dir);
+        } break;
+        }
     },
     // End
     [&](const MapPoint& pt)
@@ -203,7 +214,11 @@ bool RoadBuilder::FindConnectionToNearestFlag(const MapPoint& flagPos, std::vect
         // The search can end if we found a way to any flag of the destination
         // road network.
         auto* no = aii_.gwb.GetNO(pt);
-        return no && no->GetType() == NodalObjectType::Flag;
+        if (no && no->GetType() == NodalObjectType::Flag)
+            return true;  // has flag
+        
+        // is on road and we can build a flag?
+        return IsConnected(pt) && GetBQ(pt) == BuildingQuality::Flag;
     },
     // Heuristic
     [&](const MapPoint& pt)
@@ -215,6 +230,37 @@ bool RoadBuilder::FindConnectionToNearestFlag(const MapPoint& flagPos, std::vect
     {
         return 1;
     });
+
+    // place flags along route
+    if (ret && route && flags) {
+        switch (strategy)
+        {
+        case ShortestTwoSegmentFlags:
+        {
+            MapPoint pt = flagPos;
+            for (unsigned i = 0u; i < route->size(); ++i) {
+                if (i != 0u && i % 2u == 0u)
+                    flags->push_back(pt);
+                pt = aii_.gwb.GetNeighbour(pt, (*route)[i]);
+            }
+        } break;
+        
+        case ShortestAsManyFlagsAsPossible:
+        {
+            MapPoint pt = flagPos;
+            for (unsigned i = 0u; i < route->size(); ++i) {
+                if (GetBQ(pt) != BuildingQuality::Nothing)
+                    flags->push_back(pt);
+                pt = aii_.gwb.GetNeighbour(pt, (*route)[i]);
+            }
+        } break;
+        case ShortestNoFlags:
+        default:
+            break;
+        }
+    }
+
+    return ret;
 }
 
 bool RoadBuilder::IsConnected(const MapPoint& pt, bool buildingFlag) const

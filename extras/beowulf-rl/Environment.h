@@ -18,6 +18,7 @@ namespace beowulf {
 
 struct Settings;
 class HeadlessGame;
+class Observer;
 
 class Environment
 {
@@ -25,7 +26,7 @@ public:
     using Action = BuildActionSpace;
     using State = GameState;
 
-    Environment(Settings* settings);
+    Environment(Settings* settings, beowulf::Observer* observer);
 
     // Get an initial game state
     State InitialSample();
@@ -61,6 +62,8 @@ private:
 
         bool defeated = false;
     };
+
+    beowulf::Observer* observer_ = nullptr;
 
     MetaState ExtractMetaState() const;
     double RewardGameState(const MetaState& oldState, const MetaState& newState) const;

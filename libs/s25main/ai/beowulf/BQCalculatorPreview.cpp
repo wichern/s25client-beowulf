@@ -19,6 +19,9 @@ BlockingManner BQCalculatorPreview::GetBM(const MapPoint& pt) const
 {
     if (pt == previewPt_)
         return BlockingManner::Building;
+
+    if (pt == world.GetNeighbour(previewPt_, Direction::SouthEast))
+        return BlockingManner::Flag;
     
     // Check for castle extensions
     if (previewBq_ == BuildingQuality::Castle)

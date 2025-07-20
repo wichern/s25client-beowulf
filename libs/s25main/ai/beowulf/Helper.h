@@ -7,6 +7,8 @@
 #include "world/MapBase.h"
 #include "helpers/EnumRange.h"
 #include "gameTypes/Direction.h"
+#include "gameTypes/BuildingType.h"
+#include "gameData/BuildingProperties.h"
 
 #include <vector>
 #include <queue>
@@ -77,23 +79,26 @@ bool FindPath(
         Cost cost)
 {
     typedef unsigned distance_t;
-    typedef std::pair<MapPoint, distance_t> front_pos_t;
+    typedef unsigned cost_t;
+    typedef std::tuple<MapPoint, cost_t, distance_t> front_pos_t;
 
     struct PosCompare
     {
         bool operator()(const front_pos_t& l, const front_pos_t& r) const
-        { return l.second > r.second; }
+        { return std::get<1>(l) > std::get<1>(r); }
     };
     std::priority_queue<front_pos_t, std::vector<front_pos_t>, PosCompare> frontier;
     std::map<MapPoint, Direction, MapPointComp> came_from; // @performance: use array?
-    std::map<MapPoint, distance_t, MapPointComp> cost_so_far;
+    std::map<MapPoint, cost_t, MapPointComp> cost_so_far;
     cost_so_far[start] = 0;
     MapPoint dest;
 
-    frontier.push({ start, 0 });
+    frontier.push({ start, 0, 1 });
 
     while (!frontier.empty()) {
-        MapPoint cur = frontier.top().first;
+        MapPoint cur;
+        distance_t len;
+        std::tie(cur, std::ignore, len) = frontier.top();
         frontier.pop();
 
         if (cur != start && end(cur)) {
@@ -102,16 +107,16 @@ bool FindPath(
         }
 
         for (const auto dir : helpers::EnumRange<Direction>{}) {
-            if (!condition(cur, dir))
+            if (!condition(cur, dir, len))
                 continue;
 
-            distance_t new_cost = cost_so_far[cur] + cost(cur, dir);
+            cost_t new_cost = cost_so_far[cur] + cost(cur, dir);
             MapPoint next = world.GetNeighbour(cur, dir);
             if (cost_so_far.find(next) == cost_so_far.end() ||
                     new_cost < cost_so_far[next])
             {
                 cost_so_far[next] = new_cost;
-                frontier.push({ next, new_cost + heuristic(next) });
+                frontier.push({ next, new_cost + heuristic(next), len + 1 });
                 came_from[next] = dir;
             }
         }
@@ -136,6 +141,31 @@ bool FindPath(
     }
 
     return true;
+}
+
+inline unsigned BuildingTypeWithoutUnused2I(BuildingType bld) {
+    RTTR_Assert(BuildingProperties::IsValid(bld));
+    unsigned ret = 0u;
+    for(const auto i : helpers::enumRange<BuildingType>()) {
+        if (bld == i)
+            return ret;
+        if (BuildingProperties::IsValid(i))
+            ret++;
+    }
+    RTTR_Assert(false);
+    return ret;
+}
+
+inline BuildingType BuildingTypeWithoutUnused(unsigned bld) {
+    for(const auto i : helpers::enumRange<BuildingType>()) {
+        if (!BuildingProperties::IsValid(i))
+            continue;
+        if (0 == bld)
+            return i;
+        bld--;
+    }
+    RTTR_Assert(false);
+    return BuildingType::Nothing2;
 }
 
 } // namespace beowulf

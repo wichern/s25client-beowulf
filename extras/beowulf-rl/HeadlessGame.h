@@ -22,16 +22,27 @@ class Settings;
 class HeadlessGame
 {
 public:
-    HeadlessGame(Settings* settings);
+    HeadlessGame(const Settings& settings);
 
-    bool IsFinished(unsigned maxGF) const;
+    void Start();
+
+    bool IsFinished() const;
+
+    // Proceed in game until next NWGF
     void RunNextNWGF();
 
-//private:
-    Settings* settings_;
-    Game game_;
-    GameWorld& world_;
-    EventManager& em_;
+    GamePlayer& AgentPlayer();
+    const GamePlayer& AgentPlayer() const;
+
+    AIInterface& AII();
+    const AIInterface& AII() const;
+
+    Game game;
+    GameWorld& world;
+    EventManager& em;
+
+private:
+    const Settings& settings_;
     std::vector<std::unique_ptr<AIPlayer>> players_;
 };
 

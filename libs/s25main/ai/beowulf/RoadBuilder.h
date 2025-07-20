@@ -15,7 +15,6 @@ class AIInterface;
 
 namespace beowulf {
 
-// @todo: Rename to RoadBuilder
 class RoadBuilder
 {
 public:
@@ -25,6 +24,7 @@ public:
     ~RoadBuilder();
 
     // Check if two points could be connected with roads when 'anticipatedPt' would have a building of size 'anticipatedBq'.
+    // Does not check whether start or dest are flags or could have flags.
     bool CanConnect(const MapPoint& start, const MapPoint& dest) const;
     bool CanConnectToAFlag(const MapPoint& start) const;
 
@@ -37,14 +37,21 @@ public:
     bool IsConnected(const MapPoint& pt, bool buildingFlag = false) const;
     //bool IsConnectedTo(const MapPoint& start, const MapPoint& dest) const;
 
-    bool ConnectToNearestFlag(const MapPoint& flagPos);
-    // bool ConnectToNearestClient(const MapPoint& flagPos);
-    // bool ConnectToNearestWarehouse(const MapPoint& flagPos);
+    enum Strategy
+    {
+        ShortestNoFlags = 0,
+        ShortestTwoSegmentFlags,
+        ShortestAsManyFlagsAsPossible
+    };
 
-    bool FindConnectionToNearestFlag(const MapPoint& flag, std::vector<Direction>* route);
+    bool FindConnectionToNearestFlag(
+        const MapPoint& flag,
+        std::vector<Direction>* route,
+        Strategy strategy = ShortestNoFlags,
+        std::vector<MapPoint>* flags = nullptr);
 
     // Remove all roads and flags that are not used anymore,
-    // connect buildings that are 
+    // connect buildings that are disconnected
     // void Cleanup();
 
 private:

@@ -20,28 +20,82 @@ namespace beowulf {
 
 std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais);
 
-HeadlessGame::HeadlessGame(Settings* settings)
-: settings_(settings)
-, game_(settings->ggs, std::make_unique<EventManager>(0), GeneratePlayerInfo(settings->ais))
-, world_(game_.world_)
-, em_(*static_cast<EventManager*>(game_.em_.get()))
+HeadlessGame::HeadlessGame(const Settings& settings)
+: game(settings.ggs, std::make_unique<EventManager>(0), GeneratePlayerInfo(settings.ais))
+, world(game.world_)
+, em(*static_cast<EventManager*>(game.em_.get()))
+, settings_(settings)
 {
-    MapLoader loader(world_);
-    if(!loader.Load(settings->map))
-        throw std::runtime_error("Could not load " + settings->map.string());
-
-    players_.clear();
-    for(unsigned playerId = 0; playerId < world_.GetNumPlayers(); ++playerId)
-        players_.push_back(AIFactory::Create(world_.GetPlayer(playerId).aiInfo, playerId, world_));
-
-    world_.InitAfterLoad();
-    
-    game_.Start(false);
 }
 
-bool HeadlessGame::IsFinished(unsigned maxGF) const
+void HeadlessGame::Start()
 {
-    return em_.GetCurrentGF() < maxGF && !game_.IsGameFinished();
+    MapLoader loader(world);
+    if(!loader.Load(settings_.map))
+        throw std::runtime_error("Could not load " + settings_.map.string());
+
+    players_.clear();
+    for(unsigned playerId = 0; playerId < world.GetNumPlayers(); ++playerId)
+        players_.push_back(AIFactory::Create(world.GetPlayer(playerId).aiInfo, playerId, world));
+
+    world.InitAfterLoad();
+    
+    game.Start(false);
+}
+
+bool HeadlessGame::IsFinished() const
+{
+    if (em.GetCurrentGF() > settings_.maxGf)
+        return true;
+
+    if (AgentPlayer().IsDefeated())
+        return true;
+
+    return game.IsGameFinished();
+}
+
+void HeadlessGame::RunNextNWGF()
+{
+    static constexpr int NetworkFrameInterval = 20;
+
+    for (int i = 0; i < (NetworkFrameInterval - 1); ++i) {
+        for(auto& player : players_)
+            player->RunGF(em.GetCurrentGF(), false);
+
+        game.RunGF();
+    }
+
+    for (auto& player : players_) {
+        PlayerGameCommands cmds;
+        cmds.gcs = player->FetchGameCommands();
+        for(const gc::GameCommandPtr& gc : cmds.gcs)
+            gc->Execute(world, player->GetPlayerId());
+    }
+
+    for(auto& player : players_)
+        player->RunGF(em.GetCurrentGF(), true);
+
+    game.RunGF();
+}
+
+GamePlayer& HeadlessGame::AgentPlayer()
+{
+    return world.GetPlayer(settings_.agentIdx);
+}
+
+const GamePlayer& HeadlessGame::AgentPlayer() const
+{
+    return world.GetPlayer(settings_.agentIdx);
+}
+
+AIInterface& HeadlessGame::AII()
+{
+    return players_[settings_.agentIdx]->getAIInterface();
+}
+
+const AIInterface& HeadlessGame::AII() const
+{
+    return players_[settings_.agentIdx]->getAIInterface();
 }
 
 std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais)
@@ -55,6 +109,7 @@ std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais)
         switch(ai.type)
         {
             case AI::Type::Default: pi.name = "AIJH " + std::to_string(ret.size()); break;
+            case AI::Type::Beowulf: pi.name = "Beowulf " + std::to_string(ret.size()); break;
             case AI::Type::Dummy:
             default: pi.name = "Dummy " + std::to_string(ret.size()); break;
         }
@@ -63,33 +118,6 @@ std::vector<PlayerInfo> GeneratePlayerInfo(const std::vector<AI::Info>& ais)
         ret.push_back(pi);
     }
     return ret;
-}
-
-void HeadlessGame::RunNextNWGF()
-{
-    for (int i = 0; i < 19; ++i) {
-
-        for(auto& player : players_)
-            player->RunGF(em_.GetCurrentGF(), false);
-
-        game_.RunGF();
-    }
-
-    for(unsigned playerId = 0; playerId < world_.GetNumPlayers(); ++playerId)
-    {
-        world_.GetPlayer(playerId);
-        AIPlayer* player = players_[playerId].get();
-        PlayerGameCommands cmds;
-        cmds.gcs = player->FetchGameCommands();
-
-        for(const gc::GameCommandPtr& gc : cmds.gcs)
-            gc->Execute(world_, player->GetPlayerId());
-    }
-
-    for(auto& player : players_)
-        player->RunGF(em_.GetCurrentGF(), true);
-
-    game_.RunGF();
 }
 
 } // namespace beowulf

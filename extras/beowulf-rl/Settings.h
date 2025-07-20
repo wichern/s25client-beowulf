@@ -17,6 +17,7 @@ struct Settings
 {
     GlobalGameSettings ggs;
     std::vector<AI::Info> ais;
+    unsigned agentIdx; // index into 'ais' indicating who is the agent to be trained
     boost::filesystem::path map;
     unsigned maxGf;
 };

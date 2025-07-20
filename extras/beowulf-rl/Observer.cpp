@@ -4,7 +4,6 @@
 
 #include "Observer.h"
 #include "AsciiMap.h"
-#include "Environment.h"
 #include "world/GameWorld.h"
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -34,55 +33,9 @@ void printConsole(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 void printConsole(const char* fmt, ...);
 #endif
 
-Observer& Observer::getInstance()
-{
-    static Observer instance;
-    return instance;
-}
+unsigned nextResultDirId();
 
-void Observer::init(unsigned explorationSteps, unsigned maxGf, beowulf::Environment* env)
-{
-    const auto cwd = bfs::current_path();
-    outDir_ = cwd / std::string(BEOWULF_REPORT_DIR_PREFIX + std::to_string(NextResultDirId()));
-    bfs::create_directory(outDir_);
-
-    explorationSteps_ = explorationSteps;
-    maxGf_ = maxGf;
-    env_ = env;
-    trainingStart_ = std::chrono::steady_clock::now();
-    lastFrame_ = trainingStart_ - std::chrono::seconds(1);
-}
-
-void Observer::addExplorationResult(unsigned steps)
-{
-    currentExplorationStep_ = steps;
-}
-
-void Observer::addEpisodeResult(double reward, double epsilon)
-{
-    currentExplorationStep_ = explorationSteps_;
-
-    // ignore the huge negative rewards from losses
-    //rewards_.push_back(std::max(reward, 0.0));
-    rewards_.push_back(reward);
-    if (rewards_.size() > 50)
-        rewards_.erase(rewards_.begin());
-
-    epsilons_.push_back(epsilon * 100.0);
-    if (epsilons_.size() > 50)
-        epsilons_.erase(epsilons_.begin());
-
-    setCurrentGf(maxGf_);
-
-    // write asciimap
-
-    // Create file with all actions of the agent
-    // Create replay
-    // Print Reward
-    // all Q-values from all states into additional csv-file (to check for exploding or near zero values)
-}
-
-inline std::string repeat(const std::string& in, size_t count)
+inline std::string repeat(const std::string& in, const size_t count)
 {
     std::string ret;
     for (size_t i = 0u; i < count; ++i)
@@ -90,7 +43,98 @@ inline std::string repeat(const std::string& in, size_t count)
     return ret;
 }
 
-void Observer::printState()
+Observer::Observer(unsigned explorationSteps, unsigned maxGf)
+    : explorationSteps_(explorationSteps)
+    , maxGf_(maxGf)
+    , trainingStart_(std::chrono::steady_clock::now())
+{
+    // Create output directory for reports
+    outDir_ = bfs::current_path() / std::string(BEOWULF_REPORT_DIR_PREFIX + std::to_string(nextResultDirId()));
+    bfs::create_directory(outDir_);
+
+    outResultsCsv_.open(outDir_ / "results.csv", std::ofstream::out | std::ofstream::trunc);
+    outResultsCsv_ << "Reward;Epsilon\n";
+
+    live.lastFrame_ = trainingStart_ - std::chrono::seconds(1);
+}
+
+void Observer::BeginExplorationRun()
+{
+    state_ = TrainingState::Exploration;
+}
+
+void Observer::EndExplorationRun(size_t explorationSteps)
+{
+    currentExplorationStep_ = explorationSteps;
+}
+
+void Observer::BeginTrainingRun()
+{
+    state_ = TrainingState::Training;
+    live.currentEpisode_++;
+}
+
+void Observer::EndTrainingRun()
+{
+
+}
+
+void Observer::BeginTestRun()
+{
+    state_ = TrainingState::Test;
+    testRun_++;
+
+    testrun.episodeDir_ = outDir_ / "testruns" / std::to_string(testRun_);
+    bfs::create_directories(testrun.episodeDir_);
+
+    RTTR_Assert(!testrun.outEpisodeActions_.is_open());
+    testrun.outEpisodeActions_.open(testrun.episodeDir_ / "actions.txt", std::ofstream::out | std::ofstream::trunc);
+
+    RTTR_Assert(!testrun.outQValues_.is_open());
+    testrun.outQValues_.open(testrun.episodeDir_ / "qvalues.txt", std::ofstream::out | std::ofstream::trunc);
+    testrun.outQValues_ << std::fixed << std::setprecision(4);
+}
+
+void Observer::OnSetBuildingSite(const MapPoint& pt, BuildingType bld)
+{
+    if (testrun.outEpisodeActions_.is_open())
+        testrun.outEpisodeActions_ << currentGf_ << " " << pt << " " << bld << "\n";
+}
+
+void Observer::OnQValues(const arma::colvec& qvalues)
+{
+    if (testrun.outQValues_.is_open()) {
+        for (double val : qvalues)
+            testrun.outQValues_ << val << " ";
+        testrun.outQValues_ << "\n";
+    }
+}
+
+void Observer::EndTestRun(double reward, double epsilon, const GameWorld& gwb)
+{
+    testrun.outEpisodeActions_.close();
+    testrun.outQValues_.close();
+
+    live.rewards_.push_back(reward);
+    if (live.rewards_.size() > 50)
+        live.rewards_.erase(live.rewards_.begin());
+
+    live.epsilons_.push_back(epsilon * 100.0);
+    if (live.epsilons_.size() > 50)
+        live.epsilons_.erase(live.epsilons_.begin());
+
+    // Create AsciiMap
+    AsciiMap amap(gwb);
+    for (unsigned i = 0u; i < gwb.GetNumPlayers(); ++i)
+        amap.drawPlayer(i);
+    boost::filesystem::ofstream amapOut(testrun.episodeDir_ / "map.txt", std::ofstream::out | std::ofstream::trunc);
+    amap.write(amapOut);
+
+    // Add reward and epsilon to results.csv
+    outResultsCsv_ << reward << ";" << epsilon << "\n" << std::flush;
+}
+
+void Observer::Print(const GameWorld& gwb, unsigned playerId)
 {
     // ANSI colors
     static const char* RESET = "\033[0m";
@@ -100,43 +144,53 @@ void Observer::printState()
     //static const char* YELLOW = "\033[33m";
 
     auto now = std::chrono::steady_clock::now();
-    if (lastFrame_ + std::chrono::milliseconds(500) > now)
+    if (live.lastFrame_ + std::chrono::milliseconds(250) > now)
         return;
-    lastFrame_ = now;
+    live.lastFrame_ = now;
 
     // Move cursor up and clear
-    printConsole("\033[%uA\033[J", lastHeight_);
-    lastHeight_ = 0u;
+    printConsole("\033[H\033[J");
 
     // Get terminal dimensions
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     unsigned short width = std::min((unsigned short)120, w.ws_col);
-    unsigned short height = w.ws_row;
 
     // top
     printConsole("+%s+\n", std::string(width - 2, '-').c_str());
-    lastHeight_++;
 
     // title with episode and elapsed time
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now - trainingStart_);
     auto minutes = std::chrono::duration_cast<std::chrono::minutes>(now - trainingStart_);
     auto hours = std::chrono::duration_cast<std::chrono::hours>(now - trainingStart_);
-    if (currentExplorationStep_ <= explorationSteps_) {
+    switch (state_) {
+    case TrainingState::Pretraining:
+    {
+        std::string padding = std::string(width - 28, ' ');
+        printConsole("| %sPre-Training Phase%s%s%02ld:%02ld:%02ld |\n",
+            BLUE, RESET,
+            padding.c_str(),
+            hours.count(), minutes.count() % 60, seconds.count() % 60);
+    } break;
+    case TrainingState::Exploration:
+    {
         std::string padding = std::string(width - 29, ' ');
         printConsole("| %sExploration Phase%s%s%02ld:%02ld:%02ld |\n",
             BLUE, RESET,
             padding.c_str(),
             hours.count(), minutes.count() % 60, seconds.count() % 60);
-        } else {
-    std::string padding = std::string(width - 29, ' ');
-            printConsole("| %sEpisode%s %-*u%s %02ld:%02ld:%02ld |\n",
-                BLUE, RESET,
-                8, currentEpisode_,
-                padding.c_str(),
-                hours.count(), minutes.count() % 60, seconds.count() % 60);
-        }
-    lastHeight_++;
+    } break;
+    case TrainingState::Training:
+    case TrainingState::Test:
+    {
+        std::string padding = std::string(width - 29, ' ');
+        printConsole("| %sEpisode%s %-*u%s %02ld:%02ld:%02ld |\n",
+            BLUE, RESET,
+            8, live.currentEpisode_,
+            padding.c_str(),
+            hours.count(), minutes.count() % 60, seconds.count() % 60);
+    } break;
+    }
 
     // progress bar
     unsigned barWidth = width - 11;
@@ -150,7 +204,6 @@ void Observer::printState()
         std::string(barWidth - filled, '-').c_str(),
         static_cast<int>(percent * 100.0),
         RESET);
-    lastHeight_++;
 
     // horizontal line
     unsigned leftWidth = width/ 2;
@@ -158,12 +211,11 @@ void Observer::printState()
     printConsole("+%s+%s+\n",
         std::string(leftWidth - 1, '-').c_str(),
         std::string(rightWidth - 1, '-').c_str());
-    lastHeight_++;
 
     // charts
     static const size_t chartHeight = 8;
-    std::vector<std::string> linesReward = printChart(rewards_, chartHeight, leftWidth - 3);
-    std::vector<std::string> linesEpsilon = printChart(epsilons_, chartHeight, rightWidth - 3);
+    std::vector<std::string> linesReward = printChart(live.rewards_, chartHeight, leftWidth - 3);
+    std::vector<std::string> linesEpsilon = printChart(live.epsilons_, chartHeight, rightWidth - 3);
     std::string padding_reward = std::string(leftWidth - 9, ' ');
     std::string padding_epsilon = std::string(rightWidth - 10, ' ');
     printConsole("| %sReward%s%s | %sEpsilon%s%s |\n",
@@ -171,40 +223,24 @@ void Observer::printState()
         padding_reward.c_str(),
         BLUE, RESET,
         padding_epsilon.c_str());
-    lastHeight_++;
     for (size_t i = 0; i < chartHeight; ++i)
     {
         printConsole("| %s | %s |\n",
             linesReward[i].c_str(),
             linesEpsilon[i].c_str()
         );
-        lastHeight_++;
     }
 
-    static const unsigned minMapHeight = 10;
+    // horizontal line
+    printConsole("+%s+%s+\n",
+        std::string(leftWidth - 1, '-').c_str(),
+        std::string(rightWidth - 1, '-').c_str());
 
-    if ((lastHeight_ + minMapHeight + 1) < height && env_ && env_->world_)
-    {
-        // horizontal line
-        printConsole("+%s+%s+\n",
-            std::string(leftWidth - 1, '-').c_str(),
-            std::string(rightWidth - 1, '-').c_str());
-        lastHeight_++;
-
-        // print a part of the test run result
-        auto const& world = *(env_->world_);
-        auto const& player = world.GetPlayer(env_->agentId_);
-        AsciiMap debug(world, player.GetHQPos(), (width)/4, (width)/8, 1, AsciiMap::Border::ASCII);
-        debug.drawPlayer(env_->agentId_);
-        debug.write();
-        lastHeight_ += debug.h_;
-    } else {
-        // horizontal line
-        printConsole("+%s+%s+\n",
-            std::string(leftWidth - 1, '-').c_str(),
-            std::string(rightWidth - 1, '-').c_str());
-        lastHeight_++;
-    }
+    // print a part of the test run result
+    auto const& player = gwb.GetPlayer(playerId);
+    AsciiMap debug(gwb, player.GetHQPos(), (width)/4, (width)/8, 1, AsciiMap::Border::ASCII);
+    debug.drawPlayer(playerId);
+    debug.write();
 }
 
 std::vector<std::string> Observer::printChart(const std::vector<double> values, unsigned height, unsigned width) const
@@ -255,7 +291,7 @@ void printConsole(const char* fmt, ...)
     }
 }
 
-unsigned Observer::NextResultDirId() const
+unsigned nextResultDirId()
 {
     unsigned ret = 0;
 
@@ -273,21 +309,6 @@ unsigned Observer::NextResultDirId() const
     }
 
     return ret + 1;
-}
-
-void Observer::beginEpisode()
-{
-    if (outEpisodeActions_.is_open())
-        outEpisodeActions_.close();
-    currentEpisode_++;
-    episodeDir_ = outDir_ / std::to_string(currentEpisode_);
-    bfs::create_directory(episodeDir_);
-    outEpisodeActions_.open(episodeDir_ / "actions.txt", std::ofstream::out | std::ofstream::trunc);
-}
-
-void Observer::storeSetBuildingSite(const MapPoint& pt, BuildingType bld)
-{
-    outEpisodeActions_ << pt << " : " << bld << "\n";
 }
 
 } // namespace beowulf

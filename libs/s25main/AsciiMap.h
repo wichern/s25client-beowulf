@@ -98,7 +98,7 @@ private:
     AsciiPosition::ElementType scale_h_;
     size_t map_buffer_len_;
     char* map_;
-    Border border_;
+    Border border_ = Border::Locations;
 };
 
 constexpr helpers::EnumArray<const char*, BuildingType> SHORT_BLD_NAMES = {
@@ -234,7 +234,8 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
 {
     RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
     {
-        if(gwb_.GetNode(pt).owner == (playerId + 1))
+        const auto& node = gwb_.GetNode(pt);
+        if(node.owner == (playerId + 1) && node.obj == nullptr)
             draw(pt, '.');
     }
 
@@ -243,17 +244,6 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
         const auto* flagObj = gwb_.GetSpecObj<noFlag>(pt);
         if(flagObj && flagObj->GetPlayer() == playerId)
             draw(pt, 'f');
-
-        if(const auto* obj = gwb_.GetNode(pt).obj) {
-            if (obj->GetType() == NodalObjectType::Tree)
-                draw(pt, 't');
-            else if (obj->GetType() == NodalObjectType::Granite)
-                draw(pt, '^');
-            else if (obj->GetType() == NodalObjectType::Grainfield)
-                draw(pt, '#');
-        }
-        if (gwb_.GetNode(pt).boundary_stones[BorderStonePos::OnPoint])
-            draw(pt, '+');
 
         for(const auto roadDir : helpers::EnumRange<RoadDir>{})
         {
@@ -327,6 +317,25 @@ inline void AsciiMap::clear()
 
     // Add null terminator.
     map_[map_buffer_len_ - 1] = 0;
+
+    // Fill map with terrain data
+    RTTR_FOREACH_PT(MapPoint, gwb_.GetSize()) {
+        if(pt.x < offset_.x || pt.x - offset_.x >= map_size_.x)
+            continue;
+        if(pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
+            continue;
+            
+        if(gwb_.IsWaterPoint(pt))
+            draw(pt, '~');
+        else if(const auto* obj = gwb_.GetNode(pt).obj) {
+            if (obj->GetType() == NodalObjectType::Tree)
+                draw(pt, 't');
+            else if (obj->GetType() == NodalObjectType::Granite)
+                draw(pt, '^');
+            else if (obj->GetType() == NodalObjectType::Grainfield)
+                draw(pt, '#');
+        }
+    }
 }
 
 inline void AsciiMap::init(const MapExtent& size)

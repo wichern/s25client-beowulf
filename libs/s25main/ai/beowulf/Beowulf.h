@@ -5,6 +5,18 @@
 #pragma once
 
 #include "ai/AIPlayer.h"
+#include "notifications/Subscription.h"
+
+#include <vector>
+
+struct BuildingNote;
+struct ExpeditionNote;
+struct NodeNote;
+struct PlayerNodeNote;
+struct ResourceNote;
+struct RoadNote;
+struct ShipNote;
+struct ToolNote;
 
 namespace beowulf {
 
@@ -18,6 +30,17 @@ public:
 
     void RunGF(const unsigned gf, bool gfisnwf) override;
     void OnChatMessage(unsigned /*sendPlayerId*/, ChatDestination, const std::string& /*msg*/) override {}
+
+private:
+    void OnNotification(const BuildingNote& note);
+    void OnNotification(const ExpeditionNote& note);
+    void OnNotification(const NodeNote& note);
+    void OnNotification(const PlayerNodeNote& note);
+    void OnNotification(const RoadNote& note);
+    void OnNotification(const ShipNote& note);
+    void OnNotification(const ResourceNote& note);
+    void OnNotification(const ToolNote& note);
+    std::vector<Subscription> notificationSubscriptions_;
 };
 
 } // namespace beowulf

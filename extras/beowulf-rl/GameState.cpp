@@ -18,20 +18,6 @@
 
 namespace beowulf {
 
-unsigned BuildingTypeWithoutUnused2I(BuildingType bld);
-unsigned BuildingTypeWithoutUnused2I(BuildingType bld) {
-    RTTR_Assert(BuildingProperties::IsValid(bld));
-    unsigned ret = 0u;
-    for(const auto i : helpers::enumRange<BuildingType>()) {
-        if (bld == i)
-            return ret;
-        if (BuildingProperties::IsValid(i))
-            ret++;
-    }
-    RTTR_Assert(false);
-    return ret;
-}
-
 // GameState::GameState()
 //     : data(arma::zeros<arma::colvec>(dimension))
 // {
@@ -324,7 +310,7 @@ void GameState::Update()
         RTTR_Assert(data[i] >= 0.0 && data[i] <= 1.0);
     }
 
-    isTerminal = env_->engine_->em_.GetCurrentGF() > env_->settings_->maxGf || player.IsDefeated() || env_->engine_->game_.IsGameFinished();
+    isTerminal = env_->engine_->game.IsGameFinished();
 }
 
 } // namespace beowulf

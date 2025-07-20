@@ -6,14 +6,5 @@
 
 namespace beowulf {
 
-enum class POIType : unsigned
-{
-    BuildLocation = 0,
-    Warehouse,
-    MilitaryBuilding,
-    EnemyMilitaryBuilding,
-    Harbour,
-    ProductionBuilding
-};
 
 }
