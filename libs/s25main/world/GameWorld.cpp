@@ -149,7 +149,9 @@ void GameWorld::SetBuildingSite(const BuildingType type, const MapPoint pt, cons
     DestroyNO(pt, false);
 
     // Baustelle setzen
-    SetNO(pt, new noBuildingSite(type, pt, player));
+    auto* bs = new noBuildingSite(type, pt, player);
+    SetNO(pt, bs);
+    bs->OrderConstructionMaterial();
     if(gi)
         gi->GI_UpdateMinimap(pt);
 
@@ -258,8 +260,11 @@ void GameWorld::BuildRoad(const unsigned char playerId, const bool boat_road, co
     auto* rs = new RoadSegment(boat_road ? RoadType::Water : RoadType::Normal, GetSpecObj<noFlag>(start),
                                GetSpecObj<noFlag>(end), route);
 
-    GetSpecObj<noFlag>(start)->SetRoute(route.front(), rs);
-    GetSpecObj<noFlag>(end)->SetRoute(route.back() + 3u, rs);
+    noRoadNode::SetRoute(
+        GetSpecObj<noFlag>(start),
+        GetSpecObj<noFlag>(end),
+        route,
+        rs);
 
     // Tell the economy that a new road has been built
     GetPlayer(playerId).NewRoadConnection(rs);

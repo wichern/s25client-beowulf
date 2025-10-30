@@ -522,7 +522,13 @@ void nofCarrier::GoalReached()
     // Wir arbeiten schonmal
     StartWorking();
 
+    workplace->GetF1()->OnWaresCostChanged();
+    workplace->GetF2()->OnWaresCostChanged();
+
     auto* rn = world->GetSpecObj<noRoadNode>(pos);
+
+    RTTR_Assert(rn == workplace->GetF1() || rn == workplace->GetF2());
+
     for(const auto dir : helpers::EnumRange<Direction>{})
     {
         // noRoadNode * rn = world->GetSpecObj<noRoadNode>(x,y);

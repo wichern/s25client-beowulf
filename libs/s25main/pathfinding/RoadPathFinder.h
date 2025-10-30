@@ -6,7 +6,9 @@
 
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/RoadPathDirection.h"
+#include "pathfinding/DStarTypes.h"
 #include <limits>
+#include <queue>
 
 class GameWorldBase;
 class noRoadNode;
@@ -16,6 +18,9 @@ class RoadPathFinder
 {
     GameWorldBase& gwb_;
     unsigned currentVisit;
+
+    // global list of priority queues for D*lite per goal
+    dstar::GoalContainer<dstar::OpenList> dstarU;
 
 public:
     RoadPathFinder(GameWorldBase& gwb) : gwb_(gwb), currentVisit(0) {}
@@ -35,6 +40,9 @@ public:
                   unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr,
                   unsigned* length = nullptr, RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
 
+    bool FindPathForWare(const noRoadNode& start, const noRoadNode& goal, unsigned max = std::numeric_limits<unsigned>::max(),
+                  unsigned* length = nullptr, RoadPathDirection* firstDir = nullptr, MapPoint* firstNodePos = nullptr);
+
     /// Checks if there is ANY path from start to goal
     ///
     /// @param allowWaterRoads True to allow boat roads (mostly: Ware=true, Person=false)
@@ -42,6 +50,12 @@ public:
     /// @param forbidden RoadSegment that will be ignored
     bool PathExists(const noRoadNode& start, const noRoadNode& goal, bool allowWaterRoads,
                     unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr);
+
+    void MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* node);
+
+    void OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world);
+
+    // @todo PathExistsDStar
 
 private:
     template<class T_AdditionalCosts, class T_SegmentConstraints>

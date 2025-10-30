@@ -9,6 +9,7 @@
 #include "noCoordBase.h"
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
+#include "pathfinding/DStarTypes.h"
 
 class Ware;
 class SerializedGameData;
@@ -48,7 +49,7 @@ public:
     const auto& getRoutes() const { return routes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
-    void DestroyRoad(Direction dir);
+    void DestroyRoad(Direction dir, bool updateDstar = true);
     void UpgradeRoad(Direction dir) const;
     /// Vernichtet Alle Straße um diesen Knoten
     void DestroyAllRoads();
@@ -61,6 +62,10 @@ public:
     /// Nur für Flagge, Gebäude können 0 zurückgeben, gibt Wegstrafpunkte für das Pathfinden für Waren, die in eine
     /// bestimmte Richtung noch transportiert werden müssen
     virtual unsigned GetPunishmentPoints(Direction) const { return 0; }
+
+    void OnWaresCostChanged();
+    mutable dstar::GoalContainer<dstar::NodeState> dstar;
+    static void SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment);
 };
 
 inline noRoadNode* noRoadNode::GetNeighbour(const Direction dir) const

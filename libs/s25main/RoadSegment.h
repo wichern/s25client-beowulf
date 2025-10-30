@@ -61,11 +61,7 @@ public:
     /// gibt den Carrier nr zurück
     nofCarrier* getCarrier(unsigned char nr) const { return carriers_[nr]; }
     /// setzt den Carrier nr auf c
-    void setCarrier(unsigned char nr, nofCarrier* c)
-    {
-        RTTR_Assert(!c || !hasCarrier(nr));
-        carriers_[nr] = c;
-    }
+    void setCarrier(unsigned char nr, nofCarrier* c);
     /// haben wir den Carrier "nr"?
     bool hasCarrier(unsigned char nr) const { return (carriers_[nr] != nullptr); }
     /// Braucht die Straße einen Esel? Nur wenn sie auch einen Träger schon hat!

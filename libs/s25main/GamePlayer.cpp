@@ -530,6 +530,7 @@ void GamePlayer::RoadDestroyed()
         Ware* ware = *it;
         if(ware->IsWaitingAtFlag()) // Liegt die Flagge an einer Flagge, muss ihr Weg neu berechnet werden
         {
+            // @todo: only wares that needed this node. We can identify them, if their goal is part of this dstar map of f1 or f2 of the destroyed road.
             RoadPathDirection last_next_dir = ware->GetNextDir();
             ware->RecalcRoute();
             // special case: ware was lost some time ago and the new goal is at this flag and not a warehouse,hq,harbor
@@ -559,6 +560,7 @@ void GamePlayer::RoadDestroyed()
                 if(newWareDir != Direction::NorthWest)
                 {
                     ware->SetNextDir(toRoadPathDirection(newWareDir));
+                    ware->GetLocation()->OnWaresCostChanged();
                 } else // no route to goal -> notify goal, try to send ware to a warehouse
                 {
                     ware->NotifyGoalAboutLostWare();

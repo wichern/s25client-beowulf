@@ -21,6 +21,8 @@
 #include "gameData/BuildingConsts.h"
 #include "gameData/BuildingProperties.h"
 
+#include "pathfinding/RoadPathFinder.h"
+
 nofBuilder::nofBuilder(const MapPoint pos, const unsigned char player, noBuildingSite* building_site)
     : noFigure(Job::Builder, pos, player, building_site), state(BuilderState::FigureWork), building_site(building_site),
       building_steps_available(0)
@@ -142,6 +144,7 @@ void nofBuilder::HandleDerivedEvent(const unsigned id)
                 // Baustelle abmelden
                 GamePlayer& owner = world->GetPlayer(player);
                 owner.RemoveBuildingSite(building_site);
+                world->GetRoadPathFinder().OnNodeDestroyed(building_site, world);
                 if(world->IsHarborBuildingSiteFromSea(building_site))
                     world->RemoveHarborBuildingSiteFromSea(building_site);
 

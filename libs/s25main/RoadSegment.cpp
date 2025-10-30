@@ -37,8 +37,7 @@ RoadSegment::RoadSegment(SerializedGameData& sgd, const unsigned obj_id)
         helpers::popContainer(sgd, route, true);
 
     // tell the noRoadNodes about our existance
-    f1->SetRoute(route.front(), this);
-    f2->SetRoute(route.back() + 3u, this);
+    noRoadNode::SetRoute(f1, f2, route, this);
 }
 
 bool RoadSegment::GetNodeID(const noRoadNode& rn) const
@@ -104,6 +103,16 @@ void RoadSegment::Serialize(SerializedGameData& sgd) const
     sgd.PushObject(carriers_[1], true);
 }
 
+void RoadSegment::setCarrier(unsigned char nr, nofCarrier* c)
+{
+    RTTR_Assert(!c || !hasCarrier(nr));
+    carriers_[nr] = c;
+    RTTR_Assert(f1 && f2);
+    f1->OnWaresCostChanged();
+    if (f1 != f2)
+        f2->OnWaresCostChanged();
+}
+
 /**
  *  zerteilt die Straße in 2 Teile.
  */
@@ -143,13 +152,10 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
     // f1 = f1;
     f2 = splitflag;
 
-    f1->SetRoute(route.front(), this);
-    splitflag->SetRoute(route.back() + 3u, this);
+    noRoadNode::SetRoute(f1, splitflag, route, this);
 
     // 2nd section from this F to F2
-
-    splitflag->SetRoute(second->route.front(), second);
-    second->f2->SetRoute(second->route.back() + 3u, second);
+    noRoadNode::SetRoute(splitflag, second->f2, second_route, second);
 
     // Notify all characters on the road
     t = f1->GetPos();
@@ -320,7 +326,7 @@ void RoadSegment::TryGetDonkey()
 {
     // Nur rufen, falls es eine Eselstraße ist, noch kein Esel da ist, aber schon ein Träger da ist
     if(NeedDonkey())
-        carriers_[1] = world->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
+        setCarrier(1, world->GetPlayer(f1->GetPlayer()).OrderDonkey(this));
 }
 
 /**
@@ -332,12 +338,13 @@ void RoadSegment::CarrierAbrogated(nofCarrier* carrier)
     if(carrier->GetCarrierType() == CarrierType::Normal || carrier->GetCarrierType() == CarrierType::Boat)
     {
         // Straße wieder unbesetzt, bzw. nur noch Esel
-        this->carriers_[0] = nullptr;
+        setCarrier(0, nullptr);
         world->GetPlayer(f1->GetPlayer()).FindCarrierForRoad(this);
     } else
     {
         // Kein Esel mehr da, versuchen, neuen zu bestellen
-        this->carriers_[1] = world->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
+        carriers_[1] = nullptr;
+        setCarrier(1, world->GetPlayer(f1->GetPlayer()).OrderDonkey(this));
     }
 }
 /**

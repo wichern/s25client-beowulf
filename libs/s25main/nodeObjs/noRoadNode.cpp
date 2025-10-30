@@ -7,6 +7,7 @@
 #include "GamePlayer.h"
 #include "RoadSegment.h"
 #include "SerializedGameData.h"
+#include "pathfinding/RoadPathFinder.h"
 #include "world/GameWorld.h"
 #include "s25util/warningSuppression.h"
 
@@ -22,6 +23,7 @@ noRoadNode::~noRoadNode() = default;
 
 void noRoadNode::Destroy()
 {
+    world->GetRoadPathFinder().OnNodeDestroyed(this, world);
     DestroyAllRoads();
     noCoordBase::Destroy();
 }
@@ -69,7 +71,7 @@ void noRoadNode::UpgradeRoad(const Direction dir) const
         GetRoute(dir)->UpgradeDonkeyRoad();
 }
 
-void noRoadNode::DestroyRoad(const Direction dir)
+void noRoadNode::DestroyRoad(const Direction dir, bool updateDstar)
 {
     RoadSegment* route = GetRoute(dir);
     if(!route)
@@ -82,8 +84,8 @@ void noRoadNode::DestroyRoad(const Direction dir)
         t = world->GetNeighbour(t, route->GetRoute(z));
     }
 
+    // @todo: can use SetRoute(route->GetF1(), route->GetF2(), *route, nullptr) here?
     noRoadNode* otherFlag;
-
     if(route->GetF1() == this)
         otherFlag = route->GetF2();
     else
@@ -93,24 +95,68 @@ void noRoadNode::DestroyRoad(const Direction dir)
     {
         if(otherFlag->routes[z] == route)
         {
-            otherFlag->routes[z] = nullptr;
+            otherFlag->SetRoute(z, nullptr);
             break;
         }
     }
 
     SetRoute(dir, nullptr);
 
+    if (updateDstar) {
+        route->GetF1()->OnWaresCostChanged();
+        route->GetF2()->OnWaresCostChanged();
+    }
+
     route->Destroy();
     delete route;
 
     // Spieler Bescheid sagen
-    world->GetPlayer(player).RoadDestroyed();
+    if (updateDstar)
+        world->GetPlayer(player).RoadDestroyed();
 }
 
 /// Vernichtet Alle Straße um diesen Knoten
 void noRoadNode::DestroyAllRoads()
 {
     // Alle Straßen um mich herum zerstören
+    for(const auto z : helpers::EnumRange<Direction>{})
+    {
+        if(routes[z])
+        {
+            if (routes[z]->GetF2() == this)
+                routes[z]->GetF1()->OnWaresCostChanged();
+            else
+                routes[z]->GetF2()->OnWaresCostChanged();
+        }
+    }
+    OnWaresCostChanged();
+
     for(const auto dir : helpers::EnumRange<Direction>{})
-        DestroyRoad(dir);
+        DestroyRoad(dir, false);
+
+    world->GetPlayer(player).RoadDestroyed();
+}
+
+void noRoadNode::OnWaresCostChanged()
+{
+    for (auto& [goal_pos, _] : dstar.map)
+        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, this);
+}
+
+void noRoadNode::SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment)
+{
+    n1->SetRoute(route.front(), segment);
+    n2->SetRoute(route.back() + 3u, segment);
+
+    // For all of one of the nodes goals, add both nodes to the dirty list.
+    for (auto& [goal_pos, _] : n1->dstar.map) {
+        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n1);
+        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n2);
+    }
+    if (n1 != n2) {
+        for (auto& [goal_pos, _] : n2->dstar.map) {
+            world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n1);
+            world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n2);
+        }
+    }
 }

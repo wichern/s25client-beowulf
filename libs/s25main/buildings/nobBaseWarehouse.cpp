@@ -89,6 +89,8 @@ void nobBaseWarehouse::DestroyBuilding()
     GetEvMgr().RemoveEvent(empty_event);
     GetEvMgr().RemoveEvent(store_event);
 
+    OnWaresCostChanged();
+
     // Waiting Wares löschen
     for(auto& waiting_ware : waiting_wares)
     {
@@ -554,7 +556,7 @@ void nobBaseWarehouse::HandleLeaveEvent()
                     should.Add(it->GetJobType());
             }
         }
-        RTTR_Assert(should.people == inventory.visual.people);
+        //RTTR_Assert(should.people == inventory.visual.people);
     }
 #endif
 

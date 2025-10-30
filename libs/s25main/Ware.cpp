@@ -95,6 +95,8 @@ void Ware::RecalcRoute()
         next_dir = world->FindPathForWareOnRoads(*location, *goal, nullptr, &next_harbor);
     else
         next_dir = RoadPathDirection::None;
+    if (location)
+        location->OnWaresCostChanged();
 
     // Evtl gibts keinen Weg mehr? Dann wieder zurück ins Lagerhaus (wenns vorher überhaupt zu nem Ziel ging)
     if(next_dir == RoadPathDirection::None && goal)
@@ -175,6 +177,8 @@ void Ware::GoalDestroyed()
             {
                 goal = nullptr;
                 next_dir = RoadPathDirection::None;
+                if (location)
+                    location->OnWaresCostChanged();
             }
         }
         // Wenn sie an einer Flagge liegt, muss der Weg neu berechnet werden und dem Träger Bescheid gesagt werden
@@ -256,6 +260,8 @@ void Ware::NotifyGoalAboutLostWare()
         goal->WareLost(*this);
         goal = nullptr;
         next_dir = RoadPathDirection::None;
+        if (location)
+            location->OnWaresCostChanged();
     }
 }
 
@@ -321,6 +327,8 @@ bool Ware::FindRouteToWarehouse()
                 RTTR_Assert(next_dir != RoadPathDirection::None);
             }
         }
+        if (location)
+            location->OnWaresCostChanged();
     } else
         next_dir = RoadPathDirection::None; // Make sure we are not going anywhere
     return goal != nullptr;
@@ -371,6 +379,8 @@ void Ware::SetNewGoalForLostWare(noBaseBuilding* newgoal)
     {
         next_dir = newDir;
         SetGoal(newgoal);
+        if (location)
+            location->OnWaresCostChanged();
         CallCarrier();
     }
 }
@@ -414,4 +424,10 @@ std::string Ware::ToString() const
     s << "Ware(" << GetObjId() << "): type=" << GoodType2String(type) << ", location=" << location->GetX() << ","
       << location->GetY();
     return s.str();
+}
+
+void Ware::SetNextDir(RoadPathDirection newNextDir) {
+    next_dir = newNextDir;
+    if (location)
+        location->OnWaresCostChanged();
 }

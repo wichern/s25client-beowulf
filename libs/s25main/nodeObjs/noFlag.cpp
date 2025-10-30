@@ -11,12 +11,14 @@
 #include "Ware.h"
 #include "buildings/noBuilding.h"
 #include "enum_cast.hpp"
+#include "pathfinding/RoadPathFinder.h"
 #include "figures/nofCarrier.h"
 #include "helpers/EnumRange.h"
 #include "network/GameClient.h"
 #include "ogl/glArchivItem_Bitmap.h"
 #include "ogl/glSmartBitmap.h"
 #include "world/GameWorld.h"
+
 #include "gameData/TerrainDesc.h"
 #include <algorithm>
 
@@ -80,6 +82,9 @@ void noFlag::Destroy()
         ware->WareLost(player);
         ware->Destroy();
     }
+    // @todo: should not be neccessary
+    if (!wares.empty())
+        OnWaresCostChanged();
     wares.clear();
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
@@ -139,6 +144,7 @@ void noFlag::AddWare(std::unique_ptr<Ware> ware)
     // First add ware, then tell carrier. So get the info from the ware first
     const RoadPathDirection nextDir = ware->GetNextDir();
     wares.push_back(std::move(ware));
+    OnWaresCostChanged();
 
     if(nextDir != RoadPathDirection::None)
         GetRoute(toDirection(nextDir))->AddWareJob(this);
@@ -179,6 +185,7 @@ std::unique_ptr<Ware> noFlag::SelectWare(const Direction roadDir, const bool swa
     {
         bestWare = std::move(wares[best_ware_index]);
         wares.erase(wares.begin() + best_ware_index);
+        OnWaresCostChanged();
     }
 
     // ggf. anderen Trägern Bescheid sagen, aber nicht dem, der die Ware aufgehoben hat!
@@ -304,6 +311,7 @@ void noFlag::Capture(const unsigned char new_owner)
         ware->Destroy();
     }
     wares.clear();
+    OnWaresCostChanged();
 
     // Unregister this flag in the players flags
     world->GetPlayer(player).FlagDestroyed(this);
