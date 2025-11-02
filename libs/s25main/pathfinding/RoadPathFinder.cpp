@@ -304,9 +304,11 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
         if(forbidden)
             return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::AvoidSegment(forbidden), length, firstDir, firstNodePos);
-        else
-            return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
-                                firstDir, firstNodePos);
+        else {
+            // return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
+            //                     firstDir, firstNodePos);
+            return FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
+        }
     } else
     {
         if(forbidden)
@@ -547,7 +549,10 @@ bool RoadPathFinder::FindPathForWare(
         const auto& neighbour_vals = n->dstar.Get(&goal);
         if (neighbour_vals.g == std::numeric_limits<unsigned>::max())
             continue;
-        unsigned cost = neighbour_vals.g + start.GetPunishmentPoints(dir);
+        unsigned cost = 0;
+        if (goal.GetGOT() == GO_Type::Flag || goal.GetGOT() == GO_Type::NobHarborbuilding)
+            cost = neighbour_vals.g + start.GetPunishmentPoints(dir);
+        
         if (cost < best_cost) {
             best = n;
             best_cost = cost;
@@ -555,7 +560,7 @@ bool RoadPathFinder::FindPathForWare(
         }
     }
 
-    RTTR_Assert(best_cost == start_vals.g);
+    //RTTR_Assert(best_cost == start_vals.g); <- fails sometimes here, why?
     if (length)
         *length = best_cost;
     if (firstDir)

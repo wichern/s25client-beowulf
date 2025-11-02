@@ -285,12 +285,12 @@ inline void AsciiMap::drawDStar(const noRoadNode* goal)
     {
         const auto* roadNode = gwb_.GetSpecObj<noRoadNode>(pt);
         if(roadNode) {
-            std::string g{"∞"};
-            std::string rhs{"∞"};
+            std::string g{"~"};
+            std::string rhs{"~"};
             if (roadNode->dstar.Exists(goal)) {
                 const auto& nodeData = roadNode->dstar.Get(goal);
-                g = nodeData.g == std::numeric_limits<unsigned>::max() ? std::string("∞") : std::to_string(nodeData.g);
-                rhs = nodeData.rhs == std::numeric_limits<unsigned>::max() ? std::string("∞") : std::to_string(nodeData.rhs);
+                g = nodeData.g == std::numeric_limits<unsigned>::max() ? std::string("~") : std::to_string(nodeData.g);
+                rhs = nodeData.rhs == std::numeric_limits<unsigned>::max() ? std::string("~") : std::to_string(nodeData.rhs);
             }
             draw(roadNode->GetPos(), g + std::string(",") + rhs);
         }
