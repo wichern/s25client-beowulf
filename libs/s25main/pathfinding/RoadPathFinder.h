@@ -51,7 +51,10 @@ public:
     bool PathExists(const noRoadNode& start, const noRoadNode& goal, bool allowWaterRoads,
                     unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr);
 
-    void OnEdgeCostChanged(const noRoadNode& node);
+    void MarkEdgeDirty(const noRoadNode& goal, const noRoadNode& node) 
+    {
+        dstarU.Get(goal).AddDirty(node);
+    }
 
     // @todo PathExistsDStar
 

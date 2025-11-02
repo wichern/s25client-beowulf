@@ -65,8 +65,10 @@ BOOST_FIXTURE_TEST_CASE(FindPathTriangle, EmptyWorldFixture1P)
     world.SetFlag(MapPoint(13, 11), 0);
     world.BuildRoad(0, false, MapPoint(13, 11), {Direction::West, Direction::West});
     world.SetFlag(MapPoint(12, 13), 0);
+    world.SetFlag(MapPoint(10, 13), 0);
     world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthEast, Direction::NorthEast});
-    world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthWest, Direction::NorthWest});
+    world.BuildRoad(0, false, MapPoint(12, 13), {Direction::West, Direction::West});
+    world.BuildRoad(0, false, MapPoint(10, 13), {Direction::NorthEast, Direction::NorthEast});
 
     // AsciiMap map(world);
     // map.drawPlayer(0);
@@ -74,7 +76,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathTriangle, EmptyWorldFixture1P)
 
     auto& pathfinder = world.GetRoadPathFinder();
 
-    const auto* start = world.GetSpecObj<noRoadNode>(MapPoint(13, 11));
+    auto* start = world.GetSpecObj<noRoadNode>(MapPoint(13, 11));
     const auto* goal = player->getAIInterface().GetHeadquarter()->GetFlag();
 
     unsigned length = 0;
@@ -89,14 +91,8 @@ BOOST_FIXTURE_TEST_CASE(FindPathTriangle, EmptyWorldFixture1P)
 
     // Change edge cost so that we go the other way
     RoadSegment* route = start->GetRoute(Direction::West);
+    nofCarrier* carrier = route->getCarrier(0);
     route->setCarrier(0, nullptr);
-    
-    // mark nodes as dirty (@todo: use a mark if exists (we can keep the iterator from Exists()))
-    if (route->GetF1()->dstar.Exists(*goal))
-        pathfinder.OnEdgeCostChanged(*route->GetF1());
-    if (route->GetF1() != route->GetF2() && route->GetF2()->dstar.Exists(*goal))
-        pathfinder.OnEdgeCostChanged(*route->GetF2());
-
 
     success = pathfinder.FindPathForWare(
         *start, *goal, std::numeric_limits<unsigned>::max(),
@@ -104,6 +100,43 @@ BOOST_FIXTURE_TEST_CASE(FindPathTriangle, EmptyWorldFixture1P)
 
     BOOST_TEST_REQUIRE(success);
     BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::SouthWest);
+
+    // repeatable?
+    success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(success);
+    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::SouthWest);
+
+    // decrease cost again
+    route->setCarrier(0, carrier);
+
+    success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(success);
+    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::West);
+
+    // completely remove edge
+    start->DestroyRoad(Direction::West);
+
+    success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(success);
+    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::SouthWest);
+
+    // Remove flag
+    world.DestroyFlag(MapPoint(10, 13), 0);
+
+    success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(!success);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

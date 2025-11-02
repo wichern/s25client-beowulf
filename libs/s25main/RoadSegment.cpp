@@ -104,6 +104,16 @@ void RoadSegment::Serialize(SerializedGameData& sgd) const
     sgd.PushObject(carriers_[1], true);
 }
 
+void RoadSegment::setCarrier(unsigned char nr, nofCarrier* c)
+{
+    RTTR_Assert(!c || !hasCarrier(nr));
+    carriers_[nr] = c;
+    RTTR_Assert(f1 && f2);
+    f1->DstarDirty();
+    if (f1 != f2)
+        f2->DstarDirty();
+}
+
 /**
  *  zerteilt die Straße in 2 Teile.
  */

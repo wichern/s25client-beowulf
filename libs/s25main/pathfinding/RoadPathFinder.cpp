@@ -377,7 +377,10 @@ struct DStarContext
                 if (n == &node)
                     n = route->GetF2();
 
-                unsigned cost = node.GetPunishmentPoints(dir) + n->dstar.Get(goal).g;
+                const unsigned g = n->dstar.Get(goal).g;
+                if (g == std::numeric_limits<unsigned>::max())
+                    continue;
+                unsigned cost = node.GetPunishmentPoints(dir) + g;
                 if (cost < best_cost)
                     best_cost = cost;
             }
@@ -531,7 +534,10 @@ bool RoadPathFinder::FindPathForWare(
         if (n == &start)
             n = route->GetF2();
 
-        unsigned cost = n->dstar.Get(goal).g + start.GetPunishmentPoints(dir);
+        const auto& neighbour_vals = n->dstar.Get(goal);
+        if (neighbour_vals.g == std::numeric_limits<unsigned>::max())
+            continue;
+        unsigned cost = neighbour_vals.g + start.GetPunishmentPoints(dir);
         if (cost < best_cost) {
             best = n;
             best_cost = cost;
@@ -547,13 +553,6 @@ bool RoadPathFinder::FindPathForWare(
     if (firstNodePos)
         *firstNodePos = best->GetPos();
     return true;
-}
-
-void RoadPathFinder::OnEdgeCostChanged(const noRoadNode& node)
-{
-    // loop over all goals of the given node to see which D*lite searches are affected
-    for (auto& [goal_ptr, _] : node.dstar.map)
-        dstarU.Get(*goal_ptr).AddDirty(node);
 }
 
 bool RoadPathFinder::PathExists(const noRoadNode& start, const noRoadNode& goal, const bool allowWaterRoads,

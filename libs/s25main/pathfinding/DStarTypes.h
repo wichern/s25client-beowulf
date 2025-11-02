@@ -80,6 +80,7 @@ struct OpenList
     }
 
     void AddDirty(const noRoadNode& node) {
+        // @todo: The road node may not exist anymore (e.g. when it was marked dirty due to destruction)
         // add to dirty nodes if not already present
         for (const auto* n : dirty_nodes) {
             if (n == &node)

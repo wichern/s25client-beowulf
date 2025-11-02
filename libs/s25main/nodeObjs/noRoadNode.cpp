@@ -7,6 +7,7 @@
 #include "GamePlayer.h"
 #include "RoadSegment.h"
 #include "SerializedGameData.h"
+#include "pathfinding/RoadPathFinder.h"
 #include "world/GameWorld.h"
 #include "s25util/warningSuppression.h"
 
@@ -93,7 +94,7 @@ void noRoadNode::DestroyRoad(const Direction dir)
     {
         if(otherFlag->routes[z] == route)
         {
-            otherFlag->routes[z] = nullptr;
+            otherFlag->SetRoute(z, nullptr);
             break;
         }
     }
@@ -105,6 +106,8 @@ void noRoadNode::DestroyRoad(const Direction dir)
 
     // Spieler Bescheid sagen
     world->GetPlayer(player).RoadDestroyed();
+
+    DstarDirty();
 }
 
 /// Vernichtet Alle Straße um diesen Knoten
@@ -113,4 +116,11 @@ void noRoadNode::DestroyAllRoads()
     // Alle Straßen um mich herum zerstören
     for(const auto dir : helpers::EnumRange<Direction>{})
         DestroyRoad(dir);
+}
+
+void noRoadNode::DstarDirty()
+{
+    // loop over all goals of the given node to see which D*lite searches are affected
+    for (auto& [goal_ptr, _] : dstar.map)
+        world->GetRoadPathFinder().MarkEdgeDirty(*goal_ptr, *this);
 }
