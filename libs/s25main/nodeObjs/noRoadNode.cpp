@@ -23,6 +23,7 @@ noRoadNode::~noRoadNode() = default;
 
 void noRoadNode::Destroy()
 {
+    world->GetRoadPathFinder().OnNodeDestroyed(this, world);
     DestroyAllRoads();
     noCoordBase::Destroy();
 }
@@ -106,8 +107,6 @@ void noRoadNode::DestroyRoad(const Direction dir)
 
     // Spieler Bescheid sagen
     world->GetPlayer(player).RoadDestroyed();
-
-    DstarDirty();
 }
 
 /// Vernichtet Alle Straße um diesen Knoten
@@ -118,9 +117,9 @@ void noRoadNode::DestroyAllRoads()
         DestroyRoad(dir);
 }
 
-void noRoadNode::DstarDirty()
+void noRoadNode::OnWaresCostChanged()
 {
     // loop over all goals of the given node to see which D*lite searches are affected
     for (auto& [goal_ptr, _] : dstar.map)
-        world->GetRoadPathFinder().MarkEdgeDirty(*goal_ptr, *this);
+        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, this);
 }

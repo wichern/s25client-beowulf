@@ -322,14 +322,14 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
 
 struct DStarContext
 {
-    const noRoadNode& goal;
+    const noRoadNode* goal;
     const MapBase& world;
     dstar::OpenList& openlist;
 
-    dstar::Key CalculateKey(const noRoadNode& node)
+    dstar::Key CalculateKey(const noRoadNode* node)
     {
         dstar::Key ret;
-        const auto& node_values = node.dstar.Get(goal);
+        const auto& node_values = node->dstar.Get(goal);
         ret.k2 = std::min(node_values.g, node_values.rhs);
         ret.k1 = std::numeric_limits<unsigned>::max();
 
@@ -347,12 +347,12 @@ struct DStarContext
 
     dstar::Key CalculateKey(const dstar::QueueNode& node)
     {
-        return CalculateKey(*node.node);
+        return CalculateKey(node.node);
     }
 
-    dstar::NodeState& GetState(const noRoadNode& node)
+    dstar::NodeState& GetState(const noRoadNode* node)
     {
-        return node.dstar.Get(goal);
+        return node->dstar.Get(goal);
     }
 
     dstar::NodeState& GetState(const dstar::QueueNode& node)
@@ -360,7 +360,7 @@ struct DStarContext
         return node.node->dstar.Get(goal);
     }
 
-    void UpdateVertex(const noRoadNode& node)
+    void UpdateVertex(const noRoadNode* node)
     {
         auto& node_state = GetState(node);
     
@@ -369,18 +369,25 @@ struct DStarContext
             // rhs(u) ← min_{s' ∈ Succ(u)} (c(u, s') + g(s'))
             unsigned best_cost = std::numeric_limits<unsigned>::max();
             for (const auto dir : helpers::EnumRange<Direction>{}) {
-                const auto* route = node.getRoutes()[dir];
+                const auto* route = node->getRoutes()[dir];
                 if (!route)
                     continue;
 
                 const noRoadNode* n = route->GetF1();
-                if (n == &node)
+                if (n == node)
                     n = route->GetF2();
 
                 const unsigned g = n->dstar.Get(goal).g;
                 if (g == std::numeric_limits<unsigned>::max())
                     continue;
-                unsigned cost = node.GetPunishmentPoints(dir) + g;
+
+                unsigned cost = g;
+
+                // we ignore paths to non-harbor buildings
+                if (n->GetGOT() != GO_Type::Flag && n->GetGOT() != GO_Type::NobHarborbuilding)
+                    cost += 0;
+                else
+                    cost = node->GetPunishmentPoints(dir) + g;
                 if (cost < best_cost)
                     best_cost = cost;
             }
@@ -392,13 +399,13 @@ struct DStarContext
 
         // if g(u) ≠ rhs(u) then U.insert(u, CalculateKey(u))
         if (node_state.g != node_state.rhs)
-            openlist.Push(dstar::QueueNode{const_cast<noRoadNode*>(&node), CalculateKey(node)});
+            openlist.Push(dstar::QueueNode{const_cast<noRoadNode*>(node), CalculateKey(node)});
             
     }
 
     void UpdateVertex(const dstar::QueueNode& node)
     {
-        UpdateVertex(*node.node);
+        UpdateVertex(node.node);
     }
 };
 
@@ -406,7 +413,7 @@ struct DStarContext
     { \
         AsciiMap ascii(gwb_, goal.GetPos(), 6, 3, AsciiMap::Border::Locations); \
         ascii.drawPlayer(0); \
-        ascii.drawDStar(goal); \
+        ascii.drawDStar(&goal); \
         ascii.write(); \
     }
 
@@ -429,23 +436,26 @@ bool RoadPathFinder::FindPathForWare(
     // https://idm-lab.org/bib/abstracts/papers/aaai02b.pdf
 
     // Check if we ever searched for this goal
-    if (!dstarU.Exists(goal)) {
+    if (!dstarU.Exists(&goal)) {
         // Initialize U and root node
         dstar::QueueNode rootNode{const_cast<noRoadNode*>(&goal), dstar::Key{gwb_.CalcDistance(goal.GetPos(), start.GetPos()), 0}};
-        dstarU.Get(goal).Push(rootNode);
-        goal.dstar.Get(goal).rhs = 0;
+        dstarU.Get(&goal).Push(rootNode);
+        goal.dstar.Get(&goal).rhs = 0;
 
         DRAW_DSTAR_STEP
     }
 
     // Check for dirty nodes and update them
-    auto& U = dstarU.Get(goal);
-    DStarContext context{ goal, gwb_, U };
+    auto& U = dstarU.Get(&goal);
+    DStarContext context{ &goal, gwb_, U };
 
     if (!U.dirty_nodes.empty()) {
         U.km++;
-        for (const noRoadNode* dirty_node : U.dirty_nodes)
-            context.UpdateVertex(*dirty_node);
+        for (MapPoint pt : U.dirty_nodes) {
+            auto* dirty_node = gwb_.GetSpecObj<noRoadNode>(pt);
+            if (dirty_node)
+                context.UpdateVertex(dirty_node);
+        }
         U.dirty_nodes.clear();
 
         DRAW_DSTAR_STEP
@@ -457,14 +467,14 @@ bool RoadPathFinder::FindPathForWare(
         if (qnode.node) {
             std::cout << "  Node (" << qnode.node->GetX() << "," << qnode.node->GetY() << ")"
                         << " key=(" << qnode.key.k1 << "," << qnode.key.k2 << ")"
-                        << " g=" << qnode.node->dstar.Get(goal).g
-                        << " rhs=" << qnode.node->dstar.Get(goal).rhs
+                        << " g=" << qnode.node->dstar.Get(&goal).g
+                        << " rhs=" << qnode.node->dstar.Get(&goal).rhs
                         << "\n";
         }
     }
 
-    auto start_vals = start.dstar.Get(goal);
-    auto start_key = context.CalculateKey(start);
+    auto start_vals = start.dstar.Get(&goal);
+    auto start_key = context.CalculateKey(&start);
     while (!U.queue.empty() && (U.Top().key < start_key || start_vals.rhs != start_vals.g))
     {
         const auto& u = U.Top();
@@ -495,14 +505,14 @@ bool RoadPathFinder::FindPathForWare(
                 if (n == u.node)
                     n = route->GetF2();
 
-                context.UpdateVertex(*n); // @todo: skip buildings?
+                context.UpdateVertex(n); // @todo: skip buildings?
             }
         }
         
         DRAW_DSTAR_STEP
 
-        start_vals = start.dstar.Get(goal);
-        start_key = context.CalculateKey(start);
+        start_vals = start.dstar.Get(&goal);
+        start_key = context.CalculateKey(&start);
 
         // print U
         std::cout << "U contents:\n";
@@ -510,15 +520,15 @@ bool RoadPathFinder::FindPathForWare(
             if (qnode.node) {
                 std::cout << "  Node (" << qnode.node->GetX() << "," << qnode.node->GetY() << ")"
                           << " key=(" << qnode.key.k1 << "," << qnode.key.k2 << ")"
-                          << " g=" << qnode.node->dstar.Get(goal).g
-                          << " rhs=" << qnode.node->dstar.Get(goal).rhs
+                          << " g=" << qnode.node->dstar.Get(&goal).g
+                          << " rhs=" << qnode.node->dstar.Get(&goal).rhs
                           << "\n";
             }
         }
     }
 
-    start_vals = start.dstar.Get(goal);
-    if (start_vals.g > max)
+    start_vals = start.dstar.Get(&goal);
+    if (start_vals.g > max || start_vals.g == std::numeric_limits<unsigned>::max())
         return false; // no path
 
     const noRoadNode* best = nullptr;
@@ -534,7 +544,7 @@ bool RoadPathFinder::FindPathForWare(
         if (n == &start)
             n = route->GetF2();
 
-        const auto& neighbour_vals = n->dstar.Get(goal);
+        const auto& neighbour_vals = n->dstar.Get(&goal);
         if (neighbour_vals.g == std::numeric_limits<unsigned>::max())
             continue;
         unsigned cost = neighbour_vals.g + start.GetPunishmentPoints(dir);
@@ -550,7 +560,7 @@ bool RoadPathFinder::FindPathForWare(
         *length = best_cost;
     if (firstDir)
         *firstDir = toRoadPathDirection(best_dir);
-    if (firstNodePos)
+    if (firstNodePos && best)
         *firstNodePos = best->GetPos();
     return true;
 }
@@ -575,5 +585,26 @@ bool RoadPathFinder::PathExists(const noRoadNode& start, const noRoadNode& goal,
         else
             return FindPathImpl(start, goal, max, AdditonalCosts::None(),
                                 SegmentConstraints::AvoidRoadType<RoadType::Water>());
+    }
+}
+
+void RoadPathFinder::MarkEdgeDirty(const noRoadNode* goal, const noRoadNode* node)
+{
+    dstarU.Get(goal).AddDirty(node->GetPos());
+}
+
+void RoadPathFinder::OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world)
+{
+    if (dstarU.Exists(node))
+    {
+        // Remove this goal from all other nodes
+        RTTR_FOREACH_PT(MapPoint, world->GetSize())
+        {
+            auto* const other_node = world->GetSpecObj<noRoadNode>(pt);
+            if(other_node)
+                other_node->dstar.Remove(node);
+        }
+
+        dstarU.Remove(node);
     }
 }

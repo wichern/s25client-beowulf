@@ -51,10 +51,9 @@ public:
     bool PathExists(const noRoadNode& start, const noRoadNode& goal, bool allowWaterRoads,
                     unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr);
 
-    void MarkEdgeDirty(const noRoadNode& goal, const noRoadNode& node) 
-    {
-        dstarU.Get(goal).AddDirty(node);
-    }
+    void MarkEdgeDirty(const noRoadNode* goal, const noRoadNode* node);
+
+    void OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world);
 
     // @todo PathExistsDStar
 

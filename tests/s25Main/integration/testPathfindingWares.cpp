@@ -7,6 +7,7 @@
 #include "ai/AIPlayer.h"
 #include "buildings/nobHQ.h"
 #include "worldFixtures/WorldFixture.h"
+#include "worldFixtures/WorldWithGCExecution.h"
 #include "worldFixtures/CreateEmptyWorld.h"
 #include "pathfinding/RoadPathFinder.h"
 #include "gameTypes/GameTypesOutput.h"

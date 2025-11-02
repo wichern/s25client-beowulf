@@ -109,9 +109,9 @@ void RoadSegment::setCarrier(unsigned char nr, nofCarrier* c)
     RTTR_Assert(!c || !hasCarrier(nr));
     carriers_[nr] = c;
     RTTR_Assert(f1 && f2);
-    f1->DstarDirty();
+    f1->OnWaresCostChanged();
     if (f1 != f2)
-        f2->DstarDirty();
+        f2->OnWaresCostChanged();
 }
 
 /**

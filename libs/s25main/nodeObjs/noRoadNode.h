@@ -46,7 +46,7 @@ public:
     void Serialize(SerializedGameData& sgd) const override;
 
     RoadSegment* GetRoute(const Direction dir) const { return routes[dir]; }
-    void SetRoute(const Direction dir, RoadSegment* route) { routes[dir] = route; DstarDirty(); }
+    void SetRoute(const Direction dir, RoadSegment* route) { routes[dir] = route; OnWaresCostChanged(); }
     const auto& getRoutes() const { return routes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
@@ -64,7 +64,7 @@ public:
     /// bestimmte Richtung noch transportiert werden müssen
     virtual unsigned GetPunishmentPoints(Direction) const { return 0; }
 
-    void DstarDirty();
+    void OnWaresCostChanged();
 
     mutable dstar::GoalContainer<dstar::NodeState> dstar;
 };

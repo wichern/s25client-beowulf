@@ -72,7 +72,7 @@ public:
     void drawPlayer(unsigned playerId);
 
     void drawBq(const MapPoint& pt, BuildingQuality bq);
-    void drawDStar(const noRoadNode& goal);
+    void drawDStar(const noRoadNode* goal);
 
     void clear();
     void write(std::ostream& out = std::cout) const;
@@ -279,7 +279,7 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
         draw(building->GetPos(), std::string("(") + SHORT_BLD_NAMES[building->GetBuildingType()] + ")");
 }
 
-inline void AsciiMap::drawDStar(const noRoadNode& goal)
+inline void AsciiMap::drawDStar(const noRoadNode* goal)
 {
     RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
     {
