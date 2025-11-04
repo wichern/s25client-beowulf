@@ -333,7 +333,7 @@ void RoadSegment::TryGetDonkey()
 {
     // Nur rufen, falls es eine Eselstraße ist, noch kein Esel da ist, aber schon ein Träger da ist
     if(NeedDonkey())
-        carriers_[1] = world->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
+        setCarrier(1, world->GetPlayer(f1->GetPlayer()).OrderDonkey(this));
 }
 
 /**
@@ -345,12 +345,12 @@ void RoadSegment::CarrierAbrogated(nofCarrier* carrier)
     if(carrier->GetCarrierType() == CarrierType::Normal || carrier->GetCarrierType() == CarrierType::Boat)
     {
         // Straße wieder unbesetzt, bzw. nur noch Esel
-        this->carriers_[0] = nullptr;
+        setCarrier(0, nullptr);
         world->GetPlayer(f1->GetPlayer()).FindCarrierForRoad(this);
     } else
     {
         // Kein Esel mehr da, versuchen, neuen zu bestellen
-        this->carriers_[1] = world->GetPlayer(f1->GetPlayer()).OrderDonkey(this);
+        setCarrier(1, world->GetPlayer(f1->GetPlayer()).OrderDonkey(this));
     }
 }
 /**

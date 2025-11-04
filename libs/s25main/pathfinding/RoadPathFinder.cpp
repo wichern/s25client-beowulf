@@ -309,12 +309,27 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
             //                     firstDir, firstNodePos);
             bool success = FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
 
+            unsigned length2;
+            RoadPathDirection firstDir2;
+            MapPoint firstNodePos2;
             bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
-                                SegmentConstraints::None(), nullptr, nullptr, nullptr);
-            //RTTR_Assert_Msg(success == success2, "Different results between D* and A* in ware mode!");
-            if (success2 != success) {
+                                SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
+            //RTTR_Assert(success == success2);
+            // if (success) {
+            //     RTTR_Assert(!length || *length == length2);
+            //     RTTR_Assert(!firstDir || *firstDir == firstDir2);
+            //     RTTR_Assert(!firstNodePos || *firstNodePos == firstNodePos2);
+            // }
+            if (success2 != success || (success && ((length && *length != length2) || (firstDir && *firstDir != firstDir2) || (firstNodePos && *firstNodePos != firstNodePos2)))) {
                 // rerun for debugging
+                AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
+                for (unsigned p = 0; p < gwb_.GetNumPlayers(); ++p)
+                    ascii.drawPlayer(p);
+                ascii.drawDStar(&goal);
+                ascii.write();
                 FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
+                FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
+                                SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
             }
             return success;
         }
@@ -376,7 +391,7 @@ struct DStarContext
         auto& node_state = GetState(node);
     
         // if u ≠ s_goal then
-        if (&node != &goal) {
+        if (node != goal) {
             // rhs(u) ← min_{s' ∈ Succ(u)} (c(u, s') + g(s'))
             unsigned best_cost = std::numeric_limits<unsigned>::max();
             for (const auto dir : helpers::EnumRange<Direction>{}) {
@@ -392,16 +407,17 @@ struct DStarContext
                 if (g == std::numeric_limits<unsigned>::max())
                     continue;
 
-                unsigned cost = g;
+                unsigned cost = g + route->GetLength();
 
-                // we ignore paths to non-harbor buildings
-                if (n->GetGOT() != GO_Type::Flag && n->GetGOT() != GO_Type::NobHarborbuilding)
-                    cost += 0;
-                else
-                    cost = node->GetPunishmentPoints(dir) + g;
+                // we ignore additional path costs to non-harbor buildings
+                if (n != goal && (n->GetGOT() == GO_Type::Flag || n->GetGOT() == GO_Type::NobHarborbuilding))
+                    cost += node->GetPunishmentPoints(dir);
+
                 if (cost < best_cost)
                     best_cost = cost;
             }
+
+            // @todo if harbor: for all other harbor connections
             node_state.rhs = best_cost;
         }
 
@@ -432,7 +448,6 @@ struct DStarContext
 #else
 #define DRAW_DSTAR_STEP
 #endif
-
 
 bool RoadPathFinder::FindPathForWare(
     const noRoadNode& start,
@@ -504,7 +519,9 @@ bool RoadPathFinder::FindPathForWare(
         U.Remove(u);
         auto k_old = u.key;
 
+#ifdef DEBUG_OUT_DSTAR
         std::cout << "Visiting node " << u.node->GetX() << "," << u.node->GetY() << " with key (" << k_old.k1 << "," << k_old.k2 << ")\n";
+#endif
 
         RTTR_Assert(u.node);
 
@@ -572,9 +589,9 @@ bool RoadPathFinder::FindPathForWare(
         const auto& neighbour_vals = n->dstar.Get(&goal);
         if (neighbour_vals.g == std::numeric_limits<unsigned>::max())
             continue;
-        unsigned cost = 0;
-        if (goal.GetGOT() == GO_Type::Flag || goal.GetGOT() == GO_Type::NobHarborbuilding)
-            cost = neighbour_vals.g + start.GetPunishmentPoints(dir);
+        unsigned cost = neighbour_vals.g + route->GetLength();
+        if (n != &goal && (n->GetGOT() == GO_Type::Flag || n->GetGOT() == GO_Type::NobHarborbuilding))
+            cost += start.GetPunishmentPoints(dir);
         
         if (cost < best_cost) {
             best = n;
@@ -582,6 +599,8 @@ bool RoadPathFinder::FindPathForWare(
             best_dir = dir;
         }
     }
+
+    // @todo if harbor: for all other harbor connections
 
     //RTTR_Assert(best_cost == start_vals.g); <- fails sometimes here, why?
     if (length)

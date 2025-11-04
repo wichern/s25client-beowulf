@@ -135,8 +135,10 @@ void noRoadNode::SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Dire
         world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n1);
         world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n2);
     }
-    for (auto& [goal_ptr, _] : n2->dstar.map) {
-        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n1);
-        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n2);
+    if (n1 != n2) {
+        for (auto& [goal_ptr, _] : n2->dstar.map) {
+            world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n1);
+            world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n2);
+        }
     }
 }

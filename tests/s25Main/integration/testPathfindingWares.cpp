@@ -78,7 +78,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathTriangle, EmptyWorldFixture1P)
     auto& pathfinder = world.GetRoadPathFinder();
 
     auto* start = world.GetSpecObj<noRoadNode>(MapPoint(13, 11));
-    const auto* goal = player->getAIInterface().GetHeadquarter()->GetFlag();
+    const auto* goal = player->getAIInterface().GetHeadquarter();
 
     unsigned length = 0;
     RoadPathDirection firstDir;

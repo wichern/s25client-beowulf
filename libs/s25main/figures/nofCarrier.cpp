@@ -523,6 +523,7 @@ void nofCarrier::GoalReached()
     StartWorking();
 
     auto* rn = world->GetSpecObj<noRoadNode>(pos);
+    rn->OnWaresCostChanged();
     for(const auto dir : helpers::EnumRange<Direction>{})
     {
         // noRoadNode * rn = world->GetSpecObj<noRoadNode>(x,y);

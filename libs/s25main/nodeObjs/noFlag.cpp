@@ -18,6 +18,7 @@
 #include "ogl/glArchivItem_Bitmap.h"
 #include "ogl/glSmartBitmap.h"
 #include "world/GameWorld.h"
+
 #include "gameData/TerrainDesc.h"
 #include <algorithm>
 
