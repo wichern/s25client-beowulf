@@ -42,9 +42,11 @@ noBaseBuilding::noBaseBuilding(const NodalObjectType nop, const BuildingType typ
         // immer von Flagge ZU Gebäude (!)
         std::vector<Direction> route(1, Direction::NorthWest);
         // Straße zuweisen
-        auto* rs = new RoadSegment(RoadType::Normal, world->GetSpecObj<noRoadNode>(flagPt), this, route);
-        world->GetSpecObj<noRoadNode>(flagPt)->SetRoute(Direction::NorthWest, rs); // der Flagge
-        SetRoute(Direction::SouthEast, rs);                                        // dem Gebäude
+        auto* noFlag = world->GetSpecObj<noRoadNode>(flagPt);
+        auto* rs = new RoadSegment(RoadType::Normal, noFlag, this, route);
+        noRoadNode::SetRoute(noFlag, this, route, rs);
+        // noFlag->SetRoute(Direction::NorthWest, rs); // der Flagge
+        // SetRoute(Direction::SouthEast, rs);                                        // dem Gebäude
     } else
     {
         // vorhandene Straße der Flagge nutzen
@@ -53,6 +55,7 @@ noBaseBuilding::noBaseBuilding(const NodalObjectType nop, const BuildingType typ
         RTTR_Assert(flag->GetRoute(Direction::NorthWest));
         SetRoute(Direction::SouthEast, flag->GetRoute(Direction::NorthWest));
         GetRoute(Direction::SouthEast)->SetF2(this);
+        OnWaresCostChanged();
     }
 
     // Werde/Bin ich (mal) ein großes Schloss? Dann müssen die Anbauten gesetzt werden

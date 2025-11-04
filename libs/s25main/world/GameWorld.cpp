@@ -258,8 +258,13 @@ void GameWorld::BuildRoad(const unsigned char playerId, const bool boat_road, co
     auto* rs = new RoadSegment(boat_road ? RoadType::Water : RoadType::Normal, GetSpecObj<noFlag>(start),
                                GetSpecObj<noFlag>(end), route);
 
-    GetSpecObj<noFlag>(start)->SetRoute(route.front(), rs);
-    GetSpecObj<noFlag>(end)->SetRoute(route.back() + 3u, rs);
+    noRoadNode::SetRoute(
+        GetSpecObj<noFlag>(start),
+        GetSpecObj<noFlag>(end),
+        route,
+        rs);
+    // GetSpecObj<noFlag>(start)->SetRoute(route.front(), rs);
+    // GetSpecObj<noFlag>(end)->SetRoute(route.back() + 3u, rs);
 
     // Tell the economy that a new road has been built
     GetPlayer(playerId).NewRoadConnection(rs);

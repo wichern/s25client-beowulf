@@ -96,11 +96,13 @@ void noRoadNode::DestroyRoad(const Direction dir)
         if(otherFlag->routes[z] == route)
         {
             otherFlag->SetRoute(z, nullptr);
+            otherFlag->OnWaresCostChanged();
             break;
         }
     }
 
     SetRoute(dir, nullptr);
+    OnWaresCostChanged();
 
     route->Destroy();
     delete route;
@@ -119,7 +121,22 @@ void noRoadNode::DestroyAllRoads()
 
 void noRoadNode::OnWaresCostChanged()
 {
-    // loop over all goals of the given node to see which D*lite searches are affected
     for (auto& [goal_ptr, _] : dstar.map)
         world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, this);
+}
+
+void noRoadNode::SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment)
+{
+    n1->SetRoute(route.front(), segment);
+    n2->SetRoute(route.back() + 3u, segment);
+
+    // For all of one of the nodes goals, add both nodes to the dirty list.
+    for (auto& [goal_ptr, _] : n1->dstar.map) {
+        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n1);
+        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n2);
+    }
+    for (auto& [goal_ptr, _] : n2->dstar.map) {
+        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n1);
+        world->GetRoadPathFinder().MarkEdgeDirty(goal_ptr, n2);
+    }
 }

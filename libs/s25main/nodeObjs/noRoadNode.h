@@ -10,7 +10,6 @@
 #include "gameTypes/Direction.h"
 #include "gameTypes/RoadPathDirection.h"
 #include "pathfinding/DStarTypes.h"
-#include <map>
 
 class Ware;
 class SerializedGameData;
@@ -46,7 +45,7 @@ public:
     void Serialize(SerializedGameData& sgd) const override;
 
     RoadSegment* GetRoute(const Direction dir) const { return routes[dir]; }
-    void SetRoute(const Direction dir, RoadSegment* route) { routes[dir] = route; OnWaresCostChanged(); }
+    void SetRoute(const Direction dir, RoadSegment* route) { routes[dir] = route; }
     const auto& getRoutes() const { return routes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
@@ -65,6 +64,17 @@ public:
     virtual unsigned GetPunishmentPoints(Direction) const { return 0; }
 
     void OnWaresCostChanged();
-
     mutable dstar::GoalContainer<dstar::NodeState> dstar;
+    static void SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment);
 };
+
+inline noRoadNode* noRoadNode::GetNeighbour(const Direction dir) const
+{
+    const RoadSegment* route = GetRoute(dir);
+    if(!route)
+        return nullptr;
+    else if(route->GetF1() == this)
+        return route->GetF2();
+    else
+        return route->GetF1();
+}

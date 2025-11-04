@@ -307,7 +307,16 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
         else {
             // return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
             //                     firstDir, firstNodePos);
-            return FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
+            bool success = FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
+
+            bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
+                                SegmentConstraints::None(), nullptr, nullptr, nullptr);
+            //RTTR_Assert_Msg(success == success2, "Different results between D* and A* in ware mode!");
+            if (success2 != success) {
+                // rerun for debugging
+                FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
+            }
+            return success;
         }
     } else
     {
@@ -402,7 +411,6 @@ struct DStarContext
         // if g(u) ≠ rhs(u) then U.insert(u, CalculateKey(u))
         if (node_state.g != node_state.rhs)
             openlist.Push(dstar::QueueNode{const_cast<noRoadNode*>(node), CalculateKey(node)});
-            
     }
 
     void UpdateVertex(const dstar::QueueNode& node)
@@ -411,6 +419,9 @@ struct DStarContext
     }
 };
 
+#define DEBUG_OUT_DSTAR
+
+#ifdef DEBUG_OUT_DSTAR
 #define DRAW_DSTAR_STEP \
     { \
         AsciiMap ascii(gwb_, goal.GetPos(), 6, 3, AsciiMap::Border::Locations); \
@@ -418,6 +429,10 @@ struct DStarContext
         ascii.drawDStar(&goal); \
         ascii.write(); \
     }
+#else
+#define DRAW_DSTAR_STEP
+#endif
+
 
 bool RoadPathFinder::FindPathForWare(
     const noRoadNode& start,
@@ -427,11 +442,15 @@ bool RoadPathFinder::FindPathForWare(
     RoadPathDirection* firstDir, 
     MapPoint* firstNodePos)
 {
+#ifdef DEBUG_OUT_DSTAR
     std::cout << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to ("
               << goal.GetX() << "," << goal.GetY() << ")\n";
+#endif
 
     if (&start == &goal) {
         if (length) *length = 0;
+        if(firstDir) *firstDir = RoadPathDirection::None;
+        if(firstNodePos) *firstNodePos = start.GetPos();
         return true;
     }
 
@@ -463,6 +482,7 @@ bool RoadPathFinder::FindPathForWare(
         DRAW_DSTAR_STEP
     }
 
+#ifdef DEBUG_OUT_DSTAR
     // print U
     std::cout << "U contents:\n";
     for (const auto& qnode : U.queue) {
@@ -474,6 +494,7 @@ bool RoadPathFinder::FindPathForWare(
                         << "\n";
         }
     }
+#endif
 
     auto start_vals = start.dstar.Get(&goal);
     auto start_key = context.CalculateKey(&start);
@@ -516,6 +537,7 @@ bool RoadPathFinder::FindPathForWare(
         start_vals = start.dstar.Get(&goal);
         start_key = context.CalculateKey(&start);
 
+#ifdef DEBUG_OUT_DSTAR
         // print U
         std::cout << "U contents:\n";
         for (const auto& qnode : U.queue) {
@@ -527,6 +549,7 @@ bool RoadPathFinder::FindPathForWare(
                           << "\n";
             }
         }
+#endif
     }
 
     start_vals = start.dstar.Get(&goal);
