@@ -181,7 +181,6 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case1, EmptyWorldFixture
     BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::NorthEast);
 }
 
-#if 0
 BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2, EmptyWorldFixture1P)
 {
     // Case 2: none of the flags have already been part of a search to goal
@@ -191,15 +190,17 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2, EmptyWorldFixture
     world.BuildRoad(0, false, MapPoint(13, 11), {Direction::West, Direction::West});
     world.SetFlag(MapPoint(12, 13), 0);
     world.SetFlag(MapPoint(11, 15), 0);
-    world.BuildRoad(0, false, MapPoint(11, 15), {Direction::NorthEast, Direction::NorthEast});
+    world.SetFlag(MapPoint(10, 13), 0);
+    world.BuildRoad(0, false, MapPoint(11, 15), {Direction::NorthWest, Direction::NorthWest});
+    world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthEast, Direction::NorthEast});
 
     const auto* goal = player->getAIInterface().GetHeadquarter();
     auto& pathfinder = world.GetRoadPathFinder();
 
-    // AsciiMap map(world);
-    // map.drawPlayer(0);
-    // map.drawDStar(goal);
-    // map.write();
+    AsciiMap map(world);
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
 
     // Make a first search so that U is already initialized
     auto* start = world.GetSpecObj<noRoadNode>(MapPoint(11, 11));
@@ -214,7 +215,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2, EmptyWorldFixture
     BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::NorthWest);
 
     // Add an edge that connects the two subgraphs
-     world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthEast, Direction::NorthEast});
+     world.BuildRoad(0, false, MapPoint(12, 13), {Direction::West, Direction::West});
 
     start = world.GetSpecObj<noRoadNode>(MapPoint(11, 15));
     success = pathfinder.FindPathForWare(
@@ -222,8 +223,52 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2, EmptyWorldFixture
         &length, &firstDir, &firstNodePos);
 
     BOOST_TEST_REQUIRE(success);
-    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::NorthEast);
+    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::NorthWest);
 }
-#endif
+
+BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2b, EmptyWorldFixture1P)
+{
+    // Case 2b: none of the flags have already been part of a search to goal
+    //          but the start node has been part of a search to goal before the connection
+    std::unique_ptr<AIPlayer> player(AIFactory::Create(AI::Info(AI::Type::Default, AI::Level::Easy), 0, world));
+
+    world.SetFlag(MapPoint(13, 11), 0);
+    world.BuildRoad(0, false, MapPoint(13, 11), {Direction::West, Direction::West});
+    world.SetFlag(MapPoint(12, 13), 0);
+    world.SetFlag(MapPoint(11, 15), 0);
+    world.SetFlag(MapPoint(10, 13), 0);
+    world.BuildRoad(0, false, MapPoint(11, 15), {Direction::NorthWest, Direction::NorthWest});
+    world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthEast, Direction::NorthEast});
+
+    const auto* goal = player->getAIInterface().GetHeadquarter();
+    auto& pathfinder = world.GetRoadPathFinder();
+
+    AsciiMap map(world);
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+
+    // Make a first search so that U is already initialized
+    auto* start = world.GetSpecObj<noRoadNode>(MapPoint(11, 15));
+    unsigned length = 0;
+    RoadPathDirection firstDir;
+    MapPoint firstNodePos;
+    bool success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(!success);
+
+    // Add an edge that connects the two subgraphs
+     world.BuildRoad(0, false, MapPoint(12, 13), {Direction::West, Direction::West});
+
+    start = world.GetSpecObj<noRoadNode>(MapPoint(11, 15));
+    success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(success);
+    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::NorthWest);
+}
 
 BOOST_AUTO_TEST_SUITE_END()

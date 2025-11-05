@@ -47,7 +47,7 @@ noBuildingSite::noBuildingSite(const BuildingType type, const MapPoint pos, cons
     world->GetPlayer(player).AddJobWanted((state == BuildingSiteState::Planing) ? Job::Planer : Job::Builder, this);
 
     // Bauwaren anfordern
-    OrderConstructionMaterial();
+    //OrderConstructionMaterial();
 
     // Baustelle in den Index eintragen, damit die Wirtschaft auch Bescheid weiß
     world->GetPlayer(player).AddBuildingSite(this);
