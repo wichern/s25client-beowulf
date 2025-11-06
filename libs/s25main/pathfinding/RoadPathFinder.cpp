@@ -19,51 +19,29 @@
 #ifdef DEBUG_OUT_DSTAR
 #include <fstream>
 #include <sstream>
-#include <mutex>
-// Static debug output buffer for D* Lite
-static std::ostringstream dstar_debug_buffer;
-static std::mutex dstar_debug_mutex;
 
-void saveDStarDebug(const std::string& filename = "dstar_debug.txt");
-void saveDStarDebug(const std::string& filename) {
-    std::lock_guard<std::mutex> lock(dstar_debug_mutex);
-    std::ofstream out(filename, std::ios::trunc);
-    out << dstar_debug_buffer.str();
-    out.close();
-}
-
-void clearDStarDebug();
-void clearDStarDebug() {
-    std::lock_guard<std::mutex> lock(dstar_debug_mutex);
-    dstar_debug_buffer.str("");
-    dstar_debug_buffer.clear();
-}
 #define DRAW_DSTAR_STEP \
     { \
         AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations); \
         ascii.drawDStar(goal.GetPos()); \
-        { std::lock_guard<std::mutex> lock(dstar_debug_mutex); \
-        ascii.write(dstar_debug_buffer); \
-        dstar_debug_buffer << "U contents:\n"; \
+        ascii.write(out_buffer); \
+        out_buffer << "U contents:\n"; \
         for (const auto& qnode : U.queue) { \
-            dstar_debug_buffer << "  Node (" << qnode.nodePos.x << "," \
+            out_buffer << "  Node (" << qnode.nodePos.x << "," \
                         << qnode.nodePos.y << ")" \
                         << " key=(" << qnode.key.k1 << "," << qnode.key.k2 << ")" << "\n"; \
-        } \
         } \
     }
 #define DRAW_DSTAR_STEP_STDOUT \
     { \
         AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations); \
         ascii.drawDStar(goal.GetPos()); \
-        { std::lock_guard<std::mutex> lock(dstar_debug_mutex); \
         ascii.write(); \
         std::cout << "U contents:\n"; \
         for (const auto& qnode : U.queue) { \
             std::cout << "  Node (" << qnode.nodePos.x << "," \
                         << qnode.nodePos.y << ")" \
                         << " key=(" << qnode.key.k1 << "," << qnode.key.k2 << ")" << "\n"; \
-        } \
         } \
     }
 #else
@@ -385,9 +363,6 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
                 AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
                 ascii.drawDStar(goal.GetPos());
                 ascii.write();
-#ifdef DEBUG_OUT_DSTAR
-                saveDStarDebug();
-#endif
                 FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
                 FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
@@ -478,6 +453,8 @@ struct DStarContext
 
             // @todo if harbor: for all other harbor connections
             node_state.rhs = best_cost;
+            if (best_cost == std::numeric_limits<unsigned>::max())
+                std::cout << "Setting " << nodePos.x << "," << nodePos.y << " for goal " << goal.x << "," << goal.y << " to " << best_cost << "\n";
         }
 
         // if u ∈ U then U.remove(u)
@@ -515,11 +492,10 @@ bool RoadPathFinder::FindPathForWare(
     //   the search.
 
 #ifdef DEBUG_OUT_DSTAR
-    clearDStarDebug();
-    { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
-    dstar_debug_buffer << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to ("
-              << goal.GetX() << "," << goal.GetY() << ")\n";
-    }
+    std::ostringstream out_buffer;
+    static unsigned file_idx = 0;
+    std::string filename = "dstar_debug." + std::to_string(file_idx++) + "." + std::to_string(start.GetPos().x) + "_" + std::to_string(start.GetPos().y) + "." + std::to_string(goal.GetPos().x) + "_" + std::to_string(goal.GetPos().y) + ".txt";
+    out_buffer << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to (" << goal.GetX() << "," << goal.GetY() << ")\n";
 #endif
 
     // Catch most simple case where start and goal are the same
@@ -527,18 +503,24 @@ bool RoadPathFinder::FindPathForWare(
         if (length) *length = 0;
         if(firstDir) *firstDir = RoadPathDirection::None;
         if(firstNodePos) *firstNodePos = start.GetPos();
+#ifdef DEBUG_OUT_DSTAR
+        std::ofstream out(filename, std::ios::trunc);
+        out << out_buffer.str();
+        out.close();
+#endif
         return true;
     }
 
     // Check if we ever searched for this goal and initialize U if not.
-    bool dbgInitial = false;
     if (!dstarU.Exists(goal.GetPos())) {
         dstar::QueueNode rootNode{
             goal.GetPos(),
             dstar::Key{gwb_.CalcDistance(goal.GetPos(), start.GetPos()), 0}};
         dstarU.Get(goal.GetPos()).Push(rootNode);
         goal.dstar.Get(goal.GetPos()).rhs = 0;
-        dbgInitial = true;
+#ifdef DEBUG_OUT_DSTAR
+        out_buffer << "NEW GOAL: Initializing...\n";
+#endif
     }
 
     // Check for dirty nodes and update them
@@ -551,7 +533,6 @@ bool RoadPathFinder::FindPathForWare(
         DRAW_DSTAR_STEP_STDOUT
         RTTR_Assert(!U.queue.empty() || dbg_goal_vals.g == 0);
     }
-    RTTR_UNUSED(dbgInitial);
 
     if (!U.dirty_nodes.empty()) {
         //U.km++;
@@ -571,9 +552,7 @@ bool RoadPathFinder::FindPathForWare(
         auto k_old = u.key;
 
 #ifdef DEBUG_OUT_DSTAR
-        { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
-        dstar_debug_buffer << "Visiting node " << u.nodePos.x << "," << u.nodePos.y << "\n";
-        }
+        out_buffer << "Visiting node " << u.nodePos.x << "," << u.nodePos.y << "\n";
 #endif
 
         auto* const u_node = gwb_.GetSpecObj<noRoadNode>(u.nodePos);
@@ -618,10 +597,12 @@ bool RoadPathFinder::FindPathForWare(
             RTTR_Assert(start.GetPos() != goal.GetPos());
             start.dstar.Remove(goal.GetPos());
         }
+
 #ifdef DEBUG_OUT_DSTAR
-    { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
-    dstar_debug_buffer << "No path found, start g=" << start_vals.g << " rhs=" << start_vals.rhs << "\n";
-    }
+        out_buffer << "No path found, start g=" << start_vals.g << " rhs=" << start_vals.rhs << "\n";
+        std::ofstream out(filename, std::ios::trunc);
+        out << out_buffer.str();
+        out.close();
 #endif
         return false; // no path
     }
@@ -692,12 +673,12 @@ bool RoadPathFinder::FindPathForWare(
         *firstNodePos = best->GetPos();
 
 #ifdef DEBUG_OUT_DSTAR
-    { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
-    dstar_debug_buffer << "Path found with length " << best_cost << ", first dir " << unsigned(toRoadPathDirection(best_dir)) << "\n";
-    }
+    out_buffer << "Path found with length " << best_cost << ", first dir " << unsigned(toRoadPathDirection(best_dir)) << "\n";
+    std::ofstream out(filename, std::ios::trunc);
+    out << out_buffer.str();
+    out.close();
 #endif
 
-    saveDStarDebug();
     return true;
 }
 

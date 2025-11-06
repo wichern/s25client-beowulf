@@ -559,6 +559,7 @@ void GamePlayer::RoadDestroyed()
                 if(newWareDir != Direction::NorthWest)
                 {
                     ware->SetNextDir(toRoadPathDirection(newWareDir));
+                    ware->GetLocation()->OnWaresCostChanged();
                 } else // no route to goal -> notify goal, try to send ware to a warehouse
                 {
                     ware->NotifyGoalAboutLostWare();
