@@ -281,6 +281,44 @@ inline void AsciiMap::drawPlayer(unsigned playerId)
 
 inline void AsciiMap::drawDStar(const MapPoint& goal)
 {
+    // draw edges
+    RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
+    {
+        const noRoadNode* roadNode = gwb_.GetSpecObj<noRoadNode>(pt);
+        if (!roadNode)
+            continue;
+        
+        for(Direction dir : helpers::EnumRange<Direction>{}) {
+            auto* route = roadNode->GetRoute(dir);
+            if (!route)
+                continue;
+            
+            if (route->GetF1() != roadNode)
+                continue;
+
+            MapPoint t = route->GetF1()->GetPos();
+            for (unsigned i = 0; i < route->GetLength(); ++i)
+            {
+                MapPoint pt = t;
+                const RoadDir rDir = gwb_.toRoadDir(pt, route->GetRoute(i));
+                drawRoad(pt, rDir);
+
+                if (i == route->GetLength() / 2) {
+                    unsigned cost = route->GetLength();
+                    if (route->GetF1()->GetGOT() == GO_Type::NobHarborbuilding 
+                    || route->GetF2()->GetGOT() == GO_Type::NobHarborbuilding
+                    || (route->GetF1()->GetGOT() == GO_Type::Flag && route->GetF2()->GetGOT() == GO_Type::Flag))
+                        cost += roadNode->GetPunishmentPoints(dir);
+                    std::string label = std::to_string(cost);
+                    draw(t, label);
+                }
+
+                t = gwb_.GetNeighbour(t, route->GetRoute(i));
+            }
+        }
+    }
+
+    // draw nodes
     RTTR_FOREACH_PT(MapPoint, gwb_.GetSize())
     {
         const auto* roadNode = gwb_.GetSpecObj<noRoadNode>(pt);

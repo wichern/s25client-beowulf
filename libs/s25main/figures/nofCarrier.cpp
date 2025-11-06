@@ -523,7 +523,6 @@ void nofCarrier::GoalReached()
     StartWorking();
 
     auto* rn = world->GetSpecObj<noRoadNode>(pos);
-    rn->OnWaresCostChanged();
     for(const auto dir : helpers::EnumRange<Direction>{})
     {
         // noRoadNode * rn = world->GetSpecObj<noRoadNode>(x,y);
@@ -534,6 +533,9 @@ void nofCarrier::GoalReached()
             cur_rs = workplace;
             rs_pos = 0;
             rs_dir = rn != cur_rs->GetF1();
+
+            cur_rs->GetF1()->OnWaresCostChanged();
+            cur_rs->GetF2()->OnWaresCostChanged();
 
             state = CarrierState::GotoMiddleOfRoad;
 

@@ -271,4 +271,57 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2b, EmptyWorldFixtur
     BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::NorthWest);
 }
 
+BOOST_FIXTURE_TEST_CASE(FindPathAfterGraphSplitted, EmptyWorldFixture1P)
+{
+    std::unique_ptr<AIPlayer> player(AIFactory::Create(AI::Info(AI::Type::Default, AI::Level::Easy), 0, world));
+
+    world.SetFlag(MapPoint(13, 11), 0);
+    world.BuildRoad(0, false, MapPoint(13, 11), {Direction::West, Direction::West});
+    world.SetFlag(MapPoint(12, 13), 0);
+    world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthEast, Direction::NorthEast});
+    //world.BuildRoad(0, false, MapPoint(12, 13), {Direction::NorthWest, Direction::NorthWest});
+
+    world.SetFlag(MapPoint(12, 15), 0);
+    world.BuildRoad(0, false, MapPoint(12, 15), {Direction::NorthEast, Direction::NorthWest});
+    world.SetFlag(MapPoint(13, 17), 0);
+    world.BuildRoad(0, false, MapPoint(13, 17), {Direction::NorthWest, Direction::NorthWest});
+    world.SetFlag(MapPoint(11, 17), 0);
+    world.BuildRoad(0, false, MapPoint(11, 17), {Direction::East, Direction::East});
+    //world.BuildRoad(0, false, MapPoint(11, 17), {Direction::NorthEast, Direction::NorthEast});
+
+    const auto* goal = player->getAIInterface().GetHeadquarter();
+    auto& pathfinder = world.GetRoadPathFinder();
+
+    AsciiMap map(world);
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+
+    auto* start = world.GetSpecObj<noRoadNode>(MapPoint(11, 17));
+    bool success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max());
+
+    BOOST_TEST_REQUIRE(success);
+
+    map.clear();
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+
+    // split graph
+    //auto* n = world.GetSpecObj<noRoadNode>(MapPoint(12, 13));
+    //n->DestroyRoad(Direction::NorthEast);
+    world.DestroyFlag(MapPoint(12, 13), 0);
+
+    success = pathfinder.FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max());
+
+    BOOST_TEST_REQUIRE(!success);
+
+    map.clear();
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+}
+
 BOOST_AUTO_TEST_SUITE_END()

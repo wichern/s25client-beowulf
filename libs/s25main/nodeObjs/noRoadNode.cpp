@@ -11,8 +11,6 @@
 #include "world/GameWorld.h"
 #include "s25util/warningSuppression.h"
 
-#include <iostream>
-
 noRoadNode::noRoadNode(const NodalObjectType nop, const MapPoint pos, const unsigned char player)
     : noCoordBase(nop, pos), player(player)
 {
@@ -86,8 +84,8 @@ void noRoadNode::DestroyRoad(const Direction dir)
         t = world->GetNeighbour(t, route->GetRoute(z));
     }
 
+    // @todo: can use SetRoute(route->GetF1(), route->GetF2(), *route, nullptr) here?
     noRoadNode* otherFlag;
-
     if(route->GetF1() == this)
         otherFlag = route->GetF2();
     else
@@ -103,8 +101,8 @@ void noRoadNode::DestroyRoad(const Direction dir)
     }
 
     SetRoute(dir, nullptr);
-    OnWaresCostChanged();
-    otherFlag->OnWaresCostChanged();
+    route->GetF1()->OnWaresCostChanged();
+    route->GetF2()->OnWaresCostChanged();
 
     route->Destroy();
     delete route;
@@ -124,26 +122,23 @@ void noRoadNode::DestroyAllRoads()
 void noRoadNode::OnWaresCostChanged()
 {
     for (auto& [goal_pos, _] : dstar.map)
-        world->GetRoadPathFinder().MarkEdgeDirty(goal_pos, this);
+        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, this);
 }
 
 void noRoadNode::SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment)
 {
-    std::cout << "Setting route between " << n1->GetPos().x << "," << n1->GetPos().y
-              << " and " << n2->GetPos().x << "," << n2->GetPos().y << "\n";
-
     n1->SetRoute(route.front(), segment);
     n2->SetRoute(route.back() + 3u, segment);
 
     // For all of one of the nodes goals, add both nodes to the dirty list.
     for (auto& [goal_pos, _] : n1->dstar.map) {
-        world->GetRoadPathFinder().MarkEdgeDirty(goal_pos, n1);
-        world->GetRoadPathFinder().MarkEdgeDirty(goal_pos, n2);
+        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n1);
+        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n2);
     }
     if (n1 != n2) {
         for (auto& [goal_pos, _] : n2->dstar.map) {
-            world->GetRoadPathFinder().MarkEdgeDirty(goal_pos, n1);
-            world->GetRoadPathFinder().MarkEdgeDirty(goal_pos, n2);
+            world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n1);
+            world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n2);
         }
     }
 }

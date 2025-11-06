@@ -45,8 +45,6 @@ noBaseBuilding::noBaseBuilding(const NodalObjectType nop, const BuildingType typ
         auto* noFlag = world->GetSpecObj<noRoadNode>(flagPt);
         auto* rs = new RoadSegment(RoadType::Normal, noFlag, this, route);
         noRoadNode::SetRoute(noFlag, this, route, rs);
-        // noFlag->SetRoute(Direction::NorthWest, rs); // der Flagge
-        // SetRoute(Direction::SouthEast, rs);                                        // dem Gebäude
     } else
     {
         // vorhandene Straße der Flagge nutzen

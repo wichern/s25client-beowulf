@@ -14,6 +14,48 @@
 #include "gameData/GameConsts.h"
 #include "s25util/Log.h"
 
+#define DEBUG_OUT_DSTAR
+
+#ifdef DEBUG_OUT_DSTAR
+#include <fstream>
+#include <sstream>
+#include <mutex>
+// Static debug output buffer for D* Lite
+static std::ostringstream dstar_debug_buffer;
+static std::mutex dstar_debug_mutex;
+
+void saveDStarDebug(const std::string& filename = "dstar_debug.txt");
+void saveDStarDebug(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(dstar_debug_mutex);
+    std::ofstream out(filename, std::ios::trunc);
+    out << dstar_debug_buffer.str();
+    out.close();
+}
+
+void clearDStarDebug();
+void clearDStarDebug() {
+    std::lock_guard<std::mutex> lock(dstar_debug_mutex);
+    dstar_debug_buffer.str("");
+    dstar_debug_buffer.clear();
+}
+#define DRAW_DSTAR_STEP \
+    { \
+        AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations); \
+        ascii.drawDStar(goal.GetPos()); \
+        { std::lock_guard<std::mutex> lock(dstar_debug_mutex); \
+        ascii.write(dstar_debug_buffer); \
+        dstar_debug_buffer << "U contents:\n"; \
+        for (const auto& qnode : U.queue) { \
+            dstar_debug_buffer << "  Node (" << qnode.nodePos.x << "," \
+                        << qnode.nodePos.y << ")" \
+                        << " key=(" << qnode.key.k1 << "," << qnode.key.k2 << ")" << "\n"; \
+        } \
+        } \
+    }
+#else
+#define DRAW_DSTAR_STEP
+#endif
+
 /// Comparison operator for road nodes that returns true if lhs > rhs (descending order)
 struct RoadNodeComperatorGreater
 {
@@ -324,11 +366,12 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
             // }
             if (success2 != success || (success && ((length && *length != length2)))) {
                 // rerun for debugging
-                // AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
-                // for (unsigned p = 0; p < gwb_.GetNumPlayers(); ++p)
-                //     ascii.drawPlayer(p);
-                // ascii.drawDStar(goal.GetPos());
-                // ascii.write();
+                AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
+                ascii.drawDStar(goal.GetPos());
+                ascii.write();
+#ifdef DEBUG_OUT_DSTAR
+                saveDStarDebug();
+#endif
                 FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
                 FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
@@ -433,30 +476,6 @@ struct DStarContext
     }
 };
 
-#define DEBUG_OUT_DSTAR
-
-#ifdef DEBUG_OUT_DSTAR
-#define DRAW_DSTAR_STEP \
-    { \
-        AsciiMap ascii(gwb_, goal.GetPos(), 6, 3, AsciiMap::Border::Locations); \
-        ascii.drawPlayer(0); \
-        ascii.drawDStar(goal.GetPos()); \
-        ascii.write(); \
-    }
-#define DRAW_DSTART_U \
-    { \
-        std::cout << "U contents:\n"; \
-        for (const auto& qnode : U.queue) { \
-            std::cout << "  Node (" << qnode.nodePos.x << "," \
-                        << qnode.nodePos.y << ")" \
-                        << " key=(" << qnode.key.k1 << "," << qnode.key.k2 << ")" << "\n"; \
-        } \
-    }
-#else
-#define DRAW_DSTAR_STEP
-#define DRAW_DSTART_U
-#endif
-
 bool RoadPathFinder::FindPathForWare(
     const noRoadNode& start,
     const noRoadNode& goal, 
@@ -478,8 +497,11 @@ bool RoadPathFinder::FindPathForWare(
     //   the search.
 
 #ifdef DEBUG_OUT_DSTAR
-    std::cout << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to ("
+    clearDStarDebug();
+    { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
+    dstar_debug_buffer << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to ("
               << goal.GetX() << "," << goal.GetY() << ")\n";
+    }
 #endif
 
     // Catch most simple case where start and goal are the same
@@ -506,14 +528,13 @@ bool RoadPathFinder::FindPathForWare(
     RTTR_Assert(!U.queue.empty() || gwb_.GetSpecObj<noRoadNode>(goal.GetPos())->dstar.Get(goal.GetPos()).g == 0);
 
     if (!U.dirty_nodes.empty()) {
-        U.km++;
+        //U.km++;
         for (MapPoint pt : U.dirty_nodes)
             context.UpdateVertex(pt);
         U.dirty_nodes.clear();
     }
 
     DRAW_DSTAR_STEP
-    DRAW_DSTART_U
 
     auto start_vals = start.dstar.Get(goal.GetPos());
     auto start_key = context.CalculateKey(&start);
@@ -524,7 +545,9 @@ bool RoadPathFinder::FindPathForWare(
         auto k_old = u.key;
 
 #ifdef DEBUG_OUT_DSTAR
-        std::cout << "Visiting node " << u.nodePos.x << "," << u.nodePos.y << "\n";
+        { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
+        dstar_debug_buffer << "Visiting node " << u.nodePos.x << "," << u.nodePos.y << "\n";
+        }
 #endif
 
         auto* const u_node = gwb_.GetSpecObj<noRoadNode>(u.nodePos);
@@ -560,7 +583,6 @@ bool RoadPathFinder::FindPathForWare(
         start_key = context.CalculateKey(&start);
 
         DRAW_DSTAR_STEP
-        DRAW_DSTART_U
     }
 
     start_vals = start.dstar.Get(goal.GetPos());
@@ -571,7 +593,9 @@ bool RoadPathFinder::FindPathForWare(
             start.dstar.Remove(goal.GetPos());
         }
 #ifdef DEBUG_OUT_DSTAR
-        std::cout << "No path found, start g=" << start_vals.g << " rhs=" << start_vals.rhs << "\n";
+    { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
+    dstar_debug_buffer << "No path found, start g=" << start_vals.g << " rhs=" << start_vals.rhs << "\n";
+    }
 #endif
         return false; // no path
     }
@@ -614,8 +638,12 @@ bool RoadPathFinder::FindPathForWare(
         *firstNodePos = best->GetPos();
 
 #ifdef DEBUG_OUT_DSTAR
-    std::cout << "Path found with length " << best_cost << ", first dir " << unsigned(toRoadPathDirection(best_dir)) << "\n";
+    { std::lock_guard<std::mutex> lock(dstar_debug_mutex); 
+    dstar_debug_buffer << "Path found with length " << best_cost << ", first dir " << unsigned(toRoadPathDirection(best_dir)) << "\n";
+    }
 #endif
+
+    saveDStarDebug();
     return true;
 }
 
@@ -642,7 +670,7 @@ bool RoadPathFinder::PathExists(const noRoadNode& start, const noRoadNode& goal,
     }
 }
 
-void RoadPathFinder::MarkEdgeDirty(const MapPoint& goalPos, const noRoadNode* node)
+void RoadPathFinder::MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* node)
 {
     RTTR_Assert(node);
     dstarU.Get(goalPos).AddDirty(node->GetPos());
@@ -650,7 +678,6 @@ void RoadPathFinder::MarkEdgeDirty(const MapPoint& goalPos, const noRoadNode* no
 
 void RoadPathFinder::OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world)
 {
-    std::cout << "RoadPathFinder: OnNodeDestroyed called for node at " << node->GetPos().x << "," << node->GetPos().y << "\n";
     if (dstarU.Exists(node->GetPos()))
     {
         // Remove this goal from all other nodes

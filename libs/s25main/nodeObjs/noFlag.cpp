@@ -141,11 +141,10 @@ void noFlag::AddWare(std::unique_ptr<Ware> ware)
     // First add ware, then tell carrier. So get the info from the ware first
     const RoadPathDirection nextDir = ware->GetNextDir();
     wares.push_back(std::move(ware));
+    OnWaresCostChanged();
 
     if(nextDir != RoadPathDirection::None)
         GetRoute(toDirection(nextDir))->AddWareJob(this);
-    
-    OnWaresCostChanged();
 }
 
 /**

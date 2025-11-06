@@ -266,8 +266,6 @@ void GameWorld::BuildRoad(const unsigned char playerId, const bool boat_road, co
         GetSpecObj<noFlag>(end),
         route,
         rs);
-    // GetSpecObj<noFlag>(start)->SetRoute(route.front(), rs);
-    // GetSpecObj<noFlag>(end)->SetRoute(route.back() + 3u, rs);
 
     // Tell the economy that a new road has been built
     GetPlayer(playerId).NewRoadConnection(rs);

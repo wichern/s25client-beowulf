@@ -38,8 +38,6 @@ RoadSegment::RoadSegment(SerializedGameData& sgd, const unsigned obj_id)
 
     // tell the noRoadNodes about our existance
     noRoadNode::SetRoute(f1, f2, route, this);
-    // f1->SetRoute(route.front(), this);
-    // f2->SetRoute(route.back() + 3u, this);
 }
 
 bool RoadSegment::GetNodeID(const noRoadNode& rn) const
@@ -155,14 +153,9 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
     f2 = splitflag;
 
     noRoadNode::SetRoute(f1, splitflag, route, this);
-    // f1->SetRoute(route.front(), this);
-    // splitflag->SetRoute(route.back() + 3u, this);
 
     // 2nd section from this F to F2
-
     noRoadNode::SetRoute(splitflag, second->f2, second_route, second);
-    // splitflag->SetRoute(second->route.front(), second);
-    // second->f2->SetRoute(second->route.back() + 3u, second);
 
     // Notify all characters on the road
     t = f1->GetPos();
