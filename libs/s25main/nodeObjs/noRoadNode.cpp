@@ -71,7 +71,7 @@ void noRoadNode::UpgradeRoad(const Direction dir) const
         GetRoute(dir)->UpgradeDonkeyRoad();
 }
 
-void noRoadNode::DestroyRoad(const Direction dir)
+void noRoadNode::DestroyRoad(const Direction dir, bool updateDstar)
 {
     RoadSegment* route = GetRoute(dir);
     if(!route)
@@ -101,8 +101,11 @@ void noRoadNode::DestroyRoad(const Direction dir)
     }
 
     SetRoute(dir, nullptr);
-    route->GetF1()->OnWaresCostChanged();
-    route->GetF2()->OnWaresCostChanged();
+
+    if (updateDstar) {
+        route->GetF1()->OnWaresCostChanged();
+        route->GetF2()->OnWaresCostChanged();
+    }
 
     route->Destroy();
     delete route;
@@ -115,8 +118,20 @@ void noRoadNode::DestroyRoad(const Direction dir)
 void noRoadNode::DestroyAllRoads()
 {
     // Alle Straßen um mich herum zerstören
+    for(const auto z : helpers::EnumRange<Direction>{})
+    {
+        if(routes[z])
+        {
+            if (routes[z]->GetF1() == this)
+                routes[z]->GetF2()->OnWaresCostChanged();
+            if (routes[z]->GetF2() == this)
+                routes[z]->GetF1()->OnWaresCostChanged();
+        }
+    }
+    OnWaresCostChanged();
+
     for(const auto dir : helpers::EnumRange<Direction>{})
-        DestroyRoad(dir);
+        DestroyRoad(dir, false);
 }
 
 void noRoadNode::OnWaresCostChanged()

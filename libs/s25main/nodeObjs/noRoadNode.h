@@ -49,7 +49,7 @@ public:
     const auto& getRoutes() const { return routes; }
     noRoadNode* GetNeighbour(Direction dir) const;
 
-    void DestroyRoad(Direction dir);
+    void DestroyRoad(Direction dir, bool updateDstar = true);
     void UpgradeRoad(Direction dir) const;
     /// Vernichtet Alle Straße um diesen Knoten
     void DestroyAllRoads();

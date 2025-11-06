@@ -89,6 +89,8 @@ void nobBaseWarehouse::DestroyBuilding()
     GetEvMgr().RemoveEvent(empty_event);
     GetEvMgr().RemoveEvent(store_event);
 
+    OnWaresCostChanged();
+
     // Waiting Wares löschen
     for(auto& waiting_ware : waiting_wares)
     {

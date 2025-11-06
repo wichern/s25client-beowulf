@@ -83,6 +83,7 @@ void noFlag::Destroy()
         ware->Destroy();
     }
     wares.clear();
+    OnWaresCostChanged(); // @todo: maybe not neccessary
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten
     world->GetPlayer(player).FlagDestroyed(this);

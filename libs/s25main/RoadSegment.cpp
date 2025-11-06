@@ -343,6 +343,7 @@ void RoadSegment::CarrierAbrogated(nofCarrier* carrier)
     } else
     {
         // Kein Esel mehr da, versuchen, neuen zu bestellen
+        carriers_[1] = nullptr;
         setCarrier(1, world->GetPlayer(f1->GetPlayer()).OrderDonkey(this));
     }
 }

@@ -522,7 +522,13 @@ void nofCarrier::GoalReached()
     // Wir arbeiten schonmal
     StartWorking();
 
+    workplace->GetF1()->OnWaresCostChanged();
+    workplace->GetF2()->OnWaresCostChanged();
+
     auto* rn = world->GetSpecObj<noRoadNode>(pos);
+
+    RTTR_Assert(rn == workplace->GetF1() || rn == workplace->GetF2());
+
     for(const auto dir : helpers::EnumRange<Direction>{})
     {
         // noRoadNode * rn = world->GetSpecObj<noRoadNode>(x,y);
@@ -533,9 +539,6 @@ void nofCarrier::GoalReached()
             cur_rs = workplace;
             rs_pos = 0;
             rs_dir = rn != cur_rs->GetF1();
-
-            cur_rs->GetF1()->OnWaresCostChanged();
-            cur_rs->GetF2()->OnWaresCostChanged();
 
             state = CarrierState::GotoMiddleOfRoad;
 
