@@ -82,6 +82,9 @@ void noFlag::Destroy()
         ware->WareLost(player);
         ware->Destroy();
     }
+    // @todo: should not be neccessary
+    if (!wares.empty())
+        OnWaresCostChanged();
     wares.clear();
 
     // Den Flag-Workern Bescheid sagen, die hier ggf. arbeiten

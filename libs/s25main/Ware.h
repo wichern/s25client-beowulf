@@ -67,8 +67,8 @@ public:
     /// Berechnet den Weg neu zu ihrem Ziel
     void RecalcRoute();
     /// set new next dir
-    void SetNextDir(RoadPathDirection newNextDir) { next_dir = newNextDir; }
-    void SetNextDir(Direction newNextDir) { next_dir = toRoadPathDirection(newNextDir); }
+    void SetNextDir(RoadPathDirection newNextDir);
+    void SetNextDir(Direction newNextDir) { SetNextDir(toRoadPathDirection(newNextDir)); }
     /// Wird aufgerufen, wenn es das Ziel der Ware nicht mehr gibt und sie wieder "nach Hause" getragen werden muss
     void GoalDestroyed();
     /// Changes the state of the ware

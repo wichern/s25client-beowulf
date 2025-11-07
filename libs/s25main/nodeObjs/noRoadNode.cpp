@@ -19,7 +19,9 @@ noRoadNode::noRoadNode(const NodalObjectType nop, const MapPoint pos, const unsi
     last_visit = 0;
 }
 
-noRoadNode::~noRoadNode() = default;
+noRoadNode::~noRoadNode() {
+    world->GetRoadPathFinder().OnNodeDestroyed(this, world);
+}
 
 void noRoadNode::Destroy()
 {
@@ -122,10 +124,10 @@ void noRoadNode::DestroyAllRoads()
     {
         if(routes[z])
         {
-            if (routes[z]->GetF1() == this)
-                routes[z]->GetF2()->OnWaresCostChanged();
             if (routes[z]->GetF2() == this)
                 routes[z]->GetF1()->OnWaresCostChanged();
+            else
+                routes[z]->GetF2()->OnWaresCostChanged();
         }
     }
     OnWaresCostChanged();

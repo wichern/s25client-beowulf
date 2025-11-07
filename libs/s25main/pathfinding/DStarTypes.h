@@ -26,24 +26,11 @@ struct NodeState
     unsigned rhs = std::numeric_limits<unsigned>::max();
 };
 
-// Key used for priority queue
-struct Key
-{
-    unsigned k1 = std::numeric_limits<unsigned>::max();
-    unsigned k2 = std::numeric_limits<unsigned>::max();
-
-    inline bool operator<(const Key& rhs) const {
-        if (k1 == rhs.k1)
-            return k2 < rhs.k2;
-        return k1 < rhs.k1;
-    }
-};
-
 // Node in the priority queue
 struct QueueNode
 {
     MapPoint nodePos = {0, 0};
-    Key key = {};
+    unsigned key = std::numeric_limits<unsigned>::max();
 };
 
 // Simple priority queue implementation for D*lite
@@ -51,7 +38,6 @@ struct OpenList
 {
     std::vector<QueueNode> queue;
     std::vector<MapPoint> dirty_nodes;
-    unsigned km = 0;
 
     inline QueueNode Top() const {
         RTTR_Assert(!queue.empty());

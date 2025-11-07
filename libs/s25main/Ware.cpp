@@ -425,3 +425,9 @@ std::string Ware::ToString() const
       << location->GetY();
     return s.str();
 }
+
+void Ware::SetNextDir(RoadPathDirection newNextDir) {
+    next_dir = newNextDir;
+    if (location)
+        location->OnWaresCostChanged();
+}
