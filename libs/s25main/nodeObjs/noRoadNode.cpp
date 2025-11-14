@@ -19,9 +19,7 @@ noRoadNode::noRoadNode(const NodalObjectType nop, const MapPoint pos, const unsi
     last_visit = 0;
 }
 
-noRoadNode::~noRoadNode() {
-    world->GetRoadPathFinder().OnNodeDestroyed(this, world);
-}
+noRoadNode::~noRoadNode() = default;
 
 void noRoadNode::Destroy()
 {

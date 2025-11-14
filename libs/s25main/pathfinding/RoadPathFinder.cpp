@@ -327,6 +327,8 @@ bool RoadPathFinder::FindPathImpl(const noRoadNode& start, const noRoadNode& goa
     return false;
 }
 
+#define USE_DSTAR
+
 bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, const bool wareMode, const unsigned max,
                               const RoadSegment* const forbidden, unsigned* const length,
                               RoadPathDirection* const firstDir, MapPoint* const firstNodePos)
@@ -340,11 +342,11 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
             return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::AvoidSegment(forbidden), length, firstDir, firstNodePos);
         else {
-            static unsigned debug_counter = 0;
-            debug_counter++;
+#ifndef USE_DSTAR
+            return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
+                                firstDir, firstNodePos);
+#else
             unsigned length1;
-            // return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
-            //                     firstDir, firstNodePos);
             bool success = FindPathForWare(start, goal, max, &length1, firstDir, firstNodePos);
 
             unsigned length2;
@@ -373,6 +375,7 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
 
             if (length) *length = length1;
             return success;
+#endif
         }
     } else
     {
@@ -478,6 +481,9 @@ bool RoadPathFinder::FindPathForWare(
     RoadPathDirection* firstDir, 
     MapPoint* firstNodePos)
 {
+    static unsigned dbg = 0;
+    dbg++;
+
     // This function implements D*lite pathfinding as described in
     // https://idm-lab.org/bib/abstracts/papers/aaai02b.pdf
     //
@@ -495,6 +501,7 @@ bool RoadPathFinder::FindPathForWare(
     static unsigned file_idx = 0;
     std::string filename = "dstar_debug." + std::to_string(file_idx++) + "." + std::to_string(start.GetPos().x) + "_" + std::to_string(start.GetPos().y) + "." + std::to_string(goal.GetPos().x) + "_" + std::to_string(goal.GetPos().y) + ".txt";
     out_buffer << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to (" << goal.GetX() << "," << goal.GetY() << ")\n";
+    std::cout << "Starting D*lite from (" << start.GetX() << "," << start.GetY() << ") to (" << goal.GetX() << "," << goal.GetY() << ")\n";
 #endif
 
     // Catch most simple case where start and goal are the same
@@ -523,6 +530,19 @@ bool RoadPathFinder::FindPathForWare(
     // Check for dirty nodes and update them
     auto& U = dstarU.Get(goal.GetPos());
     DStarContext context{ goal.GetPos(), gwb_, U };
+    
+    if (!U.dirty_nodes.empty()) {
+        for (MapPoint pt : U.dirty_nodes) {
+            auto* node = gwb_.GetSpecObj<noRoadNode>(pt);
+            if (!node)
+                continue; // node got deleted
+            unsigned old_rhs = context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs;
+            context.UpdateVertex(pt);
+            out_buffer << "Dirty node (" << pt.x << "," << pt.y << ") updated rhs from " << old_rhs << " to " 
+                       << context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs << "\n";
+        }
+        U.dirty_nodes.clear();
+    }
 
     auto& dbg_goal_vals = gwb_.GetSpecObj<noRoadNode>(goal.GetPos())->dstar.Get(goal.GetPos());
     if (U.queue.empty() && dbg_goal_vals.g != 0)
@@ -535,19 +555,6 @@ bool RoadPathFinder::FindPathForWare(
         std::cout << "check " << filename << std::endl;
 #endif
         RTTR_Assert(!U.queue.empty() || dbg_goal_vals.g == 0);
-    }
-
-    if (!U.dirty_nodes.empty()) {
-        for (MapPoint pt : U.dirty_nodes) {
-            auto* node = gwb_.GetSpecObj<noRoadNode>(pt);
-            if (!node)
-                continue; // node got deleted
-            unsigned old_rhs = context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs;
-            context.UpdateVertex(pt);
-            out_buffer << "Dirty node (" << pt.x << "," << pt.y << ") updated rhs from " << old_rhs << " to " 
-                       << context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs << "\n";
-        }
-        U.dirty_nodes.clear();
     }
 
     DRAW_DSTAR_STEP
@@ -695,16 +702,32 @@ void RoadPathFinder::MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* no
 {
     RTTR_Assert(node);
     std::cout << "Marking node (" << node->GetX() << "," << node->GetY() << ") dirty for goal (" << goalPos.x << "," << goalPos.y << ")\n";
-    dstarU.Get(goalPos).AddDirty(node->GetPos());
+    if (dstarU.Exists(goalPos))
+        dstarU.Get(goalPos).AddDirty(node->GetPos());
 }
 
 void RoadPathFinder::OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world)
 {
+    // if (dstarU.Exists(node->GetPos()))
+    // {
+    //     // Remove this goal from all other nodes
+    //     RTTR_FOREACH_PT(MapPoint, world->GetSize())
+    //     {
+    //         auto* const other_node = world->GetSpecObj<noRoadNode>(pt);
+    //         if (other_node)
+    //             other_node->dstar.Remove(node->GetPos());
+    //     }
+    //     dstarU.Remove(node->GetPos());
+    // }
+
+    // static unsigned dbg = 0;
+    // dbg++;
+
     if (dstarU.Exists(node->GetPos()))
     {
         dstarU.Remove(node->GetPos());
     }
-    // Remove this goal from all other nodes
+
     RTTR_FOREACH_PT(MapPoint, world->GetSize())
     {
         auto* const other_node = world->GetSpecObj<noRoadNode>(pt);
