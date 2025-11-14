@@ -108,6 +108,8 @@ void GameWorld::DestroyFlag(const MapPoint pt, unsigned char playerId)
         // Demolish, also the building
         flag->DestroyAttachedBuilding();
 
+        static unsigned dbg = 0;
+        dbg++;
         DestroyNO(pt, false);
         RecalcBQAroundPointBig(pt);
     }
@@ -696,6 +698,9 @@ void GameWorld::DestroyPlayerRests(const MapPoint pt, unsigned char newOwner, co
         // %i type, %i \n", x, y, noType);
         return;
     }
+
+    static unsigned dbg = 0;
+    dbg++;
 
     // If it is a flag, destroy the building
     if(noType == NodalObjectType::Flag && (!exception || no != exception->GetFlag()))

@@ -78,6 +78,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    srand(1);
+
     try
     {
         // We print arguments and seed in order to be able to reproduce crashes.

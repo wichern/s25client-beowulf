@@ -365,7 +365,8 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
                     ascii.drawPlayer(i);
                 ascii.drawDStar(goal.GetPos());
                 ascii.write();
-                FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
+                unsigned length3 = 0;
+                FindPathForWare(start, goal, max, &length3, firstDir, firstNodePos);
                 FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
             }

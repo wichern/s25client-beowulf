@@ -113,7 +113,8 @@ void noRoadNode::DestroyRoad(const Direction dir, bool updateDstar)
     delete route;
 
     // Spieler Bescheid sagen
-    world->GetPlayer(player).RoadDestroyed();
+    if (updateDstar)
+        world->GetPlayer(player).RoadDestroyed();
 }
 
 /// Vernichtet Alle Straße um diesen Knoten
@@ -134,6 +135,8 @@ void noRoadNode::DestroyAllRoads()
 
     for(const auto dir : helpers::EnumRange<Direction>{})
         DestroyRoad(dir, false);
+
+    world->GetPlayer(player).RoadDestroyed();
 }
 
 void noRoadNode::OnWaresCostChanged()

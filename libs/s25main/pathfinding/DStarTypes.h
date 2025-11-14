@@ -37,6 +37,8 @@ struct QueueNode
 struct OpenList
 {
     std::vector<QueueNode> queue;
+
+    // @todo: we can keep a bitset of dirty nodes to speed up checking for existence
     std::vector<MapPoint> dirty_nodes;
 
     inline QueueNode Top() const {

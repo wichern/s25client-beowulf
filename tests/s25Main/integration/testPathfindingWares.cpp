@@ -197,10 +197,10 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2, EmptyWorldFixture
     const auto* goal = player->getAIInterface().GetHeadquarter();
     auto& pathfinder = world.GetRoadPathFinder();
 
-    AsciiMap map(world);
-    map.drawPlayer(0);
-    map.drawDStar(goal->GetPos());
-    map.write();
+    // AsciiMap map(world);
+    // map.drawPlayer(0);
+    // map.drawDStar(goal->GetPos());
+    // map.write();
 
     // Make a first search so that U is already initialized
     auto* start = world.GetSpecObj<noRoadNode>(MapPoint(11, 11));
@@ -243,10 +243,10 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterSubgraphConnection_Case2b, EmptyWorldFixtur
     const auto* goal = player->getAIInterface().GetHeadquarter();
     auto& pathfinder = world.GetRoadPathFinder();
 
-    AsciiMap map(world);
-    map.drawPlayer(0);
-    map.drawDStar(goal->GetPos());
-    map.write();
+    // AsciiMap map(world);
+    // map.drawPlayer(0);
+    // map.drawDStar(goal->GetPos());
+    // map.write();
 
     // Make a first search so that U is already initialized
     auto* start = world.GetSpecObj<noRoadNode>(MapPoint(11, 15));
@@ -292,10 +292,10 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterGraphSplitted, EmptyWorldFixture1P)
     const auto* goal = player->getAIInterface().GetHeadquarter();
     auto& pathfinder = world.GetRoadPathFinder();
 
-    AsciiMap map(world);
-    map.drawPlayer(0);
-    map.drawDStar(goal->GetPos());
-    map.write();
+    // AsciiMap map(world);
+    // map.drawPlayer(0);
+    // map.drawDStar(goal->GetPos());
+    // map.write();
 
     auto* start = world.GetSpecObj<noRoadNode>(MapPoint(11, 17));
     bool success = pathfinder.FindPathForWare(
@@ -303,14 +303,12 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterGraphSplitted, EmptyWorldFixture1P)
 
     BOOST_TEST_REQUIRE(success);
 
-    map.clear();
-    map.drawPlayer(0);
-    map.drawDStar(goal->GetPos());
-    map.write();
+    // map.clear();
+    // map.drawPlayer(0);
+    // map.drawDStar(goal->GetPos());
+    // map.write();
 
     // split graph
-    //auto* n = world.GetSpecObj<noRoadNode>(MapPoint(12, 13));
-    //n->DestroyRoad(Direction::NorthEast);
     world.DestroyFlag(MapPoint(12, 13), 0);
 
     success = pathfinder.FindPathForWare(
@@ -318,10 +316,86 @@ BOOST_FIXTURE_TEST_CASE(FindPathAfterGraphSplitted, EmptyWorldFixture1P)
 
     BOOST_TEST_REQUIRE(!success);
 
+    // map.clear();
+    // map.drawPlayer(0);
+    // map.drawDStar(goal->GetPos());
+    // map.write();
+}
+
+BOOST_FIXTURE_TEST_CASE(FindPathInRing, EmptyWorldFixture1P)
+{
+    std::unique_ptr<AIPlayer> player(AIFactory::Create(AI::Info(AI::Type::Default, AI::Level::Easy), 0, world));
+
+    world.SetFlag(MapPoint(13, 11), 0);
+    world.BuildRoad(0, false, MapPoint(13, 11), {Direction::West, Direction::West});
+    world.SetFlag(MapPoint(15, 11), 0);
+    world.BuildRoad(0, false, MapPoint(15, 11), {Direction::West, Direction::West});
+    world.SetFlag(MapPoint(16, 13), 0);
+    world.BuildRoad(0, false, MapPoint(16, 13), {Direction::NorthWest, Direction::NorthWest});
+    world.SetFlag(MapPoint(16, 15), 0);
+    world.BuildRoad(0, false, MapPoint(16, 15), {Direction::NorthEast, Direction::NorthWest});
+    world.SetFlag(MapPoint(15, 17), 0);
+    world.BuildRoad(0, false, MapPoint(15, 17), {Direction::NorthEast, Direction::NorthEast});
+    world.SetBuildingSite(BuildingType::Hunter, MapPoint(13, 16), 0);
+    world.BuildRoad(0, false, MapPoint(13, 17), {Direction::East, Direction::East});
+    world.SetFlag(MapPoint(11, 17), 0);
+    world.BuildRoad(0, false, MapPoint(11, 17), {Direction::East, Direction::East});
+    world.SetFlag(MapPoint(9, 17), 0);
+    world.BuildRoad(0, false, MapPoint(9, 17), {Direction::East, Direction::East});
+    world.SetFlag(MapPoint(7, 17), 0);
+    world.BuildRoad(0, false, MapPoint(7, 17), {Direction::East, Direction::East});
+    world.SetFlag(MapPoint(6, 15), 0);
+    world.BuildRoad(0, false, MapPoint(6, 15), {Direction::SouthEast, Direction::SouthEast});
+    world.SetFlag(MapPoint(6, 13), 0);
+    world.BuildRoad(0, false, MapPoint(6, 13), {Direction::SouthWest, Direction::SouthEast});
+    world.SetFlag(MapPoint(7, 11), 0);
+    world.BuildRoad(0, false, MapPoint(7, 11), {Direction::SouthWest, Direction::SouthWest});
+    world.SetFlag(MapPoint(9, 11), 0);
+    world.BuildRoad(0, false, MapPoint(9, 11), {Direction::West, Direction::West});
+    world.BuildRoad(0, false, MapPoint(9, 11), {Direction::East, Direction::East});
+
+    const auto* goal = player->getAIInterface().GetHeadquarter();
+
+    AsciiMap map(world);
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+    
+    auto* start = world.GetSpecObj<noRoadNode>(MapPoint(13, 17));
+    unsigned length = 0;
+    RoadPathDirection firstDir;
+    MapPoint firstNodePos;
+    bool success = world.GetRoadPathFinder().FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    BOOST_TEST_REQUIRE(success);
+    BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::East);
+    BOOST_TEST_REQUIRE(length == 313);
+
     map.clear();
     map.drawPlayer(0);
     map.drawDStar(goal->GetPos());
     map.write();
+
+    // break circle at two points
+    world.DestroyFlag(MapPoint(16, 13), 0);
+    world.DestroyFlag(MapPoint(6, 13), 0);
+
+    map.clear();
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+
+    success = world.GetRoadPathFinder().FindPathForWare(
+        *start, *goal, std::numeric_limits<unsigned>::max(),
+        &length, &firstDir, &firstNodePos);
+
+    map.clear();
+    map.drawPlayer(0);
+    map.drawDStar(goal->GetPos());
+    map.write();
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()
