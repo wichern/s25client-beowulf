@@ -14,7 +14,7 @@
 #include "gameData/GameConsts.h"
 #include "s25util/Log.h"
 
-#define DEBUG_OUT_DSTAR
+//#define DEBUG_OUT_DSTAR
 
 #ifdef DEBUG_OUT_DSTAR
 #include <fstream>
@@ -346,35 +346,36 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
             return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
                                 firstDir, firstNodePos);
 #else
-            unsigned length1;
-            bool success = FindPathForWare(start, goal, max, &length1, firstDir, firstNodePos);
+            // unsigned length1;
+            // bool success = FindPathForWare(start, goal, max, &length1, firstDir, firstNodePos);
 
-            unsigned length2;
-            RoadPathDirection firstDir2;
-            MapPoint firstNodePos2;
-            bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
-                                SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
-            //RTTR_Assert(success == success2);
-            // if (success) {
-            //     RTTR_Assert(!length || *length == length2);
-            //     RTTR_Assert(!firstDir || *firstDir == firstDir2);
-            //     RTTR_Assert(!firstNodePos || *firstNodePos == firstNodePos2);
+            // unsigned length2;
+            // RoadPathDirection firstDir2;
+            // MapPoint firstNodePos2;
+            // bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
+            //                     SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
+            // //RTTR_Assert(success == success2);
+            // // if (success) {
+            // //     RTTR_Assert(!length || *length == length2);
+            // //     RTTR_Assert(!firstDir || *firstDir == firstDir2);
+            // //     RTTR_Assert(!firstNodePos || *firstNodePos == firstNodePos2);
+            // // }
+            // if (success2 != success || (success && (length1 != length2))) {
+            //     // rerun for debugging
+            //     AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
+            //     for (unsigned i = 0; i < gwb_.GetNumPlayers(); ++i)
+            //         ascii.drawPlayer(i);
+            //     ascii.drawDStar(goal.GetPos());
+            //     ascii.write();
+            //     unsigned length3 = 0;
+            //     FindPathForWare(start, goal, max, &length3, firstDir, firstNodePos);
+            //     FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
+            //                     SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
             // }
-            if (success2 != success || (success && (length1 != length2))) {
-                // rerun for debugging
-                AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
-                for (unsigned i = 0; i < gwb_.GetNumPlayers(); ++i)
-                    ascii.drawPlayer(i);
-                ascii.drawDStar(goal.GetPos());
-                ascii.write();
-                unsigned length3 = 0;
-                FindPathForWare(start, goal, max, &length3, firstDir, firstNodePos);
-                FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
-                                SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
-            }
 
-            if (length) *length = length1;
-            return success;
+            // if (length) *length = length1;
+            // return success;
+            return FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
 #endif
         }
     } else
@@ -415,7 +416,7 @@ struct DStarContext
         if (!node)
             return;
 
-        std::cout << "Updating node (" << nodePos.x << "," << nodePos.y << ")\n";
+        //std::cout << "Updating node (" << nodePos.x << "," << nodePos.y << ")\n";
         auto& node_state = GetState(node);
     
         // if u ≠ s_goal then
@@ -448,8 +449,8 @@ struct DStarContext
                 if (n->GetPos() != goal && (n->GetGOT() == GO_Type::Flag || n->GetGOT() == GO_Type::NobHarborbuilding))
                     cost += node->GetPunishmentPoints(dir);
 
-                std::cout << "Cost to node (" << n->GetX() << "," << n->GetY() << ") via " << unsigned(dir)
-                          << " is " << cost << "\n";
+                // std::cout << "Cost to node (" << n->GetX() << "," << n->GetY() << ") via " << unsigned(dir)
+                //           << " is " << cost << "\n";
 
                 if (cost < best_cost)
                     best_cost = cost;
@@ -536,10 +537,14 @@ bool RoadPathFinder::FindPathForWare(
             auto* node = gwb_.GetSpecObj<noRoadNode>(pt);
             if (!node)
                 continue; // node got deleted
+#ifdef DEBUG_OUT_DSTAR
             unsigned old_rhs = context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs;
+#endif
             context.UpdateVertex(pt);
+#ifdef DEBUG_OUT_DSTAR
             out_buffer << "Dirty node (" << pt.x << "," << pt.y << ") updated rhs from " << old_rhs << " to " 
                        << context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs << "\n";
+#endif
         }
         U.dirty_nodes.clear();
     }
@@ -701,7 +706,7 @@ bool RoadPathFinder::PathExists(const noRoadNode& start, const noRoadNode& goal,
 void RoadPathFinder::MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* node)
 {
     RTTR_Assert(node);
-    std::cout << "Marking node (" << node->GetX() << "," << node->GetY() << ") dirty for goal (" << goalPos.x << "," << goalPos.y << ")\n";
+    //std::cout << "Marking node (" << node->GetX() << "," << node->GetY() << ") dirty for goal (" << goalPos.x << "," << goalPos.y << ")\n";
     if (dstarU.Exists(goalPos))
         dstarU.Get(goalPos).AddDirty(node->GetPos());
 }

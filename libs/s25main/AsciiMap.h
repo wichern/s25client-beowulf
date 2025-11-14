@@ -287,12 +287,12 @@ inline void AsciiMap::drawDStar(const MapPoint& goal)
         const noRoadNode* roadNode = gwb_.GetSpecObj<noRoadNode>(pt);
         if (!roadNode)
             continue;
-        
+
         for(Direction dir : helpers::EnumRange<Direction>{}) {
             auto* route = roadNode->GetRoute(dir);
             if (!route)
                 continue;
-            
+
             if (route->GetF1() != roadNode)
                 continue;
 
@@ -305,7 +305,7 @@ inline void AsciiMap::drawDStar(const MapPoint& goal)
 
                 if (i == route->GetLength() / 2) {
                     unsigned cost = route->GetLength();
-                    if (route->GetF1()->GetGOT() == GO_Type::NobHarborbuilding 
+                    if (route->GetF1()->GetGOT() == GO_Type::NobHarborbuilding
                     || route->GetF2()->GetGOT() == GO_Type::NobHarborbuilding
                     || (route->GetF1()->GetGOT() == GO_Type::Flag && route->GetF2()->GetGOT() == GO_Type::Flag))
                         cost += roadNode->GetPunishmentPoints(dir);
@@ -384,7 +384,7 @@ inline void AsciiMap::clear()
             continue;
         if(pt.y < offset_.y || pt.y - offset_.y >= map_size_.y)
             continue;
-            
+
         if(gwb_.IsWaterPoint(pt))
             draw(pt, '~');
         else if(const auto* obj = gwb_.GetNode(pt).obj) {

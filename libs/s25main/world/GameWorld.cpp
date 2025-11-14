@@ -154,7 +154,6 @@ void GameWorld::SetBuildingSite(const BuildingType type, const MapPoint pt, cons
     auto* bs = new noBuildingSite(type, pt, player);
     SetNO(pt, bs);
     bs->OrderConstructionMaterial();
-    //SetNO(pt, new noBuildingSite(type, pt, player));
     if(gi)
         gi->GI_UpdateMinimap(pt);
 
