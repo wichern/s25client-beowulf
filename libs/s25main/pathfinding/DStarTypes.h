@@ -10,6 +10,9 @@
 #include <vector>
 #include <functional>
 #include <map>
+#include <bitset>
+#include <utility> /* std::swap */
+#include "gameData/MapConsts.h"
 
 class noRoadNode;
 
@@ -36,28 +39,36 @@ struct QueueNode
 // Simple priority queue implementation for D*lite
 struct OpenList
 {
+    // To speed up the call to Top(), we make sure that the first element in the queue is always the min element.
     std::vector<QueueNode> queue;
 
     // @todo: we can keep a bitset of dirty nodes to speed up checking for existence
     std::vector<MapPoint> dirty_nodes;
 
-    inline QueueNode Top() const {
+    inline QueueNode Top() {
         RTTR_Assert(!queue.empty());
-        if (queue.size() == 1)
-            return queue.front();
-        // return best entry
-        QueueNode best = queue.front();
-        for (const auto& node : queue) {
-            if (node.key < best.key)
-                best = node;
-        }
-        return best;
+        return queue.front();
     }
 
     inline void Remove(const MapPoint& nodePos) {
-        for (auto it = queue.begin(); it != queue.end(); ++it) {
-            if (it->nodePos == nodePos) {
-                queue.erase(it);
+        for (unsigned i = 0; i < queue.size(); ++i) {
+            const auto& node = queue[i];
+            if (node.nodePos == nodePos) {
+                queue.erase(queue.begin() + i);
+                if (i == 0) {
+                    unsigned best_key = queue.front().key;
+                    unsigned best_idx = 0;
+                    for (unsigned i = 1; i < queue.size(); ++i) {
+                        const auto& node = queue[i];
+                        if (node.key < best_key) {
+                            best_key = node.key;
+                            best_idx = i;
+                        }
+                    }
+                    if (best_idx != 0) {
+                        std::swap(queue[0], queue[best_idx]);
+                    }
+                }
                 return;
             }
         }
@@ -65,6 +76,8 @@ struct OpenList
 
     inline void Push(QueueNode node) {
         queue.push_back(node);
+        if (node.key < queue.front().key)
+            std::swap(queue.front(), queue.back());
     }
 
     inline void AddDirty(MapPoint pos) {
@@ -77,6 +90,7 @@ struct OpenList
 // Container for per-goal data stored in nodes and RoadPathFinder.
 // Value type must be default-constructible.
 // Key type must be hashable and comparable.
+#if 0
 template<typename T>
 class GoalContainer
 {
@@ -104,5 +118,40 @@ public:
         map.erase(goal);
     }
 };
+#else
+struct MapPointHasher {
+    std::size_t operator()(MapPoint const& pt) const noexcept {
+        static_assert(MAX_MAP_SIZE == 2048);
+        return (pt.y << 11) | pt.x;
+    }
+};
+
+template<typename T>
+class GoalContainer
+{
+public:
+    std::unordered_map<MapPoint, T, MapPointHasher> map;
+
+    inline bool Exists(const MapPoint& goal) const {
+        return map.find(goal) != map.end();
+    }
+
+    inline T& Get(const MapPoint& goal)
+    {
+        auto [it, _] = map.emplace(goal, T());
+        return it->second;
+    }
+    
+    inline const T& Get(const MapPoint& goal) const
+    {
+        auto [it, _] = map.emplace(goal, T());
+        return it->second;
+    }
+
+    inline void Remove(const MapPoint& goal) {
+        map.erase(goal);
+    }
+};
+#endif
 
 }

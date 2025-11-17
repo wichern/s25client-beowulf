@@ -101,7 +101,6 @@ struct WorldFixture
           em(static_cast<TestEventManager&>(*game->em_)), ggs(const_cast<GlobalGameSettings&>(game->ggs_)),
           world(game->world_), worldCreator(MapExtent(T_width, T_height))
     {
-        srand(0);
         // Fast moving ships
         ggs.setSelection(AddonId::SHIP_SPEED, 4);
         // Explored area stays explored. Avoids fow creation

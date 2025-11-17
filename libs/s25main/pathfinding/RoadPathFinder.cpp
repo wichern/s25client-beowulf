@@ -342,39 +342,30 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
             return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::AvoidSegment(forbidden), length, firstDir, firstNodePos);
         else {
-#ifndef USE_DSTAR
-            return FindPathImpl(start, goal, max, AdditonalCosts::Carrier(), SegmentConstraints::None(), length,
-                                firstDir, firstNodePos);
+#ifndef NDEBUG
+            unsigned length1;
+            bool success = FindPathForWare(start, goal, max, &length1, firstDir, firstNodePos);
+
+            unsigned length2;
+            RoadPathDirection firstDir2;
+            MapPoint firstNodePos2;
+            bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
+                                SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
+            if (success2 != success || (success && (length1 != length2))) {
+                AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
+                for (unsigned i = 0; i < gwb_.GetNumPlayers(); ++i)
+                    ascii.drawPlayer(i);
+                ascii.drawDStar(goal.GetPos());
+                ascii.write();
+                unsigned length3 = 0;
+                FindPathForWare(start, goal, max, &length3, firstDir, firstNodePos);
+                FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
+                                SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
+            }
+
+            if (length) *length = length1;
+            return success;
 #else
-            // unsigned length1;
-            // bool success = FindPathForWare(start, goal, max, &length1, firstDir, firstNodePos);
-
-            // unsigned length2;
-            // RoadPathDirection firstDir2;
-            // MapPoint firstNodePos2;
-            // bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
-            //                     SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
-            // //RTTR_Assert(success == success2);
-            // // if (success) {
-            // //     RTTR_Assert(!length || *length == length2);
-            // //     RTTR_Assert(!firstDir || *firstDir == firstDir2);
-            // //     RTTR_Assert(!firstNodePos || *firstNodePos == firstNodePos2);
-            // // }
-            // if (success2 != success || (success && (length1 != length2))) {
-            //     // rerun for debugging
-            //     AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
-            //     for (unsigned i = 0; i < gwb_.GetNumPlayers(); ++i)
-            //         ascii.drawPlayer(i);
-            //     ascii.drawDStar(goal.GetPos());
-            //     ascii.write();
-            //     unsigned length3 = 0;
-            //     FindPathForWare(start, goal, max, &length3, firstDir, firstNodePos);
-            //     FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
-            //                     SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
-            // }
-
-            // if (length) *length = length1;
-            // return success;
             return FindPathForWare(start, goal, max, length, firstDir, firstNodePos);
 #endif
         }
@@ -482,9 +473,6 @@ bool RoadPathFinder::FindPathForWare(
     RoadPathDirection* firstDir, 
     MapPoint* firstNodePos)
 {
-    static unsigned dbg = 0;
-    dbg++;
-
     // This function implements D*lite pathfinding as described in
     // https://idm-lab.org/bib/abstracts/papers/aaai02b.pdf
     //
@@ -549,18 +537,18 @@ bool RoadPathFinder::FindPathForWare(
         U.dirty_nodes.clear();
     }
 
-    auto& dbg_goal_vals = gwb_.GetSpecObj<noRoadNode>(goal.GetPos())->dstar.Get(goal.GetPos());
-    if (U.queue.empty() && dbg_goal_vals.g != 0)
-    {
-        DRAW_DSTAR_STEP_STDOUT
-#ifdef DEBUG_OUT_DSTAR
-        std::ofstream out(filename, std::ios::trunc);
-        out << out_buffer.str();
-        out.close();
-        std::cout << "check " << filename << std::endl;
-#endif
-        RTTR_Assert(!U.queue.empty() || dbg_goal_vals.g == 0);
-    }
+//     auto& dbg_goal_vals = gwb_.GetSpecObj<noRoadNode>(goal.GetPos())->dstar.Get(goal.GetPos());
+//     if (U.queue.empty() && dbg_goal_vals.g != 0)
+//     {
+//         DRAW_DSTAR_STEP_STDOUT
+// #ifdef DEBUG_OUT_DSTAR
+//         std::ofstream out(filename, std::ios::trunc);
+//         out << out_buffer.str();
+//         out.close();
+//         std::cout << "check " << filename << std::endl;
+// #endif
+//         RTTR_Assert(!U.queue.empty() || dbg_goal_vals.g == 0);
+//     }
 
     DRAW_DSTAR_STEP
 
@@ -724,9 +712,6 @@ void RoadPathFinder::OnNodeDestroyed(const noRoadNode* node, const GameWorldBase
     //     }
     //     dstarU.Remove(node->GetPos());
     // }
-
-    // static unsigned dbg = 0;
-    // dbg++;
 
     if (dstarU.Exists(node->GetPos()))
     {
