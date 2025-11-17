@@ -33,6 +33,7 @@ protected:
     /// Zerstört Anbauten, falls es sich um ein großes Gebäude handelt (wo es diese auch gibt)
     void DestroyBuildingExtensions();
 
+
 public:
     noBaseBuilding(NodalObjectType nop, BuildingType type, MapPoint pos, unsigned char player);
     noBaseBuilding(SerializedGameData& sgd, unsigned obj_id);
@@ -76,4 +77,6 @@ public:
     static ITexture& GetBuildingImage(BuildingType type, Nation nation);
     /// Gibt ein Bild zurück für die Tür des Gebäudes
     ITexture& GetDoorImage() const;
+
+    mutable std::shared_ptr<dstar::OpenList> dstarU;
 };

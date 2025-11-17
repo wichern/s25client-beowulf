@@ -6,7 +6,6 @@
 
 #include "gameTypes/MapCoordinates.h"
 #include "gameTypes/RoadPathDirection.h"
-#include "pathfinding/DStarTypes.h"
 #include <limits>
 #include <queue>
 
@@ -18,9 +17,6 @@ class RoadPathFinder
 {
     GameWorldBase& gwb_;
     unsigned currentVisit;
-
-    // global list of priority queues for D*lite per goal
-    dstar::GoalContainer<dstar::OpenList> dstarU;
 
 public:
     RoadPathFinder(GameWorldBase& gwb) : gwb_(gwb), currentVisit(0) {}

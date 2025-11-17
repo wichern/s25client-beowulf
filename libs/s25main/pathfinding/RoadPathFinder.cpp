@@ -485,6 +485,9 @@ bool RoadPathFinder::FindPathForWare(
     //   mark nodes as dirty when edges change and process them at the start of
     //   the search.
 
+    RTTR_Assert(goal.GetType() == NodalObjectType::Building || goal.GetType() == NodalObjectType::Buildingsite);
+    const auto& goalBuilding = dynamic_cast<const noBaseBuilding&>(goal);
+
 #ifdef DEBUG_OUT_DSTAR
     std::ostringstream out_buffer;
     static unsigned file_idx = 0;
@@ -507,17 +510,15 @@ bool RoadPathFinder::FindPathForWare(
     }
 
     // Check if we ever searched for this goal and initialize U if not.
-    if (!dstarU.Exists(goal.GetPos())) {
+    if (!goalBuilding.dstarU) {
+        goalBuilding.dstarU = std::make_shared<dstar::OpenList>();
         dstar::QueueNode rootNode{goal.GetPos(), 0};
-        dstarU.Get(goal.GetPos()).Push(rootNode);
+        goalBuilding.dstarU->Push(rootNode);
         goal.dstar.Get(goal.GetPos()).rhs = 0;
-#ifdef DEBUG_OUT_DSTAR
-        out_buffer << "NEW GOAL: Initializing...\n";
-#endif
     }
 
     // Check for dirty nodes and update them
-    auto& U = dstarU.Get(goal.GetPos());
+    auto& U = *goalBuilding.dstarU;
     DStarContext context{ goal.GetPos(), gwb_, U };
     
     if (!U.dirty_nodes.empty()) {
@@ -694,29 +695,18 @@ bool RoadPathFinder::PathExists(const noRoadNode& start, const noRoadNode& goal,
 void RoadPathFinder::MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* node)
 {
     RTTR_Assert(node);
-    //std::cout << "Marking node (" << node->GetX() << "," << node->GetY() << ") dirty for goal (" << goalPos.x << "," << goalPos.y << ")\n";
-    if (dstarU.Exists(goalPos))
-        dstarU.Get(goalPos).AddDirty(node->GetPos());
+    const noBaseBuilding* goalBuilding = gwb_.GetSpecObj<const noBaseBuilding>(goalPos);
+    if (goalBuilding && goalBuilding->dstarU) {
+        goalBuilding->dstarU->AddDirty(node->GetPos());
+    }
 }
 
 void RoadPathFinder::OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world)
 {
-    // if (dstarU.Exists(node->GetPos()))
-    // {
-    //     // Remove this goal from all other nodes
-    //     RTTR_FOREACH_PT(MapPoint, world->GetSize())
-    //     {
-    //         auto* const other_node = world->GetSpecObj<noRoadNode>(pt);
-    //         if (other_node)
-    //             other_node->dstar.Remove(node->GetPos());
-    //     }
-    //     dstarU.Remove(node->GetPos());
-    // }
+    const noBaseBuilding* goalBuilding = dynamic_cast<const noBaseBuilding*>(node);
 
-    if (dstarU.Exists(node->GetPos()))
-    {
-        dstarU.Remove(node->GetPos());
-    }
+    if (goalBuilding && goalBuilding->dstarU)
+        goalBuilding->dstarU.reset();
 
     RTTR_FOREACH_PT(MapPoint, world->GetSize())
     {
