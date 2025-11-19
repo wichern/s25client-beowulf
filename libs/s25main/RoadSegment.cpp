@@ -12,6 +12,7 @@
 #include "world/GameWorld.h"
 #include "nodeObjs/noFlag.h"
 #include "nodeObjs/noRoadNode.h"
+#include "pathfinding/RoadPathFinder.h"
 #include "gameData/BuildingProperties.h"
 #include "s25util/Log.h"
 #include <utility>
@@ -152,10 +153,14 @@ void RoadSegment::SplitRoad(noFlag* splitflag)
     // f1 = f1;
     f2 = splitflag;
 
-    noRoadNode::SetRoute(f1, splitflag, route, this);
+    noRoadNode::SetRoute(f1, splitflag, route, this, false);
 
     // 2nd section from this F to F2
-    noRoadNode::SetRoute(splitflag, second->f2, second_route, second);
+    noRoadNode::SetRoute(splitflag, second->f2, second_route, second, false);
+
+    world->GetRoadPathFinder().MarkNodeDirty(f1);
+    world->GetRoadPathFinder().MarkNodeDirty(splitflag);  // @todo: neccessary?
+    world->GetRoadPathFinder().MarkNodeDirty(f2);
 
     // Notify all characters on the road
     t = f1->GetPos();

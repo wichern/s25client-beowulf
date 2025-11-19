@@ -119,44 +119,33 @@ void noRoadNode::DestroyRoad(const Direction dir, bool updateDstar)
 void noRoadNode::DestroyAllRoads()
 {
     // Alle Straßen um mich herum zerstören
-    for(const auto z : helpers::EnumRange<Direction>{})
-    {
-        if(routes[z])
-        {
-            if (routes[z]->GetF2() == this)
-                routes[z]->GetF1()->OnWaresCostChanged();
-            else
-                routes[z]->GetF2()->OnWaresCostChanged();
+    for(const auto dir : helpers::EnumRange<Direction>{}) {
+        if(routes[dir]) {
+            noRoadNode* neighbour = routes[dir]->GetF1();
+            if (neighbour == this)
+                neighbour = routes[dir]->GetF2();
+            DestroyRoad(dir, false);
+            neighbour->OnWaresCostChanged();
         }
     }
     OnWaresCostChanged();
-
-    for(const auto dir : helpers::EnumRange<Direction>{})
-        DestroyRoad(dir, false);
 
     world->GetPlayer(player).RoadDestroyed();
 }
 
 void noRoadNode::OnWaresCostChanged()
 {
-    for (auto& [goal_pos, _] : dstar.map)
-        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, this);
+    world->GetRoadPathFinder().MarkNodeDirty(this);
 }
 
-void noRoadNode::SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment)
+void noRoadNode::SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment, bool updatedstar)
 {
     n1->SetRoute(route.front(), segment);
     n2->SetRoute(route.back() + 3u, segment);
 
-    // For all of one of the nodes goals, add both nodes to the dirty list.
-    for (auto& [goal_pos, _] : n1->dstar.map) {
-        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n1);
-        world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n2);
-    }
-    if (n1 != n2) {
-        for (auto& [goal_pos, _] : n2->dstar.map) {
-            world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n1);
-            world->GetRoadPathFinder().MarkNodeDirty(goal_pos, n2);
-        }
+    if (updatedstar) {
+        world->GetRoadPathFinder().MarkNodeDirty(n1);
+        if (n1 != n2)
+            world->GetRoadPathFinder().MarkNodeDirty(n2);
     }
 }

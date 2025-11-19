@@ -42,9 +42,6 @@ struct OpenList
     // To speed up the call to Top(), we make sure that the first element in the queue is always the min element.
     std::vector<QueueNode> queue;
 
-    // @todo: we can keep a bitset of dirty nodes to speed up checking for existence
-    std::vector<MapPoint> dirty_nodes;
-
     inline QueueNode Top() {
         RTTR_Assert(!queue.empty());
         return queue.front();
@@ -78,12 +75,6 @@ struct OpenList
         queue.push_back(node);
         if (node.key < queue.front().key)
             std::swap(queue.front(), queue.back());
-    }
-
-    inline void AddDirty(MapPoint pos) {
-        // add to dirty nodes if not already present
-        if (!helpers::contains(dirty_nodes, pos))
-            dirty_nodes.push_back(pos);
     }
 };
 
@@ -131,6 +122,8 @@ class GoalContainer
 {
 public:
     std::unordered_map<MapPoint, T, MapPointHasher> map;
+
+    inline bool Empty() const { return map.empty(); }
 
     inline bool Exists(const MapPoint& goal) const {
         return map.find(goal) != map.end();

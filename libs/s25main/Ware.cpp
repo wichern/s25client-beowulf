@@ -329,8 +329,12 @@ bool Ware::FindRouteToWarehouse()
         }
         if (location)
             location->OnWaresCostChanged();
-    } else
+    } else {
         next_dir = RoadPathDirection::None; // Make sure we are not going anywhere
+        
+        if (location)
+            location->OnWaresCostChanged(); // @todo: neccessary?
+    }
     return goal != nullptr;
 }
 

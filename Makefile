@@ -30,11 +30,13 @@ debug_ai_battle:
 	cmake -S . -B $(BUILD_DEBUG) -DCMAKE_BUILD_TYPE=Debug
 	$(MAKE) -C $(BUILD_DEBUG) -j$(shell nproc) ai-battle
 
-$(BUILD_DEBUG)/bin/Test_integration:
+.PHONY: debug_Test_integration
+debug_Test_integration:
 	mkdir -p $(BUILD_DEBUG)
 	cmake -S . -B $(BUILD_DEBUG) -DCMAKE_BUILD_TYPE=Debug
 	$(MAKE) -C $(BUILD_DEBUG) -j$(shell nproc) Test_integration
 
+. PHONY: release_ai_battle
 release_ai_battle:
 	mkdir -p $(BUILD_RELEASE)
 	cmake -S . -B $(BUILD_RELEASE) -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -45,7 +47,7 @@ debug_run: debug_ai_battle $(BUILD_DEBUG)/share/s25rttr/RTTR
 	cd $(BUILD_DEBUG) && $(TESTCASE)
 
 .PHONY: debug_test
-debug_test: $(BUILD_DEBUG)/bin/Test_integration $(BUILD_DEBUG)/share/s25rttr/RTTR
+debug_test: debug_Test_integration $(BUILD_DEBUG)/share/s25rttr/RTTR
 	cd $(BUILD_DEBUG) && ./bin/Test_integration --run_test=PathfindingWaresSuite
 
 .PHONY: time
@@ -93,6 +95,31 @@ vscode-debug-config:
     '          }' \
     '      ]' \
 	'      "miDebuggerPath": "/usr/bin/gdb"' \
+	'    },' \
+	'    {' \
+	'      "name": "Debug Test_integration",' \
+	'      "type": "cppdbg",' \
+	'      "request": "launch",' \
+	'      "program": "$${workspaceFolder}/build_debug/bin/Test_integration",' \
+	'      "args": ["--run_test=PathfindingWaresSuite"],' \
+	'      "cwd": "$${fileDirname}",' \
+	'      "stopAtEntry": false,' \
+	'      "environment": [],' \
+	'      "externalConsole": false,' \
+	'      "MIMode": "gdb",' \
+    '      "setupCommands": [' \
+    '          {' \
+    '              "description": "Enable pretty-printing for gdb",' \
+    '              "text": "-enable-pretty-printing",' \
+    '              "ignoreFailures": true' \
+    '          },' \
+    '          {' \
+    '              "description": "Set Disassembly Flavor to Intel",' \
+    '              "text": "-gdb-set disassembly-flavor intel",' \
+    '              "ignoreFailures": true' \
+    '          }' \
+    '      ]' \
+	'      "miDebuggerPath": "/usr/bin/gdb"' \
 	'    }' \
 	'  ]' \
 	'}' \
@@ -109,3 +136,10 @@ vscode-debug-config:
 # * 18.960s
 # * 18.363s
 # * 18.365
+#
+# Directly update all vertices in batches
+# [ ] update UT to make sure that goal is always a building
+# [ ] debug vertex updates
+#
+#
+# Implement Update() or lazy remove in U

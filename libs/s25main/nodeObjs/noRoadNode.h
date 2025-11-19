@@ -65,7 +65,7 @@ public:
 
     void OnWaresCostChanged();
     mutable dstar::GoalContainer<dstar::NodeState> dstar;
-    static void SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment);
+    static void SetRoute(noRoadNode* n1, noRoadNode* n2, const std::vector<Direction>& route, RoadSegment* segment, bool updatedstar = true);
 };
 
 inline noRoadNode* noRoadNode::GetNeighbour(const Direction dir) const

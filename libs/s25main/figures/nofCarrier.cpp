@@ -522,6 +522,7 @@ void nofCarrier::GoalReached()
     // Wir arbeiten schonmal
     StartWorking();
 
+    state = CarrierState::GotoMiddleOfRoad;
     workplace->GetF1()->OnWaresCostChanged();
     workplace->GetF2()->OnWaresCostChanged();
 
@@ -540,7 +541,6 @@ void nofCarrier::GoalReached()
             rs_pos = 0;
             rs_dir = rn != cur_rs->GetF1();
 
-            state = CarrierState::GotoMiddleOfRoad;
 
             // Wenn hier schon Waren liegen, diese gleich transportieren
             if(workplace->AreWareJobs(rs_dir, ct, true))

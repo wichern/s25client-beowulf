@@ -13,6 +13,7 @@
 #include "buildings/nobBaseWarehouse.h"
 #include "factories/BuildingFactory.h"
 #include "network/GameClient.h"
+#include "nodeObjs/noFlag.h"
 #include "notifications/BuildingNote.h"
 #include "ogl/glArchivItem_Bitmap_Player.h"
 #include "ogl/glSmartBitmap.h"
@@ -153,6 +154,8 @@ void nofBuilder::HandleDerivedEvent(const unsigned id)
                 deletePtr(building_site);
 
                 noBuilding* bld = BuildingFactory::CreateBuilding(*world, building_type, pos, player, building_nation);
+                bld->OnWaresCostChanged(); // @todo: neccessary?
+                //bld->GetFlag()->OnWaresCostChanged();
                 world->GetNotifications().publish(BuildingNote(BuildingNote::Constructed, player, pos, building_type));
 
                 // Special handling for warehouses

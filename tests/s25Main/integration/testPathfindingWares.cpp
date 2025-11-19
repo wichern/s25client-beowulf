@@ -47,7 +47,7 @@ BOOST_FIXTURE_TEST_CASE(FindPathOneSegment, EmptyWorldFixture1P)
     auto& pathfinder = world.GetRoadPathFinder();
 
     const auto* start = world.GetSpecObj<noRoadNode>(MapPoint(13, 11));
-    const auto* goal = player->getAIInterface().GetHeadquarter()->GetFlag();
+    const auto* goal = player->getAIInterface().GetHeadquarter();
 
     unsigned length = 0;
     RoadPathDirection firstDir;
@@ -130,8 +130,16 @@ BOOST_FIXTURE_TEST_CASE(FindPathTriangle, EmptyWorldFixture1P)
     BOOST_TEST_REQUIRE(success);
     BOOST_TEST_REQUIRE(toDirection(firstDir) == Direction::SouthWest);
 
+    // AsciiMap map(world);
+    // map.drawDStar(goal->GetPos());
+    // map.write();
+
     // Remove flag
     world.DestroyFlag(MapPoint(10, 13), 0);
+    
+    // map.clear();
+    // map.drawDStar(goal->GetPos());
+    // map.write();
 
     success = pathfinder.FindPathForWare(
         *start, *goal, std::numeric_limits<unsigned>::max(),
@@ -395,7 +403,6 @@ BOOST_FIXTURE_TEST_CASE(FindPathInRing, EmptyWorldFixture1P)
     map.drawPlayer(0);
     map.drawDStar(goal->GetPos());
     map.write();
-
 }
 
 BOOST_AUTO_TEST_SUITE_END()

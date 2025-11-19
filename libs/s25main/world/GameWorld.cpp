@@ -150,6 +150,7 @@ void GameWorld::SetBuildingSite(const BuildingType type, const MapPoint pt, cons
 
     // Baustelle setzen
     auto* bs = new noBuildingSite(type, pt, player);
+    bs->OnWaresCostChanged(); // @todo: neccessary?
     SetNO(pt, bs);
     bs->OrderConstructionMaterial();
     if(gi)

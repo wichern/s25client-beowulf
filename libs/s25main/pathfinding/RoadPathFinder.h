@@ -12,6 +12,7 @@
 class GameWorldBase;
 class noRoadNode;
 class RoadSegment;
+class noBaseBuilding;
 
 class RoadPathFinder
 {
@@ -47,7 +48,7 @@ public:
     bool PathExists(const noRoadNode& start, const noRoadNode& goal, bool allowWaterRoads,
                     unsigned max = std::numeric_limits<unsigned>::max(), const RoadSegment* forbidden = nullptr);
 
-    void MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* node);
+    void MarkNodeDirty(const noRoadNode* node);
 
     void OnNodeDestroyed(const noRoadNode* node, const GameWorldBase* world);
 

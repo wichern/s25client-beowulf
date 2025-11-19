@@ -6,6 +6,7 @@
 #include "EventManager.h"
 #include "RttrForeachPt.h"
 #include "buildings/nobHarborBuilding.h"
+#include "pathfinding/DStarTypes.h"
 #include "pathfinding/OpenListPrioQueue.h"
 #include "pathfinding/OpenListVector.h"
 #include "world/GameWorldBase.h"
@@ -343,6 +344,8 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
                                 SegmentConstraints::AvoidSegment(forbidden), length, firstDir, firstNodePos);
         else {
 #ifndef NDEBUG
+            static unsigned dbg = 0;
+            dbg++;
             unsigned length1;
             bool success = FindPathForWare(start, goal, max, &length1, firstDir, firstNodePos);
 
@@ -352,7 +355,7 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
             bool success2 = FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
             if (success2 != success || (success && (length1 != length2))) {
-                AsciiMap ascii(gwb_, goal.GetPos(), 10, 3, AsciiMap::Border::Locations);
+                AsciiMap ascii(gwb_, goal.GetPos(), 20, 3, AsciiMap::Border::Locations);
                 for (unsigned i = 0; i < gwb_.GetNumPlayers(); ++i)
                     ascii.drawPlayer(i);
                 ascii.drawDStar(goal.GetPos());
@@ -361,6 +364,7 @@ bool RoadPathFinder::FindPath(const noRoadNode& start, const noRoadNode& goal, c
                 FindPathForWare(start, goal, max, &length3, firstDir, firstNodePos);
                 FindPathImpl(start, goal, max, AdditonalCosts::Carrier(),
                                 SegmentConstraints::None(), &length2, &firstDir2, &firstNodePos2);
+                RTTR_Assert(false);
             }
 
             if (length) *length = length1;
@@ -391,7 +395,7 @@ struct DStarContext
     unsigned CalculateKey(const noRoadNode* node)
     {
         const auto& node_values = node->dstar.Get(goal);
-        return std::min(node_values.g, node_values.rhs);
+        return std::min(node_values.g, node_values.rhs)/* + world.CalcDistance(node->GetPos(), goal)*/;
     }
 
     dstar::NodeState& GetState(const noRoadNode* node)
@@ -407,7 +411,6 @@ struct DStarContext
         if (!node)
             return;
 
-        //std::cout << "Updating node (" << nodePos.x << "," << nodePos.y << ")\n";
         auto& node_state = GetState(node);
     
         // if u ≠ s_goal then
@@ -439,9 +442,6 @@ struct DStarContext
                 // we ignore additional path costs to non-harbor buildings
                 if (n->GetPos() != goal && (n->GetGOT() == GO_Type::Flag || n->GetGOT() == GO_Type::NobHarborbuilding))
                     cost += node->GetPunishmentPoints(dir);
-
-                // std::cout << "Cost to node (" << n->GetX() << "," << n->GetY() << ") via " << unsigned(dir)
-                //           << " is " << cost << "\n";
 
                 if (cost < best_cost)
                     best_cost = cost;
@@ -481,9 +481,6 @@ bool RoadPathFinder::FindPathForWare(
     //   Therefore we maintain a global open list (dstarU) per goal node.
     //   For the same reason, we cannot use the km value as described in the paper,
     //   instead we increment it whenever we have dirty nodes to process.
-    // - We do not have dynamic changes to the graph while searching, instead we
-    //   mark nodes as dirty when edges change and process them at the start of
-    //   the search.
 
     RTTR_Assert(goal.GetType() == NodalObjectType::Building || goal.GetType() == NodalObjectType::Buildingsite);
     const auto& goalBuilding = dynamic_cast<const noBaseBuilding&>(goal);
@@ -517,40 +514,9 @@ bool RoadPathFinder::FindPathForWare(
         goal.dstar.Get(goal.GetPos()).rhs = 0;
     }
 
-    // Check for dirty nodes and update them
     auto& U = *goalBuilding.dstarU;
     DStarContext context{ goal.GetPos(), gwb_, U };
     
-    if (!U.dirty_nodes.empty()) {
-        for (MapPoint pt : U.dirty_nodes) {
-            auto* node = gwb_.GetSpecObj<noRoadNode>(pt);
-            if (!node)
-                continue; // node got deleted
-#ifdef DEBUG_OUT_DSTAR
-            unsigned old_rhs = context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs;
-#endif
-            context.UpdateVertex(pt);
-#ifdef DEBUG_OUT_DSTAR
-            out_buffer << "Dirty node (" << pt.x << "," << pt.y << ") updated rhs from " << old_rhs << " to " 
-                       << context.GetState(gwb_.GetSpecObj<noRoadNode>(pt)).rhs << "\n";
-#endif
-        }
-        U.dirty_nodes.clear();
-    }
-
-//     auto& dbg_goal_vals = gwb_.GetSpecObj<noRoadNode>(goal.GetPos())->dstar.Get(goal.GetPos());
-//     if (U.queue.empty() && dbg_goal_vals.g != 0)
-//     {
-//         DRAW_DSTAR_STEP_STDOUT
-// #ifdef DEBUG_OUT_DSTAR
-//         std::ofstream out(filename, std::ios::trunc);
-//         out << out_buffer.str();
-//         out.close();
-//         std::cout << "check " << filename << std::endl;
-// #endif
-//         RTTR_Assert(!U.queue.empty() || dbg_goal_vals.g == 0);
-//     }
-
     DRAW_DSTAR_STEP
 
     auto start_vals = start.dstar.Get(goal.GetPos());
@@ -692,12 +658,66 @@ bool RoadPathFinder::PathExists(const noRoadNode& start, const noRoadNode& goal,
     }
 }
 
-void RoadPathFinder::MarkNodeDirty(const MapPoint& goalPos, const noRoadNode* node)
+void RoadPathFinder::MarkNodeDirty(const noRoadNode* node)
 {
     RTTR_Assert(node);
-    const noBaseBuilding* goalBuilding = gwb_.GetSpecObj<const noBaseBuilding>(goalPos);
-    if (goalBuilding && goalBuilding->dstarU) {
-        goalBuilding->dstarU->AddDirty(node->GetPos());
+
+    // If this node is not part of any pathfinding, we can skip it.
+    // if (node->dstar.Empty())
+    //     return;
+
+    // calculate costs of to all adjacent nodes
+    std::vector<std::tuple<const noRoadNode*, unsigned, unsigned>> neighbours;
+    for (const auto dir : helpers::EnumRange<Direction>{}) {
+        const auto* route = node->getRoutes()[dir];
+        if (!route)
+            continue;
+
+        const noRoadNode* neighbour = route->GetF1();
+        if (neighbour == node)
+            neighbour = route->GetF2();
+
+        unsigned edge_cost = 0;
+        if (neighbour->GetGOT() == GO_Type::Flag || neighbour->GetGOT() == GO_Type::NobHarborbuilding)
+            edge_cost = node->GetPunishmentPoints(dir);
+
+        neighbours.push_back({neighbour, edge_cost, route->GetLength()});
+    }
+
+    // loop over all goals that use this node
+    for (auto& [goal_pos, state] : node->dstar.map) {
+        noBaseBuilding* goal_bld = gwb_.GetSpecObj<noBaseBuilding>(goal_pos);
+        if (!goal_bld)
+            continue;
+
+        if (goal_pos != node->GetPos()) {
+            unsigned best_cost = std::numeric_limits<unsigned>::max();
+            for (const auto& [neighbour, edge_cost, route_len] : neighbours) {
+                // edges that lead to a building which is not the goal are ignored
+                if (neighbour->GetPos() != goal_pos && neighbour->GetGOT() != GO_Type::Flag && neighbour->GetGOT() != GO_Type::NobHarborbuilding)
+                    continue;
+
+                unsigned cost = neighbour->dstar.Get(goal_pos).g;
+                if (cost == std::numeric_limits<unsigned>::max())
+                    continue;
+
+                cost += route_len;
+
+                // we ignore additional path costs to non-harbor buildings
+                if (neighbour->GetPos() != goal_pos && (neighbour->GetGOT() != GO_Type::Flag || neighbour->GetGOT() != GO_Type::NobHarborbuilding))
+                    cost += edge_cost;
+
+                best_cost = std::min(best_cost, cost);
+            }
+            // @todo if harbor: for all other harbor connections
+            
+            state.rhs = best_cost;
+        }
+
+        auto U = goal_bld->dstarU;
+        U->Remove(node->GetPos());
+        if (state.g != state.rhs)
+            U->Push(dstar::QueueNode{node->GetPos(), std::min(state.g, state.rhs)});
     }
 }
 
